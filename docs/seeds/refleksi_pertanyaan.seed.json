@@ -1,0 +1,202 @@
+{
+  "_meta": {
+    "deskripsi": "Seed default 17 pertanyaan Refleksi Bulanan Beswan (dari PCM & AnC). Di-load ke tabel `refleksi_pertanyaan`. Pertanyaan editable admin — ini hanya nilai awal.",
+    "target_table": "refleksi_pertanyaan",
+    "referensi": "implementation_plan.md → Refleksi Bulanan Beswan — Form",
+    "catatan": [
+      "`kode` = identifier stabil; jangan diubah setelah produksi karena dipakai untuk `kondisi` & analitik historis.",
+      "`opsi` = null kecuali field_type dropdown / single_choice / linear_scale.",
+      "`kondisi` = null kecuali pertanyaan bersyarat. Format: { depends_on_kode, equals }.",
+      "field_type yang valid: short_text | long_text | dropdown | single_choice | linear_scale | file_upload."
+    ]
+  },
+  "pertanyaan": [
+    {
+      "kode": "nama_lengkap",
+      "urutan": 1,
+      "seksi": "Identitas Dasar",
+      "label": "Nama lengkap",
+      "field_type": "short_text",
+      "wajib": true,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "periode_bulan",
+      "urutan": 2,
+      "seksi": "Identitas Dasar",
+      "label": "Periode laporan bulan",
+      "field_type": "dropdown",
+      "wajib": true,
+      "opsi": { "pilihan": ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"] },
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "kegiatan_bulan",
+      "urutan": 3,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Kegiatan apa saja yang kamu ikuti selama bulan ini?",
+      "field_type": "long_text",
+      "wajib": true,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "ikut_lomba",
+      "urutan": 4,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Apakah kamu mengikuti lomba/kompetisi/seminar/workshop?",
+      "field_type": "single_choice",
+      "wajib": true,
+      "opsi": { "pilihan": ["Ya", "Tidak"] },
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "nama_lomba",
+      "urutan": 5,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Jika iya, sebutkan nama kegiatan/lomba/seminar/workshop yang diikuti.",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": { "depends_on_kode": "ikut_lomba", "equals": "Ya" },
+      "aktif": true
+    },
+    {
+      "kode": "prestasi_bulan",
+      "urutan": 6,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Prestasi atau pencapaian apa yang diraih bulan ini?",
+      "field_type": "short_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "ada_organisasi",
+      "urutan": 7,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Apakah ada kepanitiaan, organisasi, program kerja, volunteer, part time, atau bisnis yang sedang dijalankan?",
+      "field_type": "single_choice",
+      "wajib": true,
+      "opsi": { "pilihan": ["Ada", "Tidak ada"] },
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "kontribusi_organisasi",
+      "urutan": 8,
+      "seksi": "Aktivitas Bulanan",
+      "label": "Jelaskan singkat kontribusi atau peranmu dalam kegiatan tersebut.",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": { "depends_on_kode": "ada_organisasi", "equals": "Ada" },
+      "aktif": true
+    },
+    {
+      "kode": "capaian_target",
+      "urutan": 9,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Sejauh mana target bulan lalu berhasil kamu capai?",
+      "field_type": "single_choice",
+      "wajib": true,
+      "opsi": { "pilihan": ["Tercapai semua", "Sebagian besar tercapai", "Sebagian kecil tercapai", "Tidak tercapai", "Belum ada target sebelumnya"] },
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "alasan_target",
+      "urutan": 10,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Ceritakan singkat alasan di balik jawabanmu di atas — apa yang membuat target itu tercapai atau tidak tercapai?",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "insight_personal",
+      "urutan": 11,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Pelajaran atau insight personal apa yang kamu dapatkan bulan ini tentang dirimu sendiri (kebiasaan belajar, manajemen waktu, relasi, cara mengambil keputusan, dll)?",
+      "field_type": "long_text",
+      "wajib": true,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "aktivitas_berkesan",
+      "urutan": 12,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Apa aktivitas yang paling berkesan atau paling bermanfaat bulan ini, dan mengapa?",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "skor_kepuasan",
+      "urutan": 13,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Beri skor kepuasanmu terhadap produktivitas bulan ini.",
+      "field_type": "linear_scale",
+      "wajib": true,
+      "opsi": { "min": 1, "max": 10, "label_min": "Sangat tidak puas", "label_max": "Sangat puas" },
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "kendala_bulan",
+      "urutan": 14,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Kendala apa yang kamu hadapi selama bulan ini?",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "target_bulan_depan",
+      "urutan": 15,
+      "seksi": "Refleksi & Evaluasi",
+      "label": "Target atau rencana yang ingin dicapai bulan depan?",
+      "field_type": "long_text",
+      "wajib": true,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "masukan_program",
+      "urutan": 16,
+      "seksi": "Rencana & Masukan",
+      "label": "Masukan atau saran untuk program Beswan.",
+      "field_type": "long_text",
+      "wajib": false,
+      "opsi": null,
+      "kondisi": null,
+      "aktif": true
+    },
+    {
+      "kode": "dokumentasi",
+      "urutan": 17,
+      "seksi": "Dokumentasi",
+      "label": "Upload dokumentasi kegiatan/lomba bulan ini.",
+      "field_type": "file_upload",
+      "wajib": true,
+      "opsi": { "accept": ["image/jpeg", "image/png", "application/pdf"], "max_mb": 5, "multiple": true },
+      "kondisi": null,
+      "aktif": true
+    }
+  ]
+}

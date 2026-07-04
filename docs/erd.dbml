@@ -1,0 +1,505 @@
+// ─── CORE ────────────────────────────────────────────
+
+Table periode {
+  id varchar [pk]
+  nama varchar
+  goal text [note: 'goal kurikulum periode ini']
+  semester int [note: '1 = Jan-Jun, 2 = Jul-Des']
+  start_date date
+  end_date date
+  status varchar [note: 'aktif | selesai']
+}
+
+Table users {
+  id varchar [pk]
+  nama varchar
+  email varchar [unique]
+  password_hash varchar
+  role varchar [note: 'admin | viewer | finance | pcm | anc']
+  divisi varchar
+  created_at timestamp
+}
+
+// ─── BESWAN ──────────────────────────────────────────
+
+Table beswan {
+  id varchar [pk]
+  nama_lengkap varchar
+  nim varchar [unique]
+  email varchar [unique]
+  hp varchar
+  cv_url varchar
+  foto_url varchar
+  password_hash varchar
+  created_at timestamp
+}
+
+Table beswan_periode {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  periode_id varchar [ref: > periode.id]
+  status varchar [note: 'aktif | alumni']
+}
+
+// IPK per semester (= per periode GBB). Beswan WAJIB update tiap semester via Profile
+// (ada alert di portal + email reminder). "IPK terbaru" yang tampil di layar = baris periode
+// terbaru; "Avg IPK" = rata-rata ipk terbaru beswan aktif.
+Table beswan_ipk {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  periode_id varchar [ref: > periode.id, note: 'semester (periode GBB) tempat IPK ini di-update']
+  ip_semester decimal [note: 'nullable — IP semester berjalan']
+  ipk decimal [note: 'IPK kumulatif s/d semester ini — angka yang tampil di Database Beswan & Portal Donatur']
+  transkrip_url varchar [note: 'nullable — bukti transkrip yang diupload beswan saat update IPK (pindahan dari refleksi)']
+  updated_at timestamp [note: 'kapan terakhir beswan update IPK semester ini']
+
+  indexes {
+    (beswan_id, periode_id) [unique]
+  }
+}
+
+// ─── DONATUR ─────────────────────────────────────────
+
+Table donatur {
+  id varchar [pk]
+  user_id varchar [ref: > users.id, note: 'nullable — link ke akun login. Auto-set saat Gmail match email, atau di-set manual oleh admin AnC jika email berbeda (fallback admin-link)']
+  kode varchar [unique, note: 'auto-generated, e.g. DLW12025 = [Inisial][Semester][Tahun]']
+  nama varchar
+  email varchar [unique, note: 'email dari Google Sheets / form pendaftaran — patokan auto-match saat OAuth login']
+  hp varchar
+  organisasi varchar
+  nominal_default decimal [note: 'nominal default per bulan/skema']
+  skema varchar [note: 'sebulan_patungan | semester_patungan | sebulan_donasi | semester_donasi | belum_bersedia']
+  is_checked boolean [default: false, note: 'tanda manual oleh admin, persisten di semua layar, untuk proses reminder. SUMBER badge "Sudah Ditandai" di Monitoring — bukan tag terpisah (donatur_tag.sudah_ditandai = cerminan flag ini, bukan di-assign manual)']
+  catatan text [note: 'catatan internal dari AnC']
+  created_at timestamp
+}
+
+Table donatur_tag {
+  id varchar [pk]
+  donatur_id varchar [ref: > donatur.id]
+  tag varchar [note: 'sudah_konfirmasi | donatur_setia | baru_bergabung | perlu_followup | sulit_dihubungi | sementara_berhenti | sudah_ditandai']
+  created_at timestamp
+
+  indexes {
+    (donatur_id, tag) [unique]
+  }
+}
+
+Table donatur_periode {
+  id varchar [pk]
+  donatur_id varchar [ref: > donatur.id]
+  periode_id varchar [ref: > periode.id]
+  nominal decimal [note: 'nominal khusus periode ini, nullable = pakai default']
+  skema varchar [note: 'override skema jika berbeda per periode']
+  status varchar [note: 'aktif | tidak_aktif']
+
+  indexes {
+    (donatur_id, periode_id) [unique]
+  }
+}
+
+// ─── CASHFLOW ────────────────────────────────────────
+
+Table cashflow {
+  id varchar [pk]
+  sheet varchar [note: 'nama sheet BSI, e.g. Sept, Agt']
+  tanggal timestamp
+  bulan varchar [note: 'e.g. 2025-09 — diturunkan dari tanggal transaksi, bukan nama sheet']
+  ft_number varchar [note: 'nullable — sebagian transaksi (biaya admin/sebagian QR) tidak punya FT Number']
+  deskripsi text
+  currency varchar [default: 'IDR']
+  nominal decimal
+  tipe varchar [note: 'cash_in | cash_out — dari kolom CR/DB file, DIKUNCI (tidak bisa diedit)']
+
+  kat_bsi varchar [note: 'isi kolom Category file BSI (Donasi | Bagi Hasil | Biaya Administrasi Perbankan | Program | dll) — dipakai untuk auto-map ke kategori internal']
+
+  kategori_id varchar [ref: > cashflow_kategori.id, note: 'kategori internal hasil map dari kat_bsi — untuk SEMUA baris (in & out). cash_in: Donasi/Pengembalian/Bagi Hasil; cash_out: Beasiswa/Program/dll']
+  sub_kategori_id varchar [ref: > cashflow_kategori.id, note: 'nullable — sub-kategori (child di cashflow_kategori)']
+
+  donatur_id varchar [ref: > donatur.id, note: 'nullable — hanya untuk cash_in berkategori Donasi']
+  donatur_periode_id varchar [ref: > donatur_periode.id, note: 'nullable — ditandai manual oleh admin untuk filter periode, bukan penentu bulan']
+  is_anonymous boolean [default: false, note: 'cash_in Donasi sengaja tanpa identitas (Anonymous). Tetap dihitung di matriks Monitoring sebagai baris agregat "Anonim". Beda dari belum diklasifikasi']
+  match_source varchar [note: 'auto | manual — sumber pengisian donatur_id (auto-match dari deskripsi atau input manual); nullable']
+
+  catatan varchar [note: 'nullable — catatan internal tim finance, opsional, bisa diisi/diedit kapan saja (beda dari deskripsi bawaan bank)']
+
+  // Dedup antar-upload: kombinasi (ft_number + nominal). Baris yang sudah ada
+  // di DB ditandai DUPLIKAT & tidak disimpan ulang. Untuk baris tanpa ft_number,
+  // fallback ke (tanggal + nominal + deskripsi). Enforced di app logic.
+  status_klasifikasi varchar [note: 'inputted | unknown — hanya 2 status, tanpa pending. inputted = kategori terisi + (jika cash_in Donasi) donatur/anonymous dipilih']
+  periode_id varchar [ref: > periode.id, note: 'nullable']
+  created_at timestamp
+  updated_at timestamp [note: 'nullable — diisi saat transaksi diedit/dikoreksi setelah rekon (hanya penulis terakhir, tanpa riwayat penuh)']
+  updated_by varchar [ref: > users.id, note: 'nullable — siapa yang terakhir mengoreksi']
+
+  indexes {
+    (ft_number, nominal) [note: 'lookup dedup antar-upload']
+  }
+}
+
+// Master kategori/sub-kategori cashflow — editable via tombol "Kategori".
+// Sub-kategori = row dengan parent_id terisi (mis. Administrasi/Pembinaan di bawah Biaya Operasional).
+Table cashflow_kategori {
+  id varchar [pk]
+  nama varchar [note: 'e.g. Beasiswa, Program, Pajak, Biaya Transaksi, Biaya Administrasi Perbankan, Biaya Operasional']
+  parent_id varchar [ref: > cashflow_kategori.id, note: 'nullable — terisi jika ini sub-kategori']
+  tipe varchar [note: 'cash_in | cash_out | both — kategori ini berlaku untuk tipe transaksi apa']
+  aktif boolean [default: true, note: 'nonaktifkan tanpa hapus jika sudah dipakai transaksi lama']
+  urutan int
+  created_at timestamp
+}
+
+// ─── MENTOR ──────────────────────────────────────────
+
+Table mentor {
+  id varchar [pk]
+  nama varchar
+  email varchar
+  hp varchar
+  linkedin_url varchar
+  cv_url varchar
+  bidang_keahlian varchar
+  is_internal boolean [note: 'true jika enabler GBB']
+  user_id varchar [ref: > users.id, note: 'nullable — jika internal']
+  created_at timestamp
+}
+
+// ─── KURIKULUM & EVENT ───────────────────────────────
+
+Table topik {
+  id varchar [pk]
+  periode_id varchar [ref: > periode.id]
+  urutan int
+  judul varchar
+  detail text
+  tor_url varchar
+  status varchar [note: 'planned | ongoing | done']
+}
+
+Table event {
+  id varchar [pk]
+  kode_event varchar [unique, note: 'e.g. EVT-BBB4-01']
+  periode_id varchar [ref: > periode.id, note: 'wajib — auto-set dari topik jika kurikulum, manual jika non-kurikulum']
+  topik_id varchar [ref: > topik.id, note: 'nullable — bisa event non-kurikulum']
+  nama_event varchar
+  tipe varchar [note: 'talkshow | growth | other']
+  format varchar [note: 'online | offline | hybrid']
+  lokasi varchar [note: 'link zoom / nama tempat']
+  tanggal date
+  jam_mulai time
+  jam_selesai time
+  deskripsi text
+  kapasitas int
+  jumlah_peserta int
+  youtube_url varchar
+  slide_url varchar
+  rekaman_tersedia boolean [default: false, note: 'alert jika false setelah selesai']
+  materi_tersedia boolean [default: false, note: 'alert jika false setelah selesai']
+  form_feedback_url varchar
+  status varchar [note: 'upcoming | done | cancelled']
+  created_at timestamp
+}
+
+Table event_mentor {
+  id varchar [pk]
+  event_id varchar [ref: > event.id]
+  mentor_id varchar [ref: > mentor.id]
+  peran varchar [note: 'speaker | moderator | fasilitator']
+}
+
+Table event_beswan {
+  id varchar [pk]
+  event_id varchar [ref: > event.id]
+  beswan_id varchar [ref: > beswan.id]
+  hadir boolean
+  catatan varchar
+}
+
+Table feedback_event {
+  id varchar [pk]
+  event_id varchar [ref: > event.id]
+  beswan_id varchar [ref: > beswan.id, note: 'nullable — feedback bisa dari peserta eksternal (Growth), bukan hanya beswan']
+  nama_responden varchar [note: 'nullable — nama dari Google Form jika responden bukan beswan']
+  email_responden varchar [note: 'nullable — email dari Google Form jika responden bukan beswan']
+  rating int
+  catatan text
+  submitted_at timestamp
+}
+
+// ─── LIBRARY ─────────────────────────────────────────
+
+Table library {
+  id varchar [pk]
+  event_id varchar [ref: > event.id, note: 'nullable']
+  nama varchar
+  deskripsi text
+  file_url varchar
+  ai_summary text
+  tags varchar
+  tipe varchar [note: 'event_materi | upload']
+  uploaded_by varchar [ref: > users.id, note: 'nullable']
+  created_at timestamp
+}
+
+Table topik_usulan {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  topik_usulan text
+  status varchar [note: 'pending | reviewed']
+  created_at timestamp
+}
+
+// ─── PENUGASAN ───────────────────────────────────────
+
+Table penugasan {
+  id varchar [pk]
+  kode_penugasan varchar [unique, note: 'e.g. TGS-BBB4-01']
+  event_id varchar [ref: > event.id, note: 'nullable — non-event jika null']
+  periode_id varchar [ref: > periode.id]
+  judul varchar
+  deskripsi text [note: 'soal/instruksi tugas']
+  lampiran_url varchar [note: 'nullable — file soal/brief tugas (PDF/DOCX/PPTX), opsional']
+  deadline timestamp [note: 'tanggal + jam batas kumpul']
+  nilai_maks int [default: 100, note: 'skala nilai maksimum (default 100)']
+  created_by varchar [ref: > users.id]
+  status varchar [note: 'aktif | selesai — selesai = ditutup PCM, tak terima submission lagi']
+  created_at timestamp
+  updated_at timestamp [note: 'nullable — diisi jika tugas diedit setelah publish']
+}
+
+// 1 row = 1 beswan × 1 penugasan, dibuat SAAT beswan submit (bukan saat publish).
+// "belum_kumpul" = state VIRTUAL: beswan periode yang belum punya row di sini
+// (list view = left-join beswan_periode ⟕ hasil_penugasan).
+Table hasil_penugasan {
+  id varchar [pk]
+  penugasan_id varchar [ref: > penugasan.id]
+  beswan_id varchar [ref: > beswan.id]
+  file_url varchar [note: '1 file jawaban (PDF/DOCX/dll)']
+  submitted_at timestamp
+  terlambat boolean [default: false, note: 'true jika submitted_at > penugasan.deadline — tetap diterima, ditandai badge Terlambat']
+  status varchar [note: 'submitted | graded (belum_kumpul = virtual, lihat catatan tabel)']
+
+  nilai float [note: 'nullable — diisi setelah dinilai; 0..penugasan.nilai_maks']
+  feedback text [note: 'nullable — feedback per beswan dari enabler/PCM']
+  graded_at timestamp
+  graded_by varchar [ref: > users.id, note: 'nullable — penilai terakhir (nilai bisa direvisi)']
+
+  indexes {
+    (penugasan_id, beswan_id) [unique]
+  }
+}
+
+// ─── REFLEKSI & PRESTASI ─────────────────────────────
+
+// Template pertanyaan refleksi — editable admin (PCM & AnC).
+// Seed 17 pertanyaan default; admin bisa tambah/edit/hapus/re-order.
+Table refleksi_pertanyaan {
+  id varchar [pk]
+  kode varchar [unique, note: 'identifier stabil, e.g. ikut_lomba — untuk referensi kondisi & analitik lintas waktu']
+  urutan int [note: 'urutan tampil di form']
+  seksi varchar [note: 'Identitas Dasar | Aktivitas Bulanan | Refleksi & Evaluasi | Rencana & Masukan | Dokumentasi']
+  label text [note: 'teks pertanyaan']
+  field_type varchar [note: 'short_text | long_text | dropdown | single_choice | linear_scale | file_upload']
+  wajib boolean
+  opsi text [note: 'JSON: pilihan dropdown/single_choice, atau {min,max,label_min,label_max} untuk linear_scale; nullable']
+  kondisi text [note: 'JSON: tampil jika pertanyaan X = nilai Y (conditional); nullable']
+  aktif boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+// Header submission: 1 row = 1 beswan × 1 bulan × 1 periode.
+// Dokumentasi bulanan (foto/PDF kegiatan) disimpan sebagai jawaban pertanyaan `dokumentasi`
+// di refleksi_jawaban (JSON array URL) — bukan kolom khusus. Transkrip nilai pindah ke beswan_ipk.
+Table refleksi {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  periode_id varchar [ref: > periode.id]
+  bulan int
+  tahun int
+  status varchar [note: 'draft | submitted']
+  submitted_at timestamp
+
+  // Ringkasan untuk Portal Donatur — DIKURASI AI agar donatur tidak baca refleksi mentah.
+  // AI membuang konten privat/sensitif, tidak pantas, menyerang GBB, atau menunjukkan akhlak
+  // buruk beswan. Di-generate sekali saat submit & di-cache (hemat token, pola sama Library).
+  ringkasan_donatur text [note: 'nullable — narasi progress beswan layak-donatur hasil kurasi AI']
+  ringkasan_status varchar [note: 'pending | curated | fallback — fallback = AI gagal/kuota habis, donatur lihat jawaban mentah & tim internal di-email']
+}
+
+// Jawaban per pertanyaan — di-link via pertanyaan_id (bukan kolom fixed)
+// agar perubahan template tidak merusak data historis.
+Table refleksi_jawaban {
+  id varchar [pk]
+  refleksi_id varchar [ref: > refleksi.id]
+  pertanyaan_id varchar [ref: > refleksi_pertanyaan.id]
+  nilai text [note: 'jawaban: text / angka skala / JSON array URL file (mis. dokumentasi multi-file) / JSON multi-pilih']
+  created_at timestamp
+}
+
+Table prestasi {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  judul varchar
+  deskripsi text
+  kategori varchar [note: 'studi | organisasi | luar_kampus']
+  tanggal date
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table prestasi_file {
+  id varchar [pk]
+  prestasi_id varchar [ref: > prestasi.id]
+  file_url varchar
+  tipe varchar [note: 'sertifikat | foto']
+  created_at timestamp
+}
+
+// ─── MENTOR REQUEST ──────────────────────────────────
+
+Table mentor_request {
+  id varchar [pk]
+  beswan_id varchar [ref: > beswan.id]
+  mentor_id varchar [ref: > mentor.id, note: 'nullable — jika belum nembak']
+  curhat_text text [note: 'nullable — clue jika belum nembak']
+  status varchar [note: 'pending | matched | done']
+  created_at timestamp
+  responded_at timestamp
+}
+
+// ─── GSHEETS MIRROR (Dashboard Data) ────────────────
+
+Table pendaftar_event {
+  id varchar [pk]
+  nama varchar
+  email varchar
+  hp varchar
+  profesi varchar
+  universitas varchar
+  angkatan varchar
+  saluran_info varchar [note: 'WhatsApp | Instagram | Rekan | dll']
+  pengenalan_gbb varchar [note: 'fakultas/prodi asal']
+  minat_kontribusi boolean
+  minat_jadi_mentor boolean
+  minat_jadi_donatur boolean
+  tema_diminati varchar
+  bidang_keahlian varchar
+  synced_at timestamp [note: 'last sync from GSheets']
+  created_at timestamp
+}
+
+// ─── LAPORAN & NOTIFIKASI ────────────────────────────
+
+Table laporan {
+  id varchar [pk]
+  judul varchar
+  tipe varchar [note: 'booklet | laporan_keuangan | dll']
+  file_url varchar
+  periode_id varchar [ref: > periode.id, note: 'nullable']
+  is_public boolean
+  created_at timestamp
+}
+
+Table notifikasi {
+  id varchar [pk]
+  recipient_type varchar [note: 'beswan | user | donatur']
+  recipient_id varchar
+  tipe varchar
+  pesan text
+  is_read boolean
+  ref_table varchar
+  ref_id varchar
+  created_at timestamp
+}
+
+Table pesan_template {
+  id varchar [pk]
+  nama varchar [note: 'nama template, e.g. Reminder Awal Bulan, Follow-up Belum Transfer']
+  konteks varchar [note: 'monitoring_donatur | dll — untuk filter template per fitur']
+  isi text [note: 'isi pesan WA dengan placeholder {nama} {kode} {bulan} {bulan_berikutnya} {nominal}']
+  urutan integer [note: 'urutan tampil di picker Kirim']
+  is_default boolean [note: 'template terpilih default saat klik Kirim']
+  aktif boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+// Konfigurasi penyedia AI (untuk auto-summary & auto-tag Library, dan fitur AI lain ke depan).
+// Multi-provider: admin pilih provider & isi API key di Settings → Konfigurasi AI. Satu baris `aktif` yang dipakai.
+Table ai_config {
+  id varchar [pk]
+  provider varchar [note: 'anthropic | openai_compatible — openai_compatible menjangkau OpenAI, Google Gemini (endpoint OpenAI-compat), OpenRouter (ratusan model), DeepSeek, Groq, dll lewat base_url']
+  label varchar [note: 'nama tampilan, e.g. "Claude Opus 4.8"']
+  model varchar [note: 'model id, e.g. claude-opus-4-8, gpt-4o, google/gemini-2.5-pro']
+  base_url varchar [note: 'nullable — untuk provider openai_compatible / endpoint kustom']
+  api_key_encrypted varchar [note: 'DIENKRIPSI at-rest, hanya didekripsi di server, TIDAK PERNAH dikirim ke client / masuk log']
+  aktif boolean [default: false, note: 'hanya 1 baris aktif yang dipakai fitur AI']
+  created_at timestamp
+  updated_at timestamp
+  updated_by varchar [ref: > users.id, note: 'nullable']
+}
+
+// ─── TABLE GROUPS ────────────────────────────────────
+
+TableGroup "Core" {
+  periode
+  users
+}
+
+TableGroup "Beswan" {
+  beswan
+  beswan_periode
+  beswan_ipk
+  refleksi_pertanyaan
+  refleksi
+  refleksi_jawaban
+  prestasi
+  prestasi_file
+}
+
+TableGroup "Donatur" {
+  donatur
+  donatur_tag
+  donatur_periode
+}
+
+TableGroup "Keuangan" {
+  cashflow
+  cashflow_kategori
+}
+
+TableGroup "Mentor" {
+  mentor
+  mentor_request
+}
+
+TableGroup "Kurikulum & Event" {
+  topik
+  event
+  event_mentor
+  event_beswan
+  feedback_event
+}
+
+TableGroup "Penugasan" {
+  penugasan
+  hasil_penugasan
+}
+
+TableGroup "Library" {
+  library
+  topik_usulan
+}
+
+TableGroup "GSheets Mirror" {
+  pendaftar_event
+}
+
+TableGroup "Sistem" {
+  laporan
+  notifikasi
+  pesan_template
+  ai_config
+}

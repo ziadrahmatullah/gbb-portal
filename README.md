@@ -1,93 +1,97 @@
-# gbb-portal
+# GBB Portal (monorepo)
 
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Frontend monorepo for **Baik Berdampak (GBB)**, a scholarship/beasiswa and donor-management platform. Three separate web apps share one design system and one backend API.
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/alatus1/gbb-portal.git
-git branch -M main
-git push -uf origin main
+gbb-portal/
+├── apps/
+│   ├── internal/   — Portal Internal: staff admin CMS (heaviest app)
+│   ├── beswan/      — Portal Beswan: scholarship recipient self-service
+│   └── donatur/     — Portal Donatur: donor-facing, Google-OAuth-only login
+├── packages/
+│   └── ui/          — @gbb/ui: shared design tokens + shadcn-style components
+├── docs/            — product specs (wireframes, ERD, design tokens, seeds)
+└── package.json     — npm workspaces root
 ```
 
-## Integrate with your tools
+The **backend** is a separate repository (`dmi-dashboard-be` in this environment) — one API/DB shared by all three apps. This repo is frontend-only.
 
-* [Set up project integrations](https://gitlab.com/alatus1/gbb-portal/-/settings/integrations)
+## Why 3 apps + 1 shared package, not 1 app or 3 fully separate repos
 
-## Collaborate with your team
+- **Auth models differ per portal** and shouldn't share a bundle/deployment: Internal uses email+password with roles (`admin/pcm/finance/anc/viewer`), Beswan uses its own password login (separate `beswan` table), Donatur is **Google OAuth only, no password**.
+- **UI weight differs wildly**: Internal is a full CMS (TipTap editor, charts, cash reconciliation wizards — ~1.2MB bundle). Beswan/Donatur are light self-service portals (~300-475KB bundles). Shipping Internal's weight to an external donor's browser would be wasteful.
+- **npm workspaces monorepo** (not 3 separate repos) so the design system — colors, typography, shadcn components — is defined **once** in `packages/ui` and consumed by all three, instead of drifting via copy-paste. Each app still builds/deploys independently.
+- See `docs/wireframes-internal.md`, `docs/wireframes-beswan.md`, `docs/wireframes-donatur.md`, and `docs/erd.dbml` for why: all three read/write the same core tables (`periode`, `event`, `refleksi`, `penugasan`, `cashflow`, …) but present radically different UIs to radically different users.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Specs — read `docs/` before building features
 
-## Test and Deploy
+- `docs/wireframes-internal.md` — Portal Internal: periode, database beswan, kurikulum & library, database mentor, event talkshow, penugasan, keuangan (rekonsiliasi/overview/donatur/monitoring), laporan, settings
+- `docs/wireframes-beswan.md` — Portal Beswan: beranda, library, mentor, refleksi bulanan, profile
+- `docs/wireframes-donatur.md` — Portal Donatur: beranda, daftar mentor, dashboard, data beswan, laporan
+- `docs/erd.dbml` — full database schema — **the source of truth for what data exists and which app owns writing to it**
+- `docs/email-templates.md` — transactional/broadcast email specs (Resend + React Email)
+- `docs/colorpalette.md` — design tokens source (already implemented in `packages/ui`, see below)
+- `docs/seeds/` — seed data, e.g. `refleksi_pertanyaan.seed.json`
+- `docs/Logo GBB/` — original brand logo files (already copied into `packages/ui/src/assets/logo`)
 
-Use the built-in continuous integration in GitLab.
+## Running the apps
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+```bash
+npm install                # once, at repo root — installs & links all workspaces
 
-***
+npm run dev:internal       # http://localhost:5173
+npm run dev:beswan         # http://localhost:5174
+npm run dev:donatur        # http://localhost:5175
 
-# Editing this README
+npm run build:internal     # or build:beswan / build:donatur / build (all three)
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Each app reads `VITE_API_URL` from its own `.env.local` (gitignored) to point at the backend, e.g. `VITE_API_URL=http://0.0.0.0:6099`. `apps/donatur` additionally needs `VITE_GOOGLE_CLIENT_ID` for the Google login button.
 
-## Suggestions for a good README
+## `packages/ui` (`@gbb/ui`) — the shared design system
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Ships **raw JSX source**, no build step — Vite in each app transforms it directly (this is why `dedupe: ["react","react-dom"]` is set in every app's `vite.config.js`, to prevent duplicate React copies from a workspace symlink).
 
-## Name
-Choose a self-explaining name for your project.
+- `src/styles/theme.css` — Tailwind v4 `@theme inline` + CSS variables for the full Baik Berdampak palette (primary `#F56A1F`, secondary `#0675EE`, surface/on-surface/outline/tertiary/error scales, Plus Jakarta Sans font, radius scale). Source: `docs/colorpalette.md`.
+- `src/styles/animations.css` — keyframes + `.dialog-overlay`/`.dialog-content`/`.select-content` animation classes needed by the Dialog/Select components.
+- `src/components/*.jsx` — shadcn-style components on Radix primitives: button, card, dialog, dropdown-menu, input, label, popover, searchable-select, select, switch, table, textarea, ImageUpload.
+- `src/assets/logo/*.png` — canonical GBB logo files (mark/horizontal/stacked × color/white/black).
+- `src/index.js` — barrel export; import components as `import { Button, Input, cn } from "@gbb/ui"`.
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+**Every app's `src/index.css` must start with:**
+```css
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import "@gbb/ui/theme.css";
+@import "@gbb/ui/animations.css";
+@import "tailwindcss";
+@source "../../../packages/ui/src";
+```
+The `@source` line is required so Tailwind v4's class scanner picks up utility classes used inside `packages/ui`'s JSX (it lives outside the app's own `src/`).
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+**To add a new shared component**: put it in `packages/ui/src/components/`, add its export to `packages/ui/src/index.js`, then import it from `@gbb/ui` in any app. Don't duplicate a component per-app — if two apps need the same UI element, it belongs in `packages/ui`.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+**Logo/asset changes**: edit the source PNGs in `packages/ui/src/assets/logo/`, then re-copy into each app's `public/assets/logo/` and `public/icon.png` (favicons are plain `<link>` tags, not JS imports, so they can't reference the workspace package directly — this manual copy is the one exception to "single source of truth").
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## `apps/internal` — Portal Internal
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Originated from an older Qurban/event admin app (SMI Event Dashboard) that has been repurposed. Domain-driven structure: `src/domains/<feature>/{components,hooks,services}` (categories, districts, mosques, animal-types, qurbans, transactions, events, galleries, articles, activity-logs, auth, settings — being extended toward `docs/wireframes-internal.md`'s modules: periode, kurikulum, mentor, penugasan, keuangan).
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Auth: email/password, JWT, role-based (`src/domains/auth`, `ProtectedRoute` checks a plain token in `localStorage`).
+- `src/shared/components/ui/*.jsx` are now thin re-export shims (`export * from "@gbb/ui"`) — kept so existing domain code's `@/shared/components/ui/button` imports don't need touching. New code should just `import { Button } from "@gbb/ui"` directly.
+- TanStack Query for server state, Zustand for `useAuthStore`/`useUIStore`.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## `apps/beswan` — Portal Beswan (scaffolded, not fully built)
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Routes/pages exist as placeholders (`src/domains/{beranda,library,mentor,refleksi,profile}`) matching `docs/wireframes-beswan.md`'s sidebar. Auth is its own email/password flow hitting `/api/beswan/auth/login` (adjust the endpoint once the backend confirms the real route). Replace each `PagePlaceholder` with the real UI per its wireframe section as features are built.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## `apps/donatur` — Portal Donatur (scaffolded, not fully built)
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Routes/pages exist as placeholders (`src/domains/{beranda,mentor,dashboard,beswan,laporan}`) matching `docs/wireframes-donatur.md`. Auth is **Google OAuth only** via `@react-oauth/google`'s `GoogleLogin` — on success it POSTs the Google credential to `/api/donatur/auth/google` (adjust once the backend confirms the real route) to exchange for this app's own JWT. Requires `VITE_GOOGLE_CLIENT_ID` in `.env.local`.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Stack (all apps)
 
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- Vite + React 19, React Router 7
+- Tailwind CSS v4 (`@theme inline`, no `tailwind.config.js`)
+- Radix UI primitives + shadcn-style components, via `@gbb/ui`
+- Zustand for client state, Axios for API calls
+- `apps/internal` additionally uses TanStack Query, TipTap, Recharts, framer-motion (heavier, admin-only dependencies — don't add these to Beswan/Donatur unless a feature genuinely needs them)

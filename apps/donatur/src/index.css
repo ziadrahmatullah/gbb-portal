@@ -1,0 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import "@gbb/ui/theme.css";
+@import "@gbb/ui/animations.css";
+@import "tailwindcss";
+@source "../../../packages/ui/src";

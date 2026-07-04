@@ -1,0 +1,20 @@
+{
+  "name": "gbb-portal",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:internal": "npm run dev -w apps/internal",
+    "dev:beswan": "npm run dev -w apps/beswan",
+    "dev:donatur": "npm run dev -w apps/donatur",
+    "build:internal": "npm run build -w apps/internal",
+    "build:beswan": "npm run build -w apps/beswan",
+    "build:donatur": "npm run build -w apps/donatur",
+    "build": "npm run build:internal && npm run build:beswan && npm run build:donatur",
+    "lint:internal": "npm run lint -w apps/internal"
+  }
+}

@@ -1,0 +1,65 @@
+// Speakers for the Microsite — public-facing speaker profiles
+// These are linked to participants with participant_type === "Speaker"
+export const speakers = [
+  {
+    id: "spk-001",
+    participant_id: "p-001",
+    full_name: "Ahmad Fauzi Santoso",
+    title: "Chief Technology Officer",
+    company: "PT Teknologi Nusantara",
+    bio: "Ahmad Fauzi adalah CTO berpengalaman dengan lebih dari 15 tahun di industri teknologi. Ia memimpin transformasi digital di berbagai perusahaan Fortune 500 di Asia Tenggara.",
+    photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face",
+    agenda_ids: ["ag-001", "ag-005"],
+  },
+  {
+    id: "spk-002",
+    participant_id: "p-002",
+    full_name: "Dr. Siti Rahayu Utami",
+    title: "Professor of Data Science",
+    company: "Universitas Bandung",
+    bio: "Dr. Siti Rahayu adalah pakar data science dan machine learning dengan publikasi ilmiah di jurnal internasional. Ia aktif sebagai konsultan AI untuk pemerintah dan swasta.",
+    photo: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face",
+    agenda_ids: ["ag-002", "ag-005"],
+  },
+  {
+    id: "spk-003",
+    participant_id: "p-003",
+    full_name: "Prof. Budi Hartono",
+    title: "Head of Research & Innovation",
+    company: "Lembaga Riset Indonesia",
+    bio: "Prof. Budi Hartono memimpin riset inovasi nasional di bidang teknologi manufaktur, IoT, dan smart city. Beliau adalah penerima penghargaan Inovasi Nasional 2023.",
+    photo: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face",
+    agenda_ids: ["ag-002", "ag-006"],
+  },
+  {
+    id: "spk-004",
+    participant_id: "p-004",
+    full_name: "Diana Putri, PhD",
+    title: "Co-Founder & CEO",
+    company: "Startup Hub Indonesia",
+    bio: "Diana Putri membangun ekosistem startup di Indonesia dari nol. Startup Hub-nya kini telah melahirkan lebih dari 50 perusahaan rintisan dengan total valuasi melebihi $200 juta.",
+    photo: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face",
+    agenda_ids: ["ag-003"],
+  },
+  {
+    id: "spk-005",
+    participant_id: "p-005",
+    full_name: "Reza Firmansyah",
+    title: "Digital Strategy Director",
+    company: "Digital Wave Agency",
+    bio: "Reza Firmansyah adalah pakar strategi digital yang telah membantu ratusan brand membangun kehadiran online yang kuat. Ia juga aktif sebagai mentor startup di berbagai program akselerasi.",
+    photo: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=face",
+    agenda_ids: ["ag-004"],
+  },
+];
+
+export const SPEAKER_AGENDA_LABELS = {
+  "ag-001": "Opening Keynote: Masa Depan Teknologi Indonesia",
+  "ag-002": "Panel: AI & Data Science dalam Industri 4.0",
+  "ag-003": "Seminar: Inovasi Bisnis & ESS Award Nominees",
+  "ag-004": "Workshop: Digital Marketing Strategy 2025",
+  "ag-005": "Closing Panel: Kolaborasi Lintas Sektor",
+  "ag-006": "Workshop: Implementasi IoT untuk Smart Manufacturing",
+  "ag-007": "ESS Awards 2025: Pengumuman & Malam Anugerah",
+  "ag-008": "Closing Plenary: Agenda Transformasi Nasional",
+};
