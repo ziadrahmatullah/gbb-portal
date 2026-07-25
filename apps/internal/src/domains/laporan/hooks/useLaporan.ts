@@ -13,18 +13,6 @@ export function useLaporanList(params: ListParams = {}) {
   });
 }
 
-// Daftar tipe dinamis dari data yang ada (backend tak punya enum) — dipakai
-// dropdown filter & datalist form. Diambil dari sampel besar (limit 100).
-export function useLaporanTipeOptions() {
-  return useQuery({
-    queryKey: [LAPORAN_KEY, "tipe-options"],
-    queryFn: async () => {
-      const res = await getLaporanList({ limit: 100 });
-      return [...new Set(res.items.map((l) => l.tipe).filter(Boolean))].sort();
-    },
-  });
-}
-
 export function useCreateLaporan() {
   const queryClient = useQueryClient();
   return useMutation({

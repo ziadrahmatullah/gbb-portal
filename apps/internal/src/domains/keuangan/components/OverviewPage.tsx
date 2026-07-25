@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDownCircle, ArrowUpCircle, Hash, Info, Scale } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Hash, Scale } from "lucide-react";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { StatCard } from "@/shared/components/StatCard";
@@ -23,7 +23,6 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { useOverview, useOverviewBreakdown } from "../hooks/useKeuangan";
-import { aggregatePerBulan, aggregatePerKategori } from "../services";
 import { formatNominal } from "../utils";
 
 // Palet dari reference dataviz (tervalidasi 6-checks di surface GBB light/dark).
@@ -95,11 +94,10 @@ export function OverviewPage() {
   const c = useVizColors();
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
   const { data: overview, isLoading } = useOverview(periodeId);
-  const { data: breakdown, isLoading: breakdownLoading } = useOverviewBreakdown();
+  const { data: breakdown, isLoading: breakdownLoading } = useOverviewBreakdown(periodeId);
 
-  const items = breakdown?.items ?? [];
-  const perBulan = aggregatePerBulan(items);
-  const perKategori = aggregatePerKategori(items);
+  const perBulan = breakdown?.per_bulan ?? [];
+  const perKategori = breakdown?.per_kategori ?? [];
   const komposisiOut = perKategori.filter((k) => k.tipe === "cash_out");
 
   const tooltipStyle = {
@@ -121,12 +119,6 @@ export function OverviewPage() {
         <StatCard icon={Scale} label="Net" value={overview ? formatRupiah(overview.net) : "—"} loading={isLoading} />
         <StatCard icon={Hash} label="Transaksi" value={String(overview?.jumlah_transaksi ?? "—")} loading={isLoading} />
       </div>
-
-      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-        <Info className="h-3.5 w-3.5 shrink-0" />
-        Chart & tabel di bawah diagregasi dari seluruh transaksi (maks 500 terbaru) dan belum
-        bisa difilter periode — menunggu endpoint agregasi backend.
-      </p>
 
       <div className="grid lg:grid-cols-2 gap-4">
         {/* Tren per bulan — dua seri satu skala rupiah */}
@@ -217,7 +209,7 @@ export function OverviewPage() {
               </TableRow>
             ) : (
               perKategori.map((k) => (
-                <TableRow key={`${k.nama}-${k.tipe}`}>
+                <TableRow key={`${k.kategori_id ?? "none"}-${k.tipe}`}>
                   <TableCell className="font-medium text-sm">{k.nama}</TableCell>
                   <TableCell className="text-xs font-mono">{k.tipe === "cash_in" ? "In" : "Out"}</TableCell>
                   <TableCell className="text-right text-sm">{k.jumlah}</TableCell>

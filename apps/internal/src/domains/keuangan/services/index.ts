@@ -53,6 +53,10 @@ export interface UpdateCashflowReq {
   kategori_id?: number;
   sub_kategori_id?: number | null;
   catatan?: string;
+  // Flag eksplisit untuk MENGOSONGKAN relasi — field nil di atas berarti
+  // "tidak diubah", jadi clear butuh flag sendiri
+  clear_donatur?: boolean;
+  clear_sub_kategori?: boolean;
 }
 
 export interface CashflowKategori {
@@ -70,6 +74,25 @@ export interface OverviewKeuangan {
   total_keluar: number;
   net: number;
   jumlah_transaksi: number;
+}
+
+export interface OverviewBulan {
+  bulan: string; // "2025-08"
+  masuk: number;
+  keluar: number;
+}
+
+export interface OverviewKategori {
+  kategori_id?: number | null; // null = belum diklasifikasi
+  nama: string;
+  tipe: string; // cash_in | cash_out
+  jumlah: number;
+  total: number;
+}
+
+export interface OverviewBreakdown {
+  per_bulan: OverviewBulan[];
+  per_kategori: OverviewKategori[];
 }
 
 // ─── Cashflow ────────────────────────────────────────────────────────────
@@ -142,38 +165,11 @@ export async function getOverview(periodeId?: string) {
   return res.data;
 }
 
-// Belum ada endpoint agregasi per bulan/kategori — breakdown chart Overview
-// diagregasi di FE dari list (cap 500 transaksi terbaru; follow-up BE bila
-// data membesar). Catatan: list TIDAK punya filter periode_id.
-export async function getOverviewBreakdown() {
-  return getCashflowList({ limit: 500 });
-}
-
-// ─── Agregasi client-side untuk chart Overview ───────────────────────────
-
-export function aggregatePerBulan(items: Cashflow[]) {
-  const map = new Map<string, { bulan: string; masuk: number; keluar: number }>();
-  for (const cf of items) {
-    const row = map.get(cf.bulan) ?? { bulan: cf.bulan, masuk: 0, keluar: 0 };
-    if (cf.tipe === "cash_in") row.masuk += cf.nominal;
-    else row.keluar += cf.nominal;
-    map.set(cf.bulan, row);
-  }
-  return [...map.values()].sort((a, b) => a.bulan.localeCompare(b.bulan));
-}
-
-export function aggregatePerKategori(items: Cashflow[]) {
-  const map = new Map<
-    string,
-    { nama: string; tipe: string; jumlah: number; total: number }
-  >();
-  for (const cf of items) {
-    const nama = cf.kategori_nama || "Belum diklasifikasi";
-    const key = `${nama}|${cf.tipe}`;
-    const row = map.get(key) ?? { nama, tipe: cf.tipe, jumlah: 0, total: 0 };
-    row.jumlah += 1;
-    row.total += cf.nominal;
-    map.set(key, row);
-  }
-  return [...map.values()].sort((a, b) => b.total - a.total);
+// Agregasi per bulan/kategori dihitung backend
+export async function getOverviewBreakdown(periodeId?: string) {
+  const res = await apiClient.get<OverviewBreakdown>(
+    "/internal/cashflow/overview/breakdown",
+    periodeId ? { periode_id: periodeId } : undefined
+  );
+  return res.data;
 }

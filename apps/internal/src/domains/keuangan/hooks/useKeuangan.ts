@@ -104,10 +104,10 @@ export function useOverview(periodeId?: string) {
   });
 }
 
-export function useOverviewBreakdown() {
+export function useOverviewBreakdown(periodeId?: string) {
   return useQuery({
-    queryKey: [KEUANGAN_KEY, "overview-breakdown"],
-    queryFn: () => getOverviewBreakdown(),
+    queryKey: [KEUANGAN_KEY, "overview-breakdown", periodeId ?? "all"],
+    queryFn: () => getOverviewBreakdown(periodeId),
   });
 }
 

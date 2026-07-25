@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { Construction, FileDown, Home, Linkedin, Globe, Pencil } from "lucide-react";
+import { FileDown, Home, Linkedin, Globe, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -174,19 +174,8 @@ export function MentorFormDialog({
   );
 }
 
-function PlaceholderSection({ title, note }: { title: string; note: string }) {
-  return (
-    <div className="space-y-1.5">
-      <h4 className="text-sm font-semibold">{title}</h4>
-      <div className="flex items-center justify-center rounded-lg border border-dashed py-6">
-        <div className="text-center text-xs text-muted-foreground px-4">
-          <Construction className="mx-auto mb-1.5 h-5 w-5 opacity-50" />
-          Data belum tersedia dari backend — {note}
-        </div>
-      </div>
-    </div>
-  );
-}
+const formatTanggal = (iso: string) =>
+  new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 
 export function MentorDetailDialog({
   id,
@@ -237,6 +226,10 @@ export function MentorDetailDialog({
                 {detail.email && <div>Email: {detail.email}</div>}
                 {detail.hp && <div>HP: {detail.hp}</div>}
                 <div>Total event dibawakan: {detail.jumlah_event} (sepanjang masa)</div>
+                <div>
+                  Rating rata-rata:{" "}
+                  {detail.avg_rating != null ? `★ ${detail.avg_rating.toFixed(1)}` : "belum ada rating"}
+                </div>
                 {cv && (
                   <a
                     href={cv}
@@ -249,16 +242,48 @@ export function MentorDetailDialog({
                   </a>
                 )}
               </div>
-              {/* Rating/feedback per mentor belum bisa dihitung backend: FeedbackEvent
-                  tidak berelasi ke mentor (rating per event, bukan per mentor) */}
-              <PlaceholderSection
-                title={`History Event (${detail.jumlah_event})`}
-                note="butuh endpoint riwayat event per mentor."
-              />
-              <PlaceholderSection
-                title="Feedback Terkumpul"
-                note="menunggu keputusan desain agregasi rating per mentor."
-              />
+              {/* History event per mentor (avg_feedback null = belum ada feedback) */}
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-semibold">History Event ({detail.event_history.length})</h4>
+                {detail.event_history.length === 0 ? (
+                  <p className="rounded-lg border border-dashed py-4 text-center text-xs text-muted-foreground">
+                    Belum ada event yang dibawakan
+                  </p>
+                ) : (
+                  <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+                    {detail.event_history.map((h) => (
+                      <div key={h.event_id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{h.nama_event}</div>
+                          <div className="text-xs text-muted-foreground capitalize">
+                            {formatTanggal(h.tanggal)} · {h.peran}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {h.avg_feedback != null ? `★ ${h.avg_feedback.toFixed(1)}` : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Kutipan feedback terbaru (maks 10 dari backend) */}
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-semibold">Feedback Terkumpul</h4>
+                {(detail.feedback_kutipan ?? []).length === 0 ? (
+                  <p className="rounded-lg border border-dashed py-4 text-center text-xs text-muted-foreground">
+                    Belum ada feedback
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {(detail.feedback_kutipan ?? []).map((k, i) => (
+                      <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-xs italic">
+                        “{k}”
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
           </>
         )}

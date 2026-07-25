@@ -85,7 +85,8 @@ export function ChartKehadiranNilai({ data }: { data: BeswanChartBulanan[] }) {
   const rows = data.map((d) => ({
     label: `${BULAN_PENDEK[d.bulan - 1]} ${String(d.tahun).slice(2)}`,
     kehadiran: Math.round(d.kehadiran_persen * 10) / 10,
-    nilai: Math.round(d.avg_nilai * 10) / 10,
+    // null = tidak ada tugas dinilai bulan itu → garis putus (gap), bukan titik 0
+    nilai: d.avg_nilai == null ? null : Math.round(d.avg_nilai * 10) / 10,
   }));
 
   return (

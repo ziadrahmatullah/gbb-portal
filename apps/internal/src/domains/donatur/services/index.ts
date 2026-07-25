@@ -50,6 +50,7 @@ export interface DonaturMonitoring {
   id: number;
   kode: string;
   nama: string;
+  hp: string;
   skema: string;
   tags: string[];
   periode_akhir_id?: number | null;
@@ -117,8 +118,20 @@ export async function createDonatur(body: {
   return res.data;
 }
 
-// PUT hanya menerima catatan & is_checked (profil di-mirror dari Sheets, read-only)
-export async function updateDonatur(id: number, body: { catatan?: string; is_checked?: boolean }) {
+// Mirror UpdateDonaturReq — selain catatan/is_checked, profil (nama..nominal_default)
+// kini bisa dikoreksi manual (string kosong / field absen = tidak diubah)
+export interface UpdateDonaturReq {
+  catatan?: string;
+  is_checked?: boolean;
+  nama?: string;
+  email?: string;
+  hp?: string;
+  organisasi?: string;
+  skema?: string;
+  nominal_default?: number;
+}
+
+export async function updateDonatur(id: number, body: UpdateDonaturReq) {
   const res = await apiClient.put<Donatur>(`/internal/donatur/${id}`, body);
   return res.data;
 }
@@ -130,6 +143,13 @@ export async function assignPeriode(
 ) {
   const res = await apiClient.post(`/internal/donatur/${id}/periode`, body);
   return res.data;
+}
+
+// Hapus baris donatur_periode sepenuhnya — beda dari assignPeriode(status:
+// "tidak_aktif") yang cuma upsert status, baris lama tetap ada.
+export async function removePeriode(id: number, periodeId: number) {
+  const res = await apiClient.delete(`/internal/donatur/${id}/periode/${periodeId}`);
+  return res.message;
 }
 
 export async function addTag(id: number, tag: string) {

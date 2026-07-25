@@ -41,12 +41,8 @@ axiosInstance.interceptors.response.use(
     // LoginPage — jangan toast, jangan logout, jangan redirect.
     const url = error.config?.url ?? "";
     const isAuthRequest = url.startsWith("/auth/");
-    // Endpoint yang memakai 401 sebagai error VALIDASI in-app (bukan sesi berakhir):
-    // change-password memakai 401 untuk "password lama salah" — jangan diperlakukan
-    // sebagai token kedaluwarsa (kalau tidak, salah ketik → user malah ter-logout).
-    const is401ValidationEndpoint = url.includes("/account/change-password");
 
-    if (!isAuthRequest && !is401ValidationEndpoint && status === 401) {
+    if (!isAuthRequest && status === 401) {
       // Token invalid/kedaluwarsa → sesi berakhir
       logout();
       if (!redirectingToLogin) {

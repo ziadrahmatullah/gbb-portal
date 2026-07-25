@@ -124,9 +124,12 @@ function KlasifikasiCell({
         <Select
           value={donaturValue}
           onValueChange={(v: string) =>
-            v === ANON
-              ? save({ is_anonymous: true })
-              : save({ donatur_id: Number(v), is_anonymous: false })
+            v === NONE
+              ? // clear_donatur = kosongkan relasi donatur (nil = tidak diubah)
+                save({ clear_donatur: true, is_anonymous: false })
+              : v === ANON
+                ? save({ is_anonymous: true })
+                : save({ donatur_id: Number(v), is_anonymous: false })
           }
           disabled={updateMutation.isPending}
         >
@@ -134,6 +137,7 @@ function KlasifikasiCell({
             <SelectValue placeholder="Nama donatur…" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={NONE}>— (tanpa donatur)</SelectItem>
             <SelectItem value={ANON}>Anonymous</SelectItem>
             {donaturs.map((d) => (
               <SelectItem key={d.id} value={String(d.id)}>
@@ -148,7 +152,8 @@ function KlasifikasiCell({
             value={subId ? String(subId) : ""}
             onValueChange={(v: string) =>
               v === NONE
-                ? parentId && save({ kategori_id: parentId })
+                ? // clear_sub_kategori = kosongkan sub (kategori induk tetap)
+                  parentId && save({ kategori_id: parentId, clear_sub_kategori: true })
                 : parentId && save({ kategori_id: parentId, sub_kategori_id: Number(v) })
             }
             disabled={updateMutation.isPending || !parentId}
@@ -157,6 +162,7 @@ function KlasifikasiCell({
               <SelectValue placeholder="Sub…" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={NONE}>— (tanpa sub)</SelectItem>
               {subs.map((k) => (
                 <SelectItem key={k.id} value={String(k.id)}>
                   {k.nama}

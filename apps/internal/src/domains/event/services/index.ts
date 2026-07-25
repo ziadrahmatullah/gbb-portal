@@ -3,6 +3,12 @@ import { toPaged } from "@/shared/lib/apiTypes";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 // Mirror gbb-backend dto/event_dto.go
+export interface EventMentorInfo {
+  mentor_id: number;
+  nama: string;
+  peran: string; // speaker | moderator | fasilitator
+}
+
 export interface EventItem {
   id: number;
   kode_event: string; // di-generate backend
@@ -15,6 +21,10 @@ export interface EventItem {
   tanggal: string;
   jam_mulai: string;
   jam_selesai: string;
+  deskripsi: string;
+  kapasitas: number;
+  jumlah_peserta: number;
+  mentors: EventMentorInfo[];
   youtube_url?: string | null;
   slide_url?: string | null;
   rekaman_tersedia: boolean;
@@ -42,9 +52,11 @@ export interface CreateEventReq {
   mentors: AssignMentorReq[];
 }
 
-// PUT partial — field kosong tidak diubah backend. PENTING: key youtube_url/slide_url
-// hanya boleh disertakan saat ada nilainya, karena kehadiran key (walau "") langsung
-// men-set flag rekaman_tersedia/materi_tersedia = true di backend.
+// PUT partial — field kosong/tidak dikirim tidak diubah backend. PENTING:
+// - key youtube_url/slide_url hanya boleh disertakan saat ada nilainya, karena
+//   kehadiran key (walau "") langsung men-set flag rekaman_tersedia/materi_tersedia = true.
+// - key "mentors" JANGAN disertakan sama sekali kecuali user memang mengubah roster —
+//   kehadiran key ini (termasuk array kosong []) mengganti SELURUH roster mentor lama.
 export interface UpdateEventReq {
   nama_event?: string;
   tipe?: string;
@@ -54,9 +66,11 @@ export interface UpdateEventReq {
   jam_mulai?: string;
   jam_selesai?: string;
   deskripsi?: string;
+  kapasitas?: number;
   youtube_url?: string;
   slide_url?: string;
   status?: "upcoming" | "done" | "cancelled";
+  mentors?: AssignMentorReq[];
 }
 
 export async function getEventList(params: ListParams = {}) {
@@ -105,6 +119,18 @@ export async function updateEvent(id: number, body: UpdateEventReq) {
 export async function deleteEvent(id: number) {
   const res = await apiClient.delete(`/internal/event/${id}`);
   return res.message;
+}
+
+// Mirror AbsensiRes — status hadir tersimpan per beswan
+export interface AbsensiItem {
+  beswan_id: number;
+  nama: string;
+  hadir: boolean;
+}
+
+export async function getAbsensi(eventId: number) {
+  const res = await apiClient.get<AbsensiItem[]>(`/internal/event/${eventId}/absensi`);
+  return res.data ?? [];
 }
 
 // Upsert per item — kirim SELURUH roster beswan periode setiap simpan

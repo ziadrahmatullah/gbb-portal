@@ -248,11 +248,20 @@ export function EventListPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{formatEventDate(ev.tanggal)}</TableCell>
-                  {/* Daftar mentor per event belum di-embed backend di EventRes */}
                   <TableCell>
-                    <span className="text-muted-foreground" title="Menunggu dukungan backend (mentors belum di-embed di EventRes)">
-                      —
-                    </span>
+                    {(ev.mentors ?? []).length === 0 ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span
+                        className="text-sm"
+                        title={ev.mentors.map((m) => `${m.nama} (${m.peran})`).join(", ")}
+                      >
+                        {ev.mentors[0].nama}
+                        {ev.mentors.length > 1 && (
+                          <span className="text-muted-foreground"> +{ev.mentors.length - 1}</span>
+                        )}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <EventStatusBadge status={ev.status} />

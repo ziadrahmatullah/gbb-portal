@@ -12,6 +12,7 @@ import {
   getTopikUsulanList,
   updateLibrary,
   updateTopik,
+  updateTopikUsulanStatus,
 } from "../services";
 import type { CreateTopikReq, UpdateLibraryReq, UpdateTopikReq } from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
@@ -122,5 +123,17 @@ export function useEventOptions() {
   return useQuery({
     queryKey: ["event", "options"],
     queryFn: () => getEventOptions(),
+  });
+}
+
+export function useUpdateTopikUsulanStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "pending" | "reviewed" }) =>
+      updateTopikUsulanStatus(id, status),
+    onSuccess: () => {
+      toast.success("Status usulan diperbarui");
+      queryClient.invalidateQueries({ queryKey: [KURIKULUM_KEY, "topik-usulan"] });
+    },
   });
 }

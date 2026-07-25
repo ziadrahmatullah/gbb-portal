@@ -182,6 +182,7 @@ export function AppLayout() {
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.role);
   const email = useAuthStore((s) => s.email);
+  const nama = useAuthStore((s) => s.nama);
   const logout = useAuthStore((s) => s.logout);
   const [now, setNow] = useState(new Date());
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -427,7 +428,10 @@ export function AppLayout() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-sm font-medium truncate">{email ?? "User"}</span>
+                  <span className="text-sm font-medium truncate">{nama ?? email ?? "User"}</span>
+                  {nama && email && (
+                    <span className="text-xs font-normal text-muted-foreground truncate">{email}</span>
+                  )}
                   <span className="text-xs font-normal text-muted-foreground uppercase tracking-wide">
                     {role ?? "-"}
                   </span>

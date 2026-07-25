@@ -10,10 +10,12 @@ import {
   getPendingLogins,
   getPesanTemplates,
   linkUser,
+  removePeriode,
   removeTag,
   unlinkUser,
   updateDonatur,
 } from "../services";
+import type { UpdateDonaturReq } from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const DONATUR_KEY = "donatur";
@@ -46,7 +48,7 @@ export function useCreateDonatur() {
 export function useUpdateDonatur() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: number; body: { catatan?: string; is_checked?: boolean } }) =>
+    mutationFn: ({ id, body }: { id: number; body: UpdateDonaturReq }) =>
       updateDonatur(id, body),
     onSuccess: () => {
       toast.success("Donatur berhasil diperbarui");
@@ -61,6 +63,17 @@ export function useAssignPeriode() {
     mutationFn: ({ id, body }: { id: number; body: Parameters<typeof assignPeriode>[1] }) =>
       assignPeriode(id, body),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] });
+    },
+  });
+}
+
+export function useRemovePeriode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, periodeId }: { id: number; periodeId: number }) => removePeriode(id, periodeId),
+    onSuccess: () => {
+      toast.success("Keikutsertaan periode dihapus");
       queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] });
     },
   });

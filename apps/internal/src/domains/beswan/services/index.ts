@@ -32,7 +32,7 @@ export interface BeswanChartBulanan {
   bulan: number;
   tahun: number;
   kehadiran_persen: number;
-  avg_nilai: number;
+  avg_nilai: number | null; // null = tidak ada tugas dinilai bulan itu
 }
 
 export interface BeswanChartIPK {

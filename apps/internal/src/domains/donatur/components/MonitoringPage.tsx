@@ -44,7 +44,6 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import {
   DONATUR_KEY,
-  useDonaturList,
   useDonaturStats,
   useMonitoringList,
   usePesanTemplates,
@@ -142,8 +141,6 @@ export function MonitoringPage() {
   const { data: stats, isLoading: statsLoading } = useDonaturStats();
   const { data: periodeData } = usePeriodeOptions();
   const { data: templateData } = usePesanTemplates();
-  // Untuk WA butuh nomor HP → ambil dari list donatur (monitoring tak bawa hp)
-  const { data: donaturData } = useDonaturList({ limit: 100 });
 
   const { data, isLoading } = useMonitoringList({
     page,
@@ -154,7 +151,6 @@ export function MonitoringPage() {
   });
 
   const periodeAktif = (periodeData?.items ?? []).filter((p) => p.status === "aktif");
-  const hpByDonatur = new Map((donaturData?.items ?? []).map((d) => [d.id, d.hp]));
   const templates = templateData?.items ?? [];
 
   const rawItems = data?.items ?? [];
@@ -322,7 +318,7 @@ export function MonitoringPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <KirimDropdown row={r} hp={hpByDonatur.get(r.id) ?? ""} templates={templates} />
+                      <KirimDropdown row={r} hp={r.hp} templates={templates} />
                     </TableCell>
                     <TableCell className="text-sm">
                       {r.periode_akhir ? (

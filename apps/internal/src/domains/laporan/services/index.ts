@@ -3,12 +3,14 @@ import { toPaged } from "@/shared/lib/apiTypes";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 // Mirror gbb-backend dto/laporan_dto.go
+// Enum tertutup di backend (binding oneof)
+export const LAPORAN_TIPE_OPTIONS = ["booklet", "keuangan", "internal"] as const;
+export type LaporanTipe = (typeof LAPORAN_TIPE_OPTIONS)[number];
+
 export interface Laporan {
   id: number;
   judul: string;
-  // String bebas TANPA enum di backend — jangan hardcode daftar tipe,
-  // ambil dinamis dari nilai unik yang muncul di data.
-  tipe: string;
+  tipe: LaporanTipe;
   file_url: string;
   periode_id?: number | null;
   is_public: boolean;
@@ -16,7 +18,7 @@ export interface Laporan {
 
 export interface UpdateLaporanReq {
   judul?: string;
-  tipe?: string;
+  tipe?: LaporanTipe;
   is_public?: boolean;
 }
 

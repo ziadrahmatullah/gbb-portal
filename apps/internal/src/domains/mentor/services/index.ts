@@ -10,12 +10,23 @@ export interface Mentor {
   is_internal: boolean;
   linkedin_url?: string | null;
   jumlah_event: number; // total event sepanjang masa (backend tidak memfilter periode)
+  avg_rating?: number | null; // null = belum ada feedback ber-mentor_id
+}
+
+export interface MentorEventHistory {
+  event_id: number;
+  nama_event: string;
+  tanggal: string;
+  peran: string; // speaker | moderator | fasilitator
+  avg_feedback?: number | null;
 }
 
 export interface MentorDetail extends Mentor {
   email?: string;
   hp?: string;
   cv_url?: string | null;
+  event_history: MentorEventHistory[];
+  feedback_kutipan?: string[]; // maks 10 kutipan terbaru
 }
 
 export async function getMentorList(params: ListParams = {}) {
@@ -27,18 +38,15 @@ export async function getMentorList(params: ListParams = {}) {
   return toPaged(res);
 }
 
-// Tidak ada endpoint stats mentor — agregasi dari total_item dua query ringan
-// (pola yang sama dengan stats Library).
+export interface MentorStats {
+  total: number;
+  undip: number;
+  non_undip: number;
+}
+
 export async function getMentorStats() {
-  const [internal, eksternal] = await Promise.all([
-    getMentorList({ limit: 1, is_internal: "true" }),
-    getMentorList({ limit: 1, is_internal: "false" }),
-  ]);
-  return {
-    undip: internal.totalItems,
-    nonUndip: eksternal.totalItems,
-    total: internal.totalItems + eksternal.totalItems,
-  };
+  const res = await apiClient.get<MentorStats>("/internal/mentor/stats");
+  return res.data;
 }
 
 export async function getMentorDetail(id: number) {

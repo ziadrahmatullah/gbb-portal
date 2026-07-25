@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { useEventDetail, useSaveAbsensi, useUpdateEvent } from "../hooks/useEvent";
+import { useEventAbsensi, useEventDetail, useSaveAbsensi, useUpdateEvent } from "../hooks/useEvent";
 import type { EventItem } from "../services";
 import { EditEventDialog } from "./EventFormDialogs";
 import { EventStatusBadge } from "./EventListPage";
@@ -29,13 +29,22 @@ import { formatEventDate } from "../utils";
 
 function AbsensiSection({ event }: { event: EventItem }) {
   // Roster = seluruh beswan periode terkait event
-  const { data: roster, isLoading } = useBeswanList({
+  const { data: roster, isLoading: rosterLoading } = useBeswanList({
     periode_id: String(event.periode_id),
     limit: 100,
   });
+  // Prefill dari status hadir tersimpan (GET absensi)
+  const { data: saved, isLoading: savedLoading } = useEventAbsensi(event.id);
   const saveMutation = useSaveAbsensi();
   const [checked, setChecked] = useState<Record<number, boolean>>({});
+  // Seed ulang saat data tersimpan termuat/berubah (adjust-during-render)
+  const [prevSaved, setPrevSaved] = useState<typeof saved>(undefined);
+  if (saved !== prevSaved) {
+    setPrevSaved(saved);
+    setChecked(Object.fromEntries(saved?.map((a) => [a.beswan_id, a.hadir]) ?? []));
+  }
 
+  const isLoading = rosterLoading || savedLoading;
   const items = roster?.items ?? [];
   const toggle = (id: number) => setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -50,11 +59,9 @@ function AbsensiSection({ event }: { event: EventItem }) {
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">Absensi Beswan</h3>
-      {/* Backend belum punya GET absensi tersimpan — tidak bisa prefill */}
       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
         <Info className="h-3.5 w-3.5 shrink-0" />
-        Centang ulang kehadiran tiap membuka tab ini — status tersimpan belum bisa ditampilkan
-        (menunggu endpoint dari backend).
+        Status hadir tersimpan dimuat otomatis — ubah centang lalu Simpan.
       </p>
       <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
         <Table>
@@ -249,6 +256,33 @@ export function EventDetailPage() {
           <span className="capitalize">{event.format}</span>
           {event.lokasi && ` · ${event.lokasi}`}
         </span>
+      </div>
+
+      {/* Info event: deskripsi, kapasitas, mentor (dari EventRes) */}
+      <div className="rounded-xl border bg-card p-4 shadow-sm space-y-2 text-sm">
+        {event.deskripsi && <p>{event.deskripsi}</p>}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+          <span>
+            Peserta: {event.jumlah_peserta}
+            {event.kapasitas > 0 && ` / ${event.kapasitas}`}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-muted-foreground">Mentor:</span>
+          {(event.mentors ?? []).length === 0 ? (
+            <span className="text-muted-foreground">—</span>
+          ) : (
+            event.mentors.map((m) => (
+              <span
+                key={m.mentor_id}
+                className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs"
+              >
+                <span className="font-medium">{m.nama}</span>
+                <span className="capitalize text-muted-foreground">· {m.peran}</span>
+              </span>
+            ))
+          )}
+        </div>
       </div>
 
       <AbsensiSection event={event} />

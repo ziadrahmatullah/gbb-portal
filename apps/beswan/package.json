@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@gbb/ui": "*",
@@ -17,7 +18,9 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
     "sonner": "^2.0.7",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "@tanstack/react-query": "^5.90.20",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -30,6 +33,8 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "tailwindcss": "^4.1.18",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.46.0"
   }
 }

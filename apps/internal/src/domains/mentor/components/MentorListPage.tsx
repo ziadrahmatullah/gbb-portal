@@ -93,7 +93,7 @@ export function MentorListPage() {
       <div className="grid grid-cols-3 gap-4">
         <StatCard icon={GraduationCap} label="Total" value={String(stats?.total ?? "—")} loading={statsLoading} />
         <StatCard icon={Home} label="UNDIP" value={String(stats?.undip ?? "—")} loading={statsLoading} />
-        <StatCard icon={Globe} label="non-UNDIP" value={String(stats?.nonUndip ?? "—")} loading={statsLoading} />
+        <StatCard icon={Globe} label="non-UNDIP" value={String(stats?.non_undip ?? "—")} loading={statsLoading} />
       </div>
 
       {/* Filter */}
@@ -187,12 +187,14 @@ export function MentorListPage() {
                   </TableCell>
                   <TableCell className="text-sm">{m.bidang_keahlian}</TableCell>
                   <TableCell className="text-sm">{m.jumlah_event} event</TableCell>
-                  {/* Rating rata-rata belum bisa dihitung backend (feedback per event,
-                      tidak berelasi ke mentor) */}
                   <TableCell>
-                    <span className="text-muted-foreground" title="Menunggu dukungan backend (agregasi rating per mentor)">
-                      —
-                    </span>
+                    {m.avg_rating != null ? (
+                      <span className="font-medium">★ {m.avg_rating.toFixed(1)}</span>
+                    ) : (
+                      <span className="text-muted-foreground" title="Belum ada rating">
+                        —
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

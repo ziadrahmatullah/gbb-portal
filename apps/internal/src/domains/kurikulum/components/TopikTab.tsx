@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -8,6 +9,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Youtube,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
@@ -45,6 +47,7 @@ import {
   useTopikList,
   useTopikUsulanList,
   useUpdateTopik,
+  useUpdateTopikUsulanStatus,
 } from "../hooks/useKurikulum";
 import type { Topik } from "../services";
 
@@ -268,32 +271,34 @@ function TopikFormDialog({
 
 function TopikUsulanSection() {
   const { data, isLoading } = useTopikUsulanList({ limit: 20 });
+  const updateStatus = useUpdateTopikUsulanStatus();
   const items = data?.items ?? [];
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold">Usulan Topik dari Beswan</h3>
       <p className="text-xs text-muted-foreground">
-        View-only — usulan dikirim beswan dari portalnya; belum ada aksi kelola untuk internal.
+        Usulan dikirim beswan dari portalnya — tandai sudah ditinjau setelah dipertimbangkan.
       </p>
       <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Usulan</TableHead>
-              <TableHead className="w-32">Beswan</TableHead>
+              <TableHead className="w-40">Beswan</TableHead>
               <TableHead className="w-28">Status</TableHead>
+              <TableHead className="w-16" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={3}>
+                <TableCell colSpan={4}>
                   <div className="h-5 animate-pulse rounded bg-muted" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">
+                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
                   Belum ada usulan topik
                 </TableCell>
               </TableRow>
@@ -301,8 +306,7 @@ function TopikUsulanSection() {
               items.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.topik_usulan}</TableCell>
-                  {/* Backend hanya mengirim beswan_id, tanpa nama */}
-                  <TableCell className="text-sm text-muted-foreground">Beswan #{u.beswan_id}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{u.nama_beswan}</TableCell>
                   <TableCell>
                     <span
                       className={cn(
@@ -314,6 +318,18 @@ function TopikUsulanSection() {
                     >
                       {u.status}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {u.status === "pending" && (
+                      <button
+                        title="Tandai sudah ditinjau"
+                        disabled={updateStatus.isPending}
+                        onClick={() => updateStatus.mutate({ id: u.id, status: "reviewed" })}
+                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -461,12 +477,36 @@ export function TopikTab() {
                   <TableCell>
                     <TopikStatusBadge status={t.status} />
                   </TableCell>
-                  {/* Media (YouTube/Slide) berasal dari Event ber-topik_id — belum ada
-                      cara query per topik dari backend, jadi placeholder dulu */}
+                  {/* Media (YouTube/Slide) dari event ber-topik_id, di-embed backend */}
                   <TableCell>
-                    <span className="text-muted-foreground" title="Menunggu dukungan backend (media dari event terkait)">
-                      —
-                    </span>
+                    {!t.youtube_url && !t.slide_url ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        {t.youtube_url && (
+                          <a
+                            href={t.youtube_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Rekaman YouTube"
+                            className="text-primary hover:opacity-75"
+                          >
+                            <Youtube className="h-4 w-4" />
+                          </a>
+                        )}
+                        {t.slide_url && (
+                          <a
+                            href={t.slide_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Slide/materi"
+                            className="text-primary hover:opacity-75"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </a>
+                        )}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

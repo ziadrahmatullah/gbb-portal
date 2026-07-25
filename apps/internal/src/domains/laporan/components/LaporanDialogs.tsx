@@ -20,43 +20,35 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
-import { useCreateLaporan, useLaporanTipeOptions, useUpdateLaporan } from "../hooks/useLaporan";
-import type { Laporan } from "../services";
+import { useCreateLaporan, useUpdateLaporan } from "../hooks/useLaporan";
+import { LAPORAN_TIPE_OPTIONS } from "../services";
+import type { Laporan, LaporanTipe } from "../services";
 
 const NO_PERIODE = "none";
 
-// `tipe` string bebas tanpa enum backend — input teks + datalist dari nilai
-// yang sudah ada, supaya user bisa pilih existing ATAU ketik tipe baru.
-function TipeInput({
-  id,
+// `tipe` enum tertutup backend (oneof booklet|keuangan|internal) — dropdown tetap
+function TipeSelect({
   value,
   onChange,
   disabled,
 }: {
-  id: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (v: LaporanTipe) => void;
   disabled?: boolean;
 }) {
-  const { data: options } = useLaporanTipeOptions();
-  const listId = `${id}-options`;
   return (
-    <>
-      <Input
-        id={id}
-        list={listId}
-        value={value}
-        onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
-        placeholder="mis. tahunan, keuangan, program…"
-        required
-        disabled={disabled}
-      />
-      <datalist id={listId}>
-        {(options ?? []).map((t) => (
-          <option key={t} value={t} />
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger>
+        <SelectValue placeholder="Pilih tipe" />
+      </SelectTrigger>
+      <SelectContent>
+        {LAPORAN_TIPE_OPTIONS.map((t) => (
+          <SelectItem key={t} value={t} className="capitalize">
+            {t}
+          </SelectItem>
         ))}
-      </datalist>
-    </>
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -64,14 +56,14 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
   const { data: periodeOptions } = usePeriodeOptions();
   const createMutation = useCreateLaporan();
   const [judul, setJudul] = useState("");
-  const [tipe, setTipe] = useState("");
+  const [tipe, setTipe] = useState<LaporanTipe | "">("");
   const [periodeId, setPeriodeId] = useState(NO_PERIODE);
   const [isPublic, setIsPublic] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !tipe) return;
     const form = new FormData();
     form.append("judul", judul);
     form.append("tipe", tipe);
@@ -96,8 +88,8 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
             <Input id="l-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="l-tipe">Tipe</Label>
-            <TipeInput id="l-tipe" value={tipe} onChange={setTipe} disabled={saving} />
+            <Label>Tipe</Label>
+            <TipeSelect value={tipe} onChange={setTipe} disabled={saving} />
           </div>
           <div className="space-y-1.5">
             <Label>Periode (opsional)</Label>
@@ -134,7 +126,7 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
-            <Button type="submit" disabled={saving || !file}>
+            <Button type="submit" disabled={saving || !file || !tipe}>
               {saving ? "Mengupload…" : "Upload"}
             </Button>
           </DialogFooter>
@@ -147,7 +139,7 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
 export function EditLaporanDialog({ laporan, onClose }: { laporan: Laporan; onClose: () => void }) {
   const updateMutation = useUpdateLaporan();
   const [judul, setJudul] = useState(laporan.judul);
-  const [tipe, setTipe] = useState(laporan.tipe);
+  const [tipe, setTipe] = useState<LaporanTipe>(laporan.tipe);
   const [isPublic, setIsPublic] = useState(laporan.is_public);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -175,8 +167,8 @@ export function EditLaporanDialog({ laporan, onClose }: { laporan: Laporan; onCl
             <Input id="le-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="le-tipe">Tipe</Label>
-            <TipeInput id="le-tipe" value={tipe} onChange={setTipe} disabled={saving} />
+            <Label>Tipe</Label>
+            <TipeSelect value={tipe} onChange={setTipe} disabled={saving} />
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled={saving} />

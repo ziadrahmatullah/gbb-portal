@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import {
   BookOpen,
@@ -44,6 +44,7 @@ import {
 import type { LibraryItem } from "../services";
 
 const ALL_TIPE = "all";
+const ALL_TAG = "all";
 const NO_EVENT = "none";
 
 function UploadLibraryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -263,6 +264,7 @@ function LibraryCard({
 export function LibraryTab() {
   const [search, setSearch] = useState("");
   const [tipe, setTipe] = useState(ALL_TIPE);
+  const [tag, setTag] = useState(ALL_TAG);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(12);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -275,10 +277,17 @@ export function LibraryTab() {
     limit,
     search: search || undefined,
     tipe: tipe === ALL_TIPE ? undefined : tipe,
+    tag: tag === ALL_TAG ? undefined : tag,
   });
   const deleteMutation = useDeleteLibrary();
 
-  const items = data?.items ?? [];
+  // Daftar tag unik diturunkan dari data ter-load di halaman ini saja
+  // (tidak ada endpoint daftar-tag terpisah)
+  const items = useMemo(() => data?.items ?? [], [data]);
+  const tagOptions = useMemo(
+    () => [...new Set(items.flatMap((i) => (i.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean)))].sort(),
+    [items]
+  );
   const totalPages = data?.totalPages ?? 1;
   const totalItems = data?.totalItems ?? 0;
 
@@ -286,9 +295,9 @@ export function LibraryTab() {
     <div className="space-y-4">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <StatCard icon={BookOpen} label="Total Materi" value={String(stats?.total ?? "—")} loading={statsLoading} />
-        <StatCard icon={Mic} label="Dari Event" value={String(stats?.dariEvent ?? "—")} loading={statsLoading} />
-        <StatCard icon={Upload} label="Upload Manual" value={String(stats?.uploadManual ?? "—")} loading={statsLoading} />
+        <StatCard icon={BookOpen} label="Total Materi" value={String(stats?.total_materi ?? "—")} loading={statsLoading} />
+        <StatCard icon={Mic} label="Dari Event" value={String(stats?.dari_event ?? "—")} loading={statsLoading} />
+        <StatCard icon={Upload} label="Upload Manual" value={String(stats?.upload_manual ?? "—")} loading={statsLoading} />
       </div>
 
       {/* Filter + upload */}
@@ -319,6 +328,25 @@ export function LibraryTab() {
             <SelectItem value={ALL_TIPE}>Semua Tipe</SelectItem>
             <SelectItem value="event_materi">Dari Event</SelectItem>
             <SelectItem value="upload">Upload Manual</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={tag}
+          onValueChange={(v: string) => {
+            setTag(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_TAG}>Semua Tag</SelectItem>
+            {tagOptions.map((t) => (
+              <SelectItem key={t} value={t}>
+                #{t}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <div className="flex-1" />

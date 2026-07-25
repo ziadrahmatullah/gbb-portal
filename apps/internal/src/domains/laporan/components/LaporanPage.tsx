@@ -37,7 +37,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import { useDeleteLaporan, useLaporanList, useLaporanTipeOptions } from "../hooks/useLaporan";
+import { useDeleteLaporan, useLaporanList } from "../hooks/useLaporan";
+import { LAPORAN_TIPE_OPTIONS } from "../services";
 import type { Laporan } from "../services";
 import { EditLaporanDialog, UploadLaporanDialog } from "./LaporanDialogs";
 
@@ -57,7 +58,6 @@ export function LaporanPage() {
   const [editing, setEditing] = useState<Laporan | null>(null);
   const [deleting, setDeleting] = useState<Laporan | null>(null);
 
-  const { data: tipeOptions } = useLaporanTipeOptions();
   const { data: periodeOptions } = usePeriodeOptions();
   const { data, isLoading } = useLaporanList({
     page,
@@ -111,7 +111,7 @@ export function LaporanPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Semua Tipe</SelectItem>
-            {(tipeOptions ?? []).map((t) => (
+            {LAPORAN_TIPE_OPTIONS.map((t) => (
               <SelectItem key={t} value={t} className="capitalize">
                 {t}
               </SelectItem>

@@ -296,6 +296,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
 
 export function EditEventDialog({ event, onClose }: { event: EventItem | null; onClose: () => void }) {
   const updateMutation = useUpdateEvent();
+  const { data: mentorOptions } = useMentorOptions();
   const [form, setForm] = useState({
     nama_event: "",
     tipe: "",
@@ -305,7 +306,14 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
     jam_mulai: "",
     jam_selesai: "",
     deskripsi: "",
+    kapasitas: "",
   });
+  const [mentors, setMentors] = useState<MentorRow[]>([]);
+  // Roster mentor cuma disertakan di payload PUT kalau memang disentuh user —
+  // backend mengganti SELURUH roster begitu key "mentors" ada di body (lihat
+  // catatan di UpdateEventReq), jadi edit lain (nama/tanggal/dst) tidak boleh
+  // ikut mengosongkan/mengubah mentor kalau tidak dimaksudkan.
+  const [mentorsTouched, setMentorsTouched] = useState(false);
   const [prevId, setPrevId] = useState<number | null>(null);
   if (event && event.id !== prevId) {
     setPrevId(event.id);
@@ -317,16 +325,38 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
       tanggal: event.tanggal.slice(0, 10),
       jam_mulai: event.jam_mulai ?? "",
       jam_selesai: event.jam_selesai ?? "",
-      deskripsi: "", // nilai tersimpan tidak bisa dibaca (EventRes tanpa deskripsi)
+      deskripsi: event.deskripsi ?? "",
+      kapasitas: event.kapasitas > 0 ? String(event.kapasitas) : "",
     });
+    setMentors(
+      (event.mentors ?? []).map((m) => ({
+        mentor_id: String(m.mentor_id),
+        peran: m.peran as MentorRow["peran"],
+      }))
+    );
+    setMentorsTouched(false);
   }
 
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
+  const setMentorRow = (i: number, patch: Partial<MentorRow>) => {
+    setMentorsTouched(true);
+    setMentors((prev) => prev.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+  };
+  const addMentorRow = () => {
+    setMentorsTouched(true);
+    setMentors((prev) => [...prev, { mentor_id: "", peran: "speaker" }]);
+  };
+  const removeMentorRow = (i: number) => {
+    setMentorsTouched(true);
+    setMentors((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!event) return;
+    const filledMentors = mentors.filter((m) => m.mentor_id);
     updateMutation.mutate(
       {
         id: event.id,
@@ -339,6 +369,10 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
           jam_mulai: form.jam_mulai || undefined,
           jam_selesai: form.jam_selesai || undefined,
           deskripsi: form.deskripsi || undefined, // kosong = tidak diubah
+          kapasitas: form.kapasitas ? Number(form.kapasitas) : undefined,
+          ...(mentorsTouched
+            ? { mentors: filledMentors.map((m) => ({ mentor_id: Number(m.mentor_id), peran: m.peran })) }
+            : {}),
         },
       },
       { onSuccess: onClose }
@@ -352,9 +386,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Event{event ? ` — ${event.kode_event}` : ""}</DialogTitle>
-          <DialogDescription>
-            Mentor, topik, dan kapasitas tidak dapat diubah lewat edit (belum didukung backend).
-          </DialogDescription>
+          <DialogDescription>Topik tidak dapat diubah lewat edit.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">
@@ -389,8 +421,8 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1.5 col-span-2 lg:col-span-1">
               <Label htmlFor="ee-tanggal">Tanggal</Label>
               <Input id="ee-tanggal" type="date" value={form.tanggal} onChange={set("tanggal")} required disabled={saving} />
             </div>
@@ -402,6 +434,10 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               <Label htmlFor="ee-selesai">Jam selesai</Label>
               <Input id="ee-selesai" type="time" value={form.jam_selesai} onChange={set("jam_selesai")} disabled={saving} />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ee-kapasitas">Kapasitas</Label>
+              <Input id="ee-kapasitas" type="number" min={0} value={form.kapasitas} onChange={set("kapasitas")} disabled={saving} />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ee-lokasi">Lokasi / Link</Label>
@@ -409,11 +445,70 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ee-deskripsi">Deskripsi</Label>
-            <Textarea id="ee-deskripsi" rows={2} value={form.deskripsi} onChange={set("deskripsi")} placeholder="Kosongkan bila tidak ingin mengubah" disabled={saving} />
-            <p className="text-xs text-muted-foreground">
-              Nilai deskripsi tersimpan belum bisa dibaca dari backend — kosong = tidak diubah.
-            </p>
+            <Textarea id="ee-deskripsi" rows={2} value={form.deskripsi} onChange={set("deskripsi")} disabled={saving} />
+            {/* PUT partial: string kosong dilewati backend, jadi deskripsi tidak bisa dikosongkan */}
           </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Mentor</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addMentorRow} disabled={saving}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Tambah Mentor
+              </Button>
+            </div>
+            {mentors.length === 0 && (
+              <p className="text-sm text-muted-foreground">Belum ada mentor di event ini.</p>
+            )}
+            {mentors.map((row, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Select
+                  value={row.mentor_id}
+                  onValueChange={(v: string) => setMentorRow(i, { mentor_id: v })}
+                  disabled={saving}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Pilih mentor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mentorOptions?.items
+                      .filter((m) => m.id === Number(row.mentor_id) || !mentors.some((r) => r.mentor_id === String(m.id)))
+                      .map((m) => (
+                        <SelectItem key={m.id} value={String(m.id)}>
+                          {m.nama} — {m.bidang_keahlian}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={row.peran}
+                  onValueChange={(v: MentorRow["peran"]) => setMentorRow(i, { peran: v })}
+                  disabled={saving}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERAN_OPTIONS.map((p) => (
+                      <SelectItem key={p} value={p} className="capitalize">
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <button
+                  type="button"
+                  title="Hapus baris"
+                  onClick={() => removeMentorRow(i)}
+                  disabled={saving}
+                  className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
           <DialogFooter className="gap-2 sm:gap-0 pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal

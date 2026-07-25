@@ -11,6 +11,9 @@ export interface Topik {
   detail: string;
   tor_url: string;
   status: string; // planned | ongoing | done
+  // Media di-embed backend dari event ber-topik_id
+  youtube_url?: string | null;
+  slide_url?: string | null;
 }
 
 export interface CreateTopikReq {
@@ -49,8 +52,15 @@ export interface UpdateLibraryReq {
 export interface TopikUsulan {
   id: number;
   beswan_id: number;
+  nama_beswan: string;
   topik_usulan: string;
   status: string; // pending | reviewed
+}
+
+export interface LibraryStats {
+  total_materi: number;
+  dari_event: number;
+  upload_manual: number;
 }
 
 // ─── Topik ───────────────────────────────────────────────────────────────
@@ -90,18 +100,9 @@ export async function getLibraryList(params: ListParams = {}) {
   return toPaged(res);
 }
 
-// Tidak ada endpoint stats library untuk portal internal —
-// agregasi dari total_item dua query ringan (limit=1) per tipe.
 export async function getLibraryStats() {
-  const [eventMateri, upload] = await Promise.all([
-    getLibraryList({ limit: 1, tipe: "event_materi" }),
-    getLibraryList({ limit: 1, tipe: "upload" }),
-  ]);
-  return {
-    dariEvent: eventMateri.totalItems,
-    uploadManual: upload.totalItems,
-    total: eventMateri.totalItems + upload.totalItems,
-  };
+  const res = await apiClient.get<LibraryStats>("/internal/kurikulum/library/stats");
+  return res.data;
 }
 
 // POST multipart: file wajib; tipe selalu "upload" (entri event_materi
@@ -122,7 +123,7 @@ export async function deleteLibrary(id: number) {
   return res.message;
 }
 
-// ─── Topik Usulan (read-only untuk internal) ─────────────────────────────
+// ─── Topik Usulan ─────────────────────────────────────────────────────────
 
 export async function getTopikUsulanList(params: ListParams = {}) {
   const res = await apiClient.get<TopikUsulan[]>("/internal/kurikulum/topik-usulan", {
@@ -131,6 +132,11 @@ export async function getTopikUsulanList(params: ListParams = {}) {
     ...params,
   });
   return toPaged(res);
+}
+
+export async function updateTopikUsulanStatus(id: number, status: "pending" | "reviewed") {
+  const res = await apiClient.put<TopikUsulan>(`/internal/kurikulum/topik-usulan/${id}`, { status });
+  return res.data;
 }
 
 // ─── Event options (untuk dropdown event_id di form upload) ──────────────

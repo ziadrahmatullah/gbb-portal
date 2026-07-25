@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   createEvent,
   deleteEvent,
+  getAbsensi,
   getEventDetail,
   getEventList,
   getEventStats,
@@ -68,6 +69,15 @@ export function useDeleteEvent() {
       toast.success("Event berhasil dihapus");
       queryClient.invalidateQueries({ queryKey: [EVENT_KEY] });
     },
+  });
+}
+
+// Status hadir tersimpan — dipakai prefill checkbox tab Absensi
+export function useEventAbsensi(eventId: number) {
+  return useQuery({
+    queryKey: [EVENT_KEY, "absensi", eventId],
+    queryFn: () => getAbsensi(eventId),
+    enabled: Number.isFinite(eventId),
   });
 }
 
