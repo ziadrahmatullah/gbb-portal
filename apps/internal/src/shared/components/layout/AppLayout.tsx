@@ -1,19 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
   Calendar,
-  ChevronDown,
   ChevronRight,
+  ChevronsUpDown,
   Clock,
   KeyRound,
   LogOut,
-  Menu,
   Moon,
-  PanelLeftClose,
   Sun,
-  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
@@ -30,29 +26,48 @@ import {
 } from "@/shared/constants/navigation";
 import type { NavItem } from "@/shared/constants/navigation";
 import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/shared/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
-} from "@/shared/components/ui/dropdown-menu";
-import { Button } from "@/shared/components/ui/button";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/shared/components/ui/select";
+  Separator,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@gbb/ui";
 
 const ALL_PERIODE = "all";
 
@@ -70,8 +85,8 @@ function GlobalPeriodeFilter() {
   }, [data, periodeId, setPeriodeId]);
 
   return (
-    <div className="border-t p-3 shrink-0">
-      <div className="text-xs font-semibold px-2 mb-1.5 text-muted-foreground tracking-wider">
+    <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
+      <div className="text-sidebar-foreground/70 mb-1.5 px-2 text-xs font-medium">
         Filter Periode
       </div>
       <Select
@@ -79,7 +94,9 @@ function GlobalPeriodeFilter() {
         onValueChange={(v: string) => setPeriodeId(v === ALL_PERIODE ? null : v)}
         disabled={isLoading}
       >
-        <SelectTrigger className="w-full">
+        {/* text-foreground eksplisit: teks jangan mewarisi putih dari sidebar biru,
+            karena background field ini putih (bg-background) */}
+        <SelectTrigger size="sm" className="w-full bg-background text-foreground">
           <SelectValue placeholder={isLoading ? "Memuat…" : "Semua Periode"} />
         </SelectTrigger>
         <SelectContent>
@@ -95,139 +112,219 @@ function GlobalPeriodeFilter() {
   );
 }
 
-function NavLeaf({ item, collapsed, nested }: { item: NavItem; collapsed: boolean; nested?: boolean }) {
+function isItemActive(pathname: string, item: NavItem): boolean {
+  if (!item.path) return false;
+  if (item.path === "/panel") return pathname === "/panel";
+  return pathname.startsWith(item.path);
+}
+
+function NavLeaf({ item }: { item: NavItem }) {
+  const location = useLocation();
+  const { setOpenMobile } = useSidebar();
   return (
-    <NavLink
-      to={item.path ?? "#"}
-      end={item.path === "/panel"}
-      title={item.label}
-      className={({ isActive }) =>
-        cn(
-          "flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-accent",
-          collapsed ? "p-2 justify-center" : "px-3 py-2",
-          nested && !collapsed && "pl-9",
-          isActive
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "text-muted-foreground hover:text-foreground"
-        )
-      }
-    >
-      {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-      {!collapsed && <span className="truncate">{item.label}</span>}
-    </NavLink>
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={isItemActive(location.pathname, item)} tooltip={item.label}>
+        <NavLink to={item.path ?? "#"} end={item.path === "/panel"} onClick={() => setOpenMobile(false)}>
+          {item.icon && <item.icon />}
+          <span>{item.label}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
-function NavGroup({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+function NavCollapsible({ item }: { item: NavItem }) {
   const location = useLocation();
-  const { sidebarOpen, toggleSidebar } = useUIStore();
-  const inGroup = item.children?.some((c) => c.path && location.pathname.startsWith(c.path)) ?? false;
-  const [open, setOpen] = useState(inGroup);
-  const [prevInGroup, setPrevInGroup] = useState(inGroup);
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const inGroup = item.children?.some((c) => isItemActive(location.pathname, c)) ?? false;
 
-  // Auto-buka grup saat navigasi masuk ke salah satu child-nya
-  // (pola "adjusting state during render", bukan lewat effect)
-  if (inGroup !== prevInGroup) {
-    setPrevInGroup(inGroup);
-    if (inGroup) setOpen(true);
-  }
-
-  if (collapsed) {
-    // Mode ikon: klik grup = expand sidebar + buka grup
+  // Mode ikon: grup jadi dropdown menyamping (pola shadcn-admin)
+  if (state === "collapsed" && !isMobile) {
     return (
-      <button
-        type="button"
-        title={item.label}
-        onClick={() => {
-          if (!sidebarOpen) toggleSidebar();
-          setOpen(true);
-        }}
-        className={cn(
-          "w-full flex items-center justify-center p-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-accent",
-          inGroup ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-      </button>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton tooltip={item.label} isActive={inGroup}>
+              {item.icon && <item.icon />}
+              <span>{item.label}</span>
+              <ChevronRight className="ms-auto" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" sideOffset={4} className="min-w-48">
+            <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {item.children?.map((child) => (
+              <DropdownMenuItem key={child.path} asChild>
+                <NavLink to={child.path ?? "#"}>
+                  <span>{child.label}</span>
+                </NavLink>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
     );
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:bg-accent",
-          inGroup ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-        <span className="flex-1 text-left truncate">{item.label}</span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !open && "-rotate-90")} />
-      </button>
-      {open && (
-        <div className="mt-1 space-y-1">
-          {item.children?.map((child) => (
-            <NavLeaf key={child.path} item={child} collapsed={false} nested />
-          ))}
-        </div>
-      )}
-    </div>
+    <Collapsible asChild defaultOpen={inGroup} className="group/collapsible">
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton tooltip={item.label}>
+            {item.icon && <item.icon />}
+            <span>{item.label}</span>
+            <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {item.children?.map((child) => (
+              <SidebarMenuSubItem key={child.path}>
+                <SidebarMenuSubButton asChild isActive={isItemActive(location.pathname, child)}>
+                  <NavLink to={child.path ?? "#"} onClick={() => setOpenMobile(false)}>
+                    <span>{child.label}</span>
+                  </NavLink>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 
-export function AppLayout() {
-  const location = useLocation();
-  const navigate = useNavigate();
+function AppSidebar() {
+  const role = useAuthStore((s) => s.role);
+  const { setOpenMobile } = useSidebar();
+  const navItems = filterNavByRole(NAV_ITEMS, role);
+  const settingsItems = filterNavByRole([SETTINGS_NAV], role);
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent active:bg-transparent">
+              <Link to="/panel" onClick={() => setOpenMobile(false)}>
+                {/* Logo "Salinan Warna_Logo only" — object-contain menjaga rasio 681x554,
+                    kotak putih agar tetap terbaca di sidebar biru (juga saat collapsed) */}
+                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-white p-1">
+                  <img src="/assets/logo/gbb-logo-only.png" alt="GBB" className="size-6 object-contain" />
+                </div>
+                <div className="grid flex-1 text-start text-sm leading-tight">
+                  <span className="truncate font-bold">GBB Portal</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">Internal</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Menu</SidebarGroupLabel>
+          <SidebarMenu>
+            {navItems.map((item) =>
+              item.children ? (
+                <NavCollapsible key={item.label} item={item} />
+              ) : (
+                <NavLeaf key={item.path} item={item} />
+              )
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        {settingsItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Lainnya</SidebarGroupLabel>
+            <SidebarMenu>
+              {settingsItems.map((item) => (
+                <NavLeaf key={item.path} item={item} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter>
+        <GlobalPeriodeFilter />
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  );
+}
+
+function initials(name: string | null | undefined, fallback: string): string {
+  const source = name?.trim() || fallback;
+  return source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "U";
+}
+
+function ProfileDropdown({
+  onChangePassword,
+  onLogout,
+}: {
+  onChangePassword: () => void;
+  onLogout: () => void;
+}) {
   const role = useAuthStore((s) => s.role);
   const email = useAuthStore((s) => s.email);
   const nama = useAuthStore((s) => s.nama);
-  const logout = useAuthStore((s) => s.logout);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="h-9 gap-2 px-1.5">
+          <Avatar className="size-8 rounded-lg">
+            <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+              {initials(nama, email ?? "User")}
+            </AvatarFallback>
+          </Avatar>
+          <ChevronsUpDown className="hidden size-3.5 text-muted-foreground sm:block" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+        <DropdownMenuLabel className="p-0 font-normal">
+          <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+            <Avatar className="size-8 rounded-lg">
+              <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-semibold text-primary">
+                {initials(nama, email ?? "User")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="grid flex-1 leading-tight">
+              <span className="truncate text-sm font-semibold">{nama ?? email ?? "User"}</span>
+              {email && <span className="truncate text-xs text-muted-foreground">{email}</span>}
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">{role ?? "-"}</span>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onChangePassword}>
+          <KeyRound />
+          Ganti Password
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onLogout}>
+          <LogOut />
+          Logout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function HeaderClock() {
   const [now, setNow] = useState(new Date());
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-
-  const { sidebarOpen, isDark, toggleSidebar, toggleDark, initTheme } = useUIStore();
-
-  useEffect(() => {
-    initTheme();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const closeSidebarOnMobile = useCallback(() => {
-    if (isMobile && sidebarOpen) toggleSidebar();
-  }, [isMobile, sidebarOpen, toggleSidebar]);
-
-  useEffect(() => {
-    closeSidebarOnMobile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
-  const navItems = filterNavByRole(NAV_ITEMS, role);
-  const settingsItems = filterNavByRole([SETTINGS_NAV], role);
-  const breadcrumbs = findBreadcrumb(location.pathname);
-
-  const sidebarWidth = isMobile ? 256 : sidebarOpen ? 256 : 64;
-  const mainMarginLeft = isMobile ? 0 : sidebarOpen ? 256 : 64;
-  const collapsed = !isMobile && !sidebarOpen;
-
-  const handleLogout = () => {
-    logout();
-    navigate("/", { replace: true });
-  };
 
   const dateStr = now.toLocaleDateString("id-ID", {
     weekday: "long",
@@ -244,21 +341,108 @@ export function AppLayout() {
   });
 
   return (
-    <div className="h-screen overflow-hidden bg-background flex">
-      {/* Mobile backdrop */}
-      <AnimatePresence>
-        {isMobile && sidebarOpen && (
-          <motion.div
-            key="backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-9 bg-black/50"
-            onClick={toggleSidebar}
+    <div className="hidden items-center gap-4 text-muted-foreground md:flex">
+      <div className="flex items-center gap-1.5 text-xs">
+        <Calendar className="size-3.5 shrink-0" />
+        <span className="hidden whitespace-nowrap lg:inline">{dateStr}</span>
+      </div>
+      <div className="flex items-center gap-1.5 font-mono text-xs">
+        <Clock className="size-3.5 shrink-0" />
+        <span>{timeStr}</span>
+      </div>
+    </div>
+  );
+}
+
+function Breadcrumbs() {
+  const location = useLocation();
+  const breadcrumbs = findBreadcrumb(location.pathname);
+
+  return (
+    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm">
+      {breadcrumbs.map((crumb, idx) => {
+        const isLast = idx === breadcrumbs.length - 1;
+        return (
+          <span key={idx} className="flex min-w-0 items-center gap-1">
+            {idx > 0 && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+            {isLast || !crumb.to ? (
+              <span className={cn("truncate", isLast ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                {crumb.label}
+              </span>
+            ) : (
+              <Link to={crumb.to} className="truncate text-muted-foreground transition-colors hover:text-foreground">
+                {crumb.label}
+              </Link>
+            )}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AppLayout() {
+  const navigate = useNavigate();
+  const logout = useAuthStore((s) => s.logout);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const { isDark, toggleDark, initTheme } = useUIStore();
+
+  useEffect(() => {
+    initTheme();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        {/* ===== Header (pola shadcn-admin) ===== */}
+        <header className="header-art sticky top-0 z-50 flex h-16 items-center gap-3 border-b bg-header/95 px-4 backdrop-blur sm:gap-4">
+          <SidebarTrigger variant="outline" className="max-md:scale-125" />
+          <Separator orientation="vertical" className="!h-6" />
+          <Breadcrumbs />
+          <HeaderClock />
+          <Separator orientation="vertical" className="hidden !h-6 md:block" />
+
+          {/* Notifikasi (placeholder — modul Notifikasi belum dibangun) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled
+            title="Notifikasi (segera hadir)"
+            className="text-muted-foreground"
+          >
+            <Bell />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDark}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {isDark ? <Sun /> : <Moon />}
+          </Button>
+
+          <ProfileDropdown
+            onChangePassword={() => setShowChangePassword(true)}
+            onLogout={() => setShowLogoutDialog(true)}
           />
-        )}
-      </AnimatePresence>
+        </header>
+
+        {/* ===== Page content ===== */}
+        <main className="px-4 py-6 md:px-6">
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
+        </main>
+      </SidebarInset>
 
       {/* Logout dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
@@ -267,7 +451,7 @@ export function AppLayout() {
             <DialogTitle>Konfirmasi Logout</DialogTitle>
             <DialogDescription>Apakah kamu yakin ingin keluar?</DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowLogoutDialog(false)}>
               Batal
             </Button>
@@ -278,192 +462,7 @@ export function AppLayout() {
         </DialogContent>
       </Dialog>
 
-      {/* Sidebar */}
-      <motion.aside
-        animate={{ width: sidebarWidth, x: isMobile && !sidebarOpen ? -sidebarWidth : 0 }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="border-r bg-card fixed inset-y-0 left-0 z-10 overflow-hidden flex flex-col"
-        style={{ width: sidebarWidth }}
-      >
-        {/* Header */}
-        <div
-          className={cn(
-            "h-16 px-4 border-b flex items-center shrink-0",
-            !collapsed ? "justify-between" : "justify-center"
-          )}
-        >
-          {!collapsed ? (
-            <>
-              <div className="flex items-center gap-2 overflow-hidden">
-                <img src="/assets/logo/gbb-logo-horizontal.png" alt="GBB Portal" className="h-8 w-auto" />
-              </div>
-              <button
-                onClick={toggleSidebar}
-                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={toggleSidebar}
-              title="Expand sidebar"
-              className="p-1.5 rounded-lg hover:bg-accent transition-colors"
-            >
-              <img src="/assets/logo/gbb-logo-mark.png" alt="GBB" className="h-8 w-8" />
-            </button>
-          )}
-        </div>
-
-        {/* Nav */}
-        <nav className={cn("flex-1 overflow-y-auto py-3 space-y-1", !collapsed ? "px-3" : "px-2")}>
-          {navItems.map((item) =>
-            item.children ? (
-              <NavGroup key={item.label} item={item} collapsed={collapsed} />
-            ) : (
-              <NavLeaf key={item.path} item={item} collapsed={collapsed} />
-            )
-          )}
-
-          {settingsItems.length > 0 && (
-            <>
-              <div className="border-t border-border mx-1 my-3" />
-              {settingsItems.map((item) => (
-                <NavLeaf key={item.path} item={item} collapsed={collapsed} />
-              ))}
-            </>
-          )}
-        </nav>
-
-        {!collapsed && <GlobalPeriodeFilter />}
-      </motion.aside>
-
-      {/* Main */}
-      <motion.div
-        animate={{ marginLeft: mainMarginLeft }}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ marginLeft: mainMarginLeft }}
-      >
-        {/* Header bar */}
-        <header className="h-16 border-b bg-card shrink-0 flex items-center px-4 md:px-6 gap-3 md:gap-4">
-          <button
-            onClick={toggleSidebar}
-            className="md:hidden p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-1 text-sm flex-1 min-w-0">
-            {breadcrumbs.map((crumb, idx) => {
-              const isLast = idx === breadcrumbs.length - 1;
-              return (
-                <span key={idx} className="flex items-center gap-1 min-w-0">
-                  {idx > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                  {isLast || !crumb.to ? (
-                    <span
-                      className={cn(
-                        "truncate",
-                        isLast ? "font-semibold text-foreground" : "text-muted-foreground"
-                      )}
-                    >
-                      {crumb.label}
-                    </span>
-                  ) : (
-                    <Link
-                      to={crumb.to}
-                      className="text-muted-foreground hover:text-foreground transition-colors truncate"
-                    >
-                      {crumb.label}
-                    </Link>
-                  )}
-                </span>
-              );
-            })}
-          </nav>
-
-          {/* Date & Time */}
-          <div className="hidden md:flex items-center gap-4 text-muted-foreground shrink-0">
-            <div className="flex items-center gap-1.5 text-xs">
-              <Calendar className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden lg:inline whitespace-nowrap">{dateStr}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-mono">
-              <Clock className="h-3.5 w-3.5 shrink-0" />
-              <span>{timeStr}</span>
-            </div>
-          </div>
-
-          <div className="h-5 w-px bg-border shrink-0 hidden md:block" />
-
-          {/* Notifikasi (placeholder — modul Notifikasi belum dibangun) */}
-          <button
-            type="button"
-            disabled
-            title="Notifikasi (segera hadir)"
-            className="p-2 rounded-lg text-muted-foreground opacity-60 cursor-not-allowed shrink-0"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
-
-          {/* Dark mode */}
-          <button
-            onClick={toggleDark}
-            className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-
-          {/* User menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-accent transition-colors shrink-0">
-                <div className="rounded-full bg-accent flex items-center justify-center h-8 w-8 shrink-0">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-sm font-medium truncate">{nama ?? email ?? "User"}</span>
-                  {nama && email && (
-                    <span className="text-xs font-normal text-muted-foreground truncate">{email}</span>
-                  )}
-                  <span className="text-xs font-normal text-muted-foreground uppercase tracking-wide">
-                    {role ?? "-"}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowChangePassword(true)}>
-                <KeyRound className="h-4 w-4 mr-2" />
-                Ganti Password
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setShowLogoutDialog(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto p-4 md:p-8 animate-in fade-in duration-300">
-          <ErrorBoundary>
-            <Outlet />
-          </ErrorBoundary>
-        </main>
-      </motion.div>
-
-      {showChangePassword && (
-        <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />
-      )}
-    </div>
+      {showChangePassword && <ChangePasswordDialog onClose={() => setShowChangePassword(false)} />}
+    </SidebarProvider>
   );
 }

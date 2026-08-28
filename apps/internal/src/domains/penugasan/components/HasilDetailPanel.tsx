@@ -8,6 +8,7 @@ import {
   Pencil,
   Upload,
 } from "lucide-react";
+import { Badge, Card, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -44,26 +45,29 @@ const formatDeadline = (iso: string) =>
 function HasilStatusBadge({ hasil }: { hasil: HasilPenugasan }) {
   if (hasil.status === "graded") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+      <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/10 text-primary">
         <CheckCircle2 className="h-3 w-3" /> graded
-      </span>
+      </Badge>
     );
   }
   if (hasil.status === "submitted") {
     return hasil.terlambat ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+      <Badge variant="outline" className="gap-1 border-destructive/30 bg-destructive/10 text-destructive">
         <AlarmClock className="h-3 w-3" /> terlambat
-      </span>
+      </Badge>
     ) : (
-      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+      <Badge
+        variant="outline"
+        className="gap-1 border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+      >
         <Upload className="h-3 w-3" /> submitted
-      </span>
+      </Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+    <Badge variant="outline" className="gap-1 text-muted-foreground">
       <Hourglass className="h-3 w-3" /> belum kumpul
-    </span>
+    </Badge>
   );
 }
 
@@ -118,8 +122,8 @@ function NilaiDialog({
             </a>
           )}
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="n-nilai">Nilai (0–{penugasan.nilai_maks})</Label>
             <Input
               id="n-nilai"
@@ -132,7 +136,7 @@ function NilaiDialog({
               disabled={nilaiMutation.isPending}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="n-feedback">Feedback (opsional)</Label>
             <Textarea
               id="n-feedback"
@@ -142,7 +146,7 @@ function NilaiDialog({
               disabled={nilaiMutation.isPending}
             />
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={nilaiMutation.isPending}>
               Batal
             </Button>
@@ -179,7 +183,7 @@ export function HasilDetailPanel({
   const items = filter === "semua" ? all : all.filter((h) => h.status !== "graded");
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm">
+    <Card className="gap-0 overflow-hidden py-0">
       {/* Header detail */}
       <div className="border-b px-4 py-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -225,7 +229,7 @@ export function HasilDetailPanel({
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={canManage ? 5 : 4}>
-                    <div className="h-5 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -286,6 +290,6 @@ export function HasilDetailPanel({
       {grading && (
         <NilaiDialog hasil={grading} penugasan={penugasan} onClose={() => setGrading(null)} />
       )}
-    </div>
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  copyTopik,
   createLibrary,
   createTopik,
   deleteLibrary,
@@ -8,6 +9,7 @@ import {
   getEventOptions,
   getLibraryList,
   getLibraryStats,
+  getTopikDetail,
   getTopikList,
   getTopikUsulanList,
   updateLibrary,
@@ -28,6 +30,14 @@ export function useTopikList(params: ListParams = {}) {
   });
 }
 
+export function useTopikDetail(id: number) {
+  return useQuery({
+    queryKey: [KURIKULUM_KEY, "topik", "detail", id],
+    queryFn: () => getTopikDetail(id),
+    enabled: Number.isFinite(id),
+  });
+}
+
 export function useCreateTopik() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -45,6 +55,25 @@ export function useUpdateTopik() {
     mutationFn: ({ id, body }: { id: number; body: UpdateTopikReq }) => updateTopik(id, body),
     onSuccess: () => {
       toast.success("Topik berhasil diperbarui");
+      queryClient.invalidateQueries({ queryKey: [KURIKULUM_KEY, "topik"] });
+    },
+  });
+}
+
+// Error TIDAK di-toast di sini (interceptor sudah); dialog pemanggil
+// menampilkan mutation.error.message inline.
+export function useCopyTopik() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sourcePeriodeId,
+      targetPeriodeId,
+    }: {
+      sourcePeriodeId: number;
+      targetPeriodeId: number;
+    }) => copyTopik(sourcePeriodeId, targetPeriodeId),
+    onSuccess: (data) => {
+      toast.success(`${data?.copied ?? 0} topik berhasil disalin`);
       queryClient.invalidateQueries({ queryKey: [KURIKULUM_KEY, "topik"] });
     },
   });

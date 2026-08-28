@@ -9,13 +9,13 @@ import {
   getEventStats,
   saveAbsensi,
   updateEvent,
+  updateEventStatus,
 } from "../services";
-import type { CreateEventReq, UpdateEventReq } from "../services";
-import type { ListParams } from "@/shared/lib/apiTypes";
+import type { CreateEventReq, EventListParams, EventStatus, UpdateEventReq } from "../services";
 
 export const EVENT_KEY = "event";
 
-export function useEventList(params: ListParams = {}) {
+export function useEventList(params: EventListParams = {}) {
   return useQuery({
     queryKey: [EVENT_KEY, "list", params],
     queryFn: () => getEventList(params),
@@ -42,7 +42,10 @@ export function useCreateEvent() {
   return useMutation({
     mutationFn: (body: CreateEventReq) => createEvent(body),
     onSuccess: () => {
-      toast.success("Event berhasil dibuat");
+      // Event baru selalu berstatus draft di backend
+      toast.success("Event tersimpan sebagai Draft", {
+        description: "Belum terlihat di portal beswan sampai status diubah ke Published.",
+      });
       queryClient.invalidateQueries({ queryKey: [EVENT_KEY] });
     },
   });
@@ -57,6 +60,21 @@ export function useUpdateEvent() {
       queryClient.invalidateQueries({ queryKey: [EVENT_KEY] });
       // Entri library tipe event_materi bisa ikut berubah saat youtube/slide diisi
       queryClient.invalidateQueries({ queryKey: ["kurikulum", "library"] });
+      // Pindah periode melepas tautan topik event → media/status topik ikut berubah
+      queryClient.invalidateQueries({ queryKey: ["kurikulum", "topik"] });
+    },
+  });
+}
+
+export function useUpdateEventStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: EventStatus }) =>
+      updateEventStatus(id, status),
+    onSuccess: () => {
+      toast.success("Status event diubah");
+      // Prefix [EVENT_KEY] mencakup list + detail + stats sekaligus
+      queryClient.invalidateQueries({ queryKey: [EVENT_KEY] });
     },
   });
 }

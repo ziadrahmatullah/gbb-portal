@@ -13,8 +13,8 @@ export function ActionMenu({ actions, className }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={cn("h-8 w-8", className)}>
-          <MoreHorizontal className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className={cn("size-8", className)}>
+          <MoreHorizontal className="size-4" />
           <span className="sr-only">Open menu</span>
         </Button>
       </DropdownMenuTrigger>
@@ -33,7 +33,7 @@ export function ActionMenu({ actions, className }) {
               className={cn("cursor-pointer", action.variant === "destructive" && "text-destructive focus:text-destructive")}
               disabled={action.disabled}
             >
-              {Icon && <Icon className="mr-2 h-4 w-4" />}
+              {Icon && <Icon className="mr-2 size-4" />}
               {action.label}
             </DropdownMenuItem>
           );

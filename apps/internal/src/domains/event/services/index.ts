@@ -29,8 +29,12 @@ export interface EventItem {
   slide_url?: string | null;
   rekaman_tersedia: boolean;
   materi_tersedia: boolean;
-  status: string; // upcoming | done | cancelled
+  status: string; // draft | published | done | cancelled
 }
+
+// Enum status event. Event baru dibuat backend berstatus "draft" dan
+// disembunyikan dari portal beswan/donatur sampai dipublish.
+export type EventStatus = "draft" | "published" | "done" | "cancelled";
 
 export interface AssignMentorReq {
   mentor_id: number;
@@ -58,6 +62,13 @@ export interface CreateEventReq {
 // - key "mentors" JANGAN disertakan sama sekali kecuali user memang mengubah roster —
 //   kehadiran key ini (termasuk array kosong []) mengganti SELURUH roster mentor lama.
 export interface UpdateEventReq {
+  // Pindah periode — kirim hanya bila berubah; backend otomatis mengosongkan
+  // topik_id event (topik terikat periode), kode_event tetap
+  periode_id?: number;
+  // Ganti topik — tidak dikirim = tidak berubah; 0 = lepas tautan (event jadi
+  // non-kurikulum); nilai lain divalidasi milik periode event (bila dikirim
+  // bersama periode_id, validasinya terhadap periode BARU)
+  topik_id?: number;
   nama_event?: string;
   tipe?: string;
   format?: string;
@@ -69,11 +80,33 @@ export interface UpdateEventReq {
   kapasitas?: number;
   youtube_url?: string;
   slide_url?: string;
-  status?: "upcoming" | "done" | "cancelled";
+  status?: EventStatus;
   mentors?: AssignMentorReq[];
 }
 
-export async function getEventList(params: ListParams = {}) {
+export interface UpdateEventStatusReq {
+  status: EventStatus;
+}
+
+// PUT /internal/event/:id/status (role admin/pcm) — jalur khusus ganti status.
+// Status di luar enum → 400; event tidak ada → 404.
+export async function updateEventStatus(id: number, status: EventStatus) {
+  const res = await apiClient.put<EventItem>(`/internal/event/${id}/status`, { status });
+  return res.data;
+}
+
+// Default backend (tanpa sort_by): urut waktu dibuat, terbaru di atas —
+// jangan sort ulang di FE. sort_by=tanggal + order=asc|desc mengurutkan
+// berdasarkan tanggal event; jangan kirim order tanpa sort_by.
+export type EventListParams = ListParams & {
+  periode_id?: string;
+  status?: string;
+  tipe?: string;
+  sort_by?: "tanggal";
+  order?: "asc" | "desc";
+};
+
+export async function getEventList(params: EventListParams = {}) {
   const res = await apiClient.get<EventItem[]>("/internal/event", {
     page: 1,
     limit: 20,
@@ -87,16 +120,16 @@ export async function getEventList(params: ListParams = {}) {
 // Catatan: scan done dibatasi 100 event terbaru; kalau lebih, daftar alert terpotong.
 export async function getEventStats(periodeId?: string) {
   const base = periodeId ? { periode_id: periodeId } : {};
-  const [total, upcoming, done] = await Promise.all([
+  const [total, published, done] = await Promise.all([
     getEventList({ limit: 1, ...base }),
-    getEventList({ limit: 1, status: "upcoming", ...base }),
+    getEventList({ limit: 1, status: "published", ...base }),
     getEventList({ limit: 100, status: "done", ...base }),
   ]);
   const belumRekaman = done.items.filter((e) => !e.rekaman_tersedia || !e.materi_tersedia);
   return {
     total: total.totalItems,
     done: done.totalItems,
-    upcoming: upcoming.totalItems,
+    published: published.totalItems,
     belumRekaman,
   };
 }

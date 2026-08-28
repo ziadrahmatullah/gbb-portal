@@ -1,5 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+/* theme.css WAJIB setelah tailwindcss: rule base `* { border-color: var(--border) }`
+   harus menimpa preflight (`border: 0 solid` -> currentColor), bukan sebaliknya. */
 @import "@gbb/ui/theme.css";
 @import "@gbb/ui/animations.css";
-@import "tailwindcss";
+
+/* Dark mode berbasis kelas .dark (toggle useUIStore), bukan prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../../../packages/ui/src";

@@ -38,6 +38,24 @@ export async function getMentorList(params: ListParams = {}) {
   return toPaged(res);
 }
 
+// Export Excel: GET /internal/mentor?download=true mengembalikan .xlsx (binary).
+// Filter yang sama ikut berlaku; page/limit diabaikan backend — jangan dikirim.
+// Nama file dari Content-Disposition (sudah ter-expose lewat CORS), fallback
+// "data-mentor.xlsx". Pola sama persis dengan downloadBeswanExcel.
+export type MentorExportParams = {
+  is_internal?: string; // "true" | "false"
+  bidang_keahlian?: string;
+  search?: string;
+};
+
+export async function downloadMentorExcel(params: MentorExportParams = {}) {
+  const res = await apiClient.getBlob("/internal/mentor", { ...params, download: true });
+  const disposition = String(res.headers["content-disposition"] ?? "");
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  const filename = match?.[1] ? decodeURIComponent(match[1]) : "data-mentor.xlsx";
+  return { blob: res.data, filename };
+}
+
 export interface MentorStats {
   total: number;
   undip: number;

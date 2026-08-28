@@ -121,7 +121,7 @@ export function QurbanDetail() {
       </div>
 
       {/* Banner */}
-      <div className="rounded-xl border bg-card px-5 py-4 flex items-center gap-4">
+      <div className="rounded-xl bg-card shadow-md px-5 py-4 flex items-center gap-4">
         <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           <Package className="h-5 w-5 text-primary" />
         </div>

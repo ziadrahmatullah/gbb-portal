@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Award, FileText, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
+  Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,7 +19,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Textarea,
+  DateInput,
 } from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import type { Prestasi, PrestasiInput } from "../services";
@@ -85,8 +90,8 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
             Catat prestasi akademik, organisasi, maupun luar kampus.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="pr-judul">Judul *</Label>
             <Input
               id="pr-judul"
@@ -96,8 +101,8 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
               disabled={busy}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Kategori *</Label>
               <Select value={form.kategori} onValueChange={(v: string) => set({ kategori: v })}>
                 <SelectTrigger>
@@ -112,11 +117,10 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="pr-tanggal">Tanggal *</Label>
-              <Input
+              <DateInput
                 id="pr-tanggal"
-                type="date"
                 value={form.tanggal}
                 onChange={(e: ChangeEvent<HTMLInputElement>) => set({ tanggal: e.target.value })}
                 required
@@ -124,7 +128,7 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
               />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="pr-deskripsi">Deskripsi</Label>
             <Textarea
               id="pr-deskripsi"
@@ -134,7 +138,7 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
               disabled={busy}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="pr-files">{existing ? "Tambah File" : "File (sertifikat/foto)"}</Label>
             <div className="flex items-center gap-2">
               <Input
@@ -161,7 +165,7 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
               )}
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
               Batal
             </Button>
@@ -187,7 +191,7 @@ function DeleteDialog({ prestasi, onClose }: { prestasi: Prestasi; onClose: () =
             Tindakan ini tidak bisa dibatalkan.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={del.isPending}>
             Batal
           </Button>
@@ -223,14 +227,14 @@ export function PrestasiSection() {
   }, [items]);
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Award className="h-5 w-5 text-primary" />
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Award className="size-5 text-primary" />
           Prestasiku
         </h2>
         <Button size="sm" onClick={() => setDialog({ mode: "add" })}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="size-4" />
           Tambah Prestasi
         </Button>
       </div>
@@ -242,77 +246,80 @@ export function PrestasiSection() {
       )}
 
       {isLoading ? (
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-24 w-full rounded-xl" />
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center rounded-xl border border-dashed">
-          Belum ada prestasi tercatat
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+          <Award className="size-10 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Belum ada prestasi tercatat</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {items.map((p) => (
-            <div key={p.id} className="rounded-xl border bg-card p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{p.judul}</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                      {KATEGORI[p.kategori] ?? p.kategori}
-                    </span>
+            <Card key={p.id} className="gap-2 py-4">
+              <CardContent className="px-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{p.judul}</span>
+                      <Badge variant="outline" className="font-normal text-muted-foreground">
+                        {KATEGORI[p.kategori] ?? p.kategori}
+                      </Badge>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {p.tanggal
+                        ? new Date(p.tanggal).toLocaleDateString("id-ID", { dateStyle: "long" })
+                        : ""}
+                    </div>
+                    {p.deskripsi && (
+                      <p className="mt-1 text-sm text-muted-foreground">{p.deskripsi}</p>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {p.tanggal
-                      ? new Date(p.tanggal).toLocaleDateString("id-ID", { dateStyle: "long" })
-                      : ""}
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Edit ${p.judul}`}
+                      onClick={() => setDialog({ mode: "edit", prestasi: p })}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Hapus ${p.judul}`}
+                      onClick={() => setDeleting(p)}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
                   </div>
-                  {p.deskripsi && (
-                    <p className="text-sm text-muted-foreground mt-1">{p.deskripsi}</p>
-                  )}
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Edit ${p.judul}`}
-                    onClick={() => setDialog({ mode: "edit", prestasi: p })}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Hapus ${p.judul}`}
-                    onClick={() => setDeleting(p)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-              {(p.files?.length ?? 0) > 0 && (
-                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                  {(p.files ?? []).map((f) => (
-                    <li key={f.id} className="flex items-center gap-1.5 text-sm">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                      <a
-                        href={assetUrl(f.file_url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {f.tipe} — {f.file_url.split("/").pop()}
-                      </a>
-                      <button
-                        type="button"
-                        aria-label="Hapus file"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => delFile.mutate({ id: p.id, fileId: f.id })}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                {(p.files?.length ?? 0) > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {(p.files ?? []).map((f) => (
+                      <li key={f.id} className="flex items-center gap-1.5 text-sm">
+                        <FileText className="size-3.5 text-muted-foreground" />
+                        <a
+                          href={assetUrl(f.file_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {f.tipe} — {f.file_url.split("/").pop()}
+                        </a>
+                        <button
+                          type="button"
+                          aria-label="Hapus file"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => delFile.mutate({ id: p.id, fileId: f.id })}
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

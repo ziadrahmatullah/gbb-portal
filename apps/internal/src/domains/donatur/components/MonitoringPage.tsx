@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
@@ -181,36 +182,43 @@ export function MonitoringPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Monitoring Donatur</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] })}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Monitoring Donatur</h1>
+          <p className="text-muted-foreground">Pantau donasi per bulan dan follow-up donatur.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] })}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Users} label="Total Donatur" value={String(stats?.total ?? "—")} loading={statsLoading} />
         <StatCard icon={CheckCircle2} label="Aktif Periode" value={String(stats?.aktif_periode ?? "—")} loading={statsLoading} />
         <StatCard icon={AlertTriangle} label="Belum Diklasif." value={String(stats?.belum_diklasifikasi ?? "—")} loading={statsLoading} />
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-              <CalendarCheck className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">
-                {periodeAktif.length ? periodeAktif.map((p) => p.nama).join(", ") : "—"}
+        <Card className="gap-2 py-4">
+          <CardContent className="px-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+                <CalendarCheck className="h-5 w-5 text-primary" />
               </div>
-              <div className="text-xs text-muted-foreground">Periode Aktif</div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">
+                  {periodeAktif.length ? periodeAktif.map((p) => p.nama).join(", ") : "—"}
+                </div>
+                <div className="text-xs text-muted-foreground">Periode Aktif</div>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Info cara pakai */}
@@ -258,7 +266,7 @@ export function MonitoringPage() {
       </div>
 
       {/* Tabel monitoring */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -280,7 +288,7 @@ export function MonitoringPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={colCount}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -350,10 +358,11 @@ export function MonitoringPage() {
             )}
           </TableBody>
         </Table>
+      </div>
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>Menampilkan {(page - 1) * limit + 1}–{Math.min(page * limit, totalItems)} dari {totalItems}</span>
               <Select value={String(limit)} onValueChange={(v: string) => { setLimit(Number(v)); setPage(1); }}>
@@ -376,9 +385,8 @@ export function MonitoringPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

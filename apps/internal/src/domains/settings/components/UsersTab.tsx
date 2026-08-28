@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { KeyRound, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { ROLES } from "@/shared/constants/roles";
 import type { Role } from "@/shared/constants/roles";
@@ -67,21 +68,21 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
           <DialogTitle>Tambah User</DialogTitle>
           <DialogDescription>Buat akun portal internal baru.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="u-nama">Nama</Label>
             <Input id="u-nama" value={form.nama} onChange={set("nama")} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="u-email">Email</Label>
             <Input id="u-email" type="email" value={form.email} onChange={set("email")} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="u-password">Password (min 8 karakter)</Label>
             <Input id="u-password" type="password" minLength={8} value={form.password} onChange={set("password")} required disabled={saving} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={(v: Role) => setRole(v)} disabled={saving}>
                 <SelectTrigger>
@@ -96,12 +97,12 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="u-divisi">Divisi (opsional)</Label>
               <Input id="u-divisi" value={form.divisi} onChange={set("divisi")} disabled={saving} />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -137,16 +138,16 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
             Email &amp; password tidak dapat diubah dari sini (reset password belum tersedia).
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="rounded-lg border bg-muted/30 p-3 text-sm">
             <span className="text-muted-foreground">Email:</span> {user.email}
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ue-nama">Nama</Label>
             <Input id="ue-nama" value={nama} onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)} required disabled={saving} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Role</Label>
               <Select value={role} onValueChange={(v: Role) => setRole(v)} disabled={saving}>
                 <SelectTrigger>
@@ -161,12 +162,12 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ue-divisi">Divisi</Label>
               <Input id="ue-divisi" value={divisi} onChange={(e: ChangeEvent<HTMLInputElement>) => setDivisi(e.target.value)} disabled={saving} />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -207,17 +208,17 @@ function ResetPasswordDialog({ user, onClose }: { user: User; onClose: () => voi
             Set password baru untuk {user.email}. Sampaikan ke user via WA/email di luar sistem.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="rp-pass">Password baru (min 8 karakter)</Label>
             <Input id="rp-pass" type="password" minLength={8} value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} required disabled={saving} autoComplete="new-password" />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="rp-confirm">Konfirmasi password baru</Label>
             <Input id="rp-confirm" type="password" minLength={8} value={confirm} onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirm(e.target.value)} required disabled={saving} autoComplete="new-password" />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter className="gap-2 sm:gap-0 pt-1">
+          <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -292,7 +293,7 @@ export function UsersTab() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -309,7 +310,7 @@ export function UsersTab() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -325,16 +326,17 @@ export function UsersTab() {
                   <TableCell className="font-medium">
                     {u.nama}
                     {u.email === myEmail && (
-                      <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                      <Badge
+                        variant="outline"
+                        className="ml-2 border-primary/30 bg-primary/10 text-primary"
+                      >
                         Anda
-                      </span>
+                      </Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
                   <TableCell>
-                    <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                      {u.role}
-                    </span>
+                    <Badge variant="outline">{u.role}</Badge>
                   </TableCell>
                   <TableCell className="text-sm">{u.divisi || "—"}</TableCell>
                   <TableCell>
@@ -404,7 +406,7 @@ export function UsersTab() {
               {deleteError}
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={closeDelete}>
               Batal
             </Button>

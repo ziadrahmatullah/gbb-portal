@@ -9,6 +9,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
@@ -81,13 +82,18 @@ export function LaporanPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Laporan &amp; Booklet</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Laporan &amp; Booklet</h1>
+          <p className="text-muted-foreground">Arsip laporan dan booklet program.</p>
+        </div>
         {canMutate && (
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setUploadOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Upload
+            </Button>
+          </div>
         )}
       </div>
 
@@ -146,7 +152,7 @@ export function LaporanPage() {
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -163,7 +169,7 @@ export function LaporanPage() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -181,14 +187,16 @@ export function LaporanPage() {
                   <TableCell className="text-sm capitalize">{l.tipe}</TableCell>
                   <TableCell className="text-sm">{l.periode_id ? periodeMap.get(l.periode_id) ?? `#${l.periode_id}` : "—"}</TableCell>
                   <TableCell>
-                    <span
+                    <Badge
+                      variant="outline"
                       className={cn(
-                        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                        l.is_public ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        l.is_public
+                          ? "border-primary/30 bg-primary/10 text-primary"
+                          : "text-muted-foreground"
                       )}
                     >
                       {l.is_public ? "✅" : "❌"}
-                    </span>
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
@@ -226,10 +234,11 @@ export function LaporanPage() {
             )}
           </TableBody>
         </Table>
+      </div>
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>
                 Menampilkan {(page - 1) * limit + 1}–{Math.min(page * limit, totalItems)} dari {totalItems}
@@ -256,9 +265,8 @@ export function LaporanPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {uploadOpen && <UploadLaporanDialog onClose={() => setUploadOpen(false)} />}
       {editing && <EditLaporanDialog laporan={editing} onClose={() => setEditing(null)} />}
@@ -271,7 +279,7 @@ export function LaporanPage() {
               Yakin ingin menghapus <strong>{deleting?.judul}</strong>?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>

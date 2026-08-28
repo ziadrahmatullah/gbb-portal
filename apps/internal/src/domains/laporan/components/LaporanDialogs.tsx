@@ -82,16 +82,16 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
           <DialogTitle>Upload Laporan</DialogTitle>
           <DialogDescription>Unggah dokumen laporan/booklet baru.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="l-judul">Judul</Label>
             <Input id="l-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Tipe</Label>
             <TipeSelect value={tipe} onChange={setTipe} disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Periode (opsional)</Label>
             <Select value={periodeId} onValueChange={setPeriodeId} disabled={saving}>
               <SelectTrigger>
@@ -107,7 +107,7 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="l-file">File (wajib — PDF/DOCX/PPTX/XLS)</Label>
             <Input
               id="l-file"
@@ -122,7 +122,7 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
             <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled={saving} />
             Tampilkan sebagai publik
           </label>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -161,12 +161,12 @@ export function EditLaporanDialog({ laporan, onClose }: { laporan: Laporan; onCl
             File tidak dapat diganti lewat edit — hapus &amp; upload ulang bila perlu.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="le-judul">Judul</Label>
             <Input id="le-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Tipe</Label>
             <TipeSelect value={tipe} onChange={setTipe} disabled={saving} />
           </div>
@@ -174,7 +174,7 @@ export function EditLaporanDialog({ laporan, onClose }: { laporan: Laporan; onCl
             <Switch checked={isPublic} onCheckedChange={setIsPublic} disabled={saving} />
             Tampilkan sebagai publik
           </label>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>

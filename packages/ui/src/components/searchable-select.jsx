@@ -66,7 +66,7 @@ export function SearchableSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between text-left font-normal h-10",
+            "w-full justify-between text-left font-normal h-9",
             !value && "text-muted-foreground",
             required && !value && "border-destructive"
           )}
@@ -86,7 +86,7 @@ export function SearchableSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-(--radix-popover-trigger-width) min-w-56 p-0" align="start">
         <div className="p-2">
           {/* Search input */}
           <div className="relative mb-2">

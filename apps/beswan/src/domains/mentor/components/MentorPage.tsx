@@ -2,7 +2,12 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Calendar, Info, Linkedin, Search, Send, Star, Users } from "lucide-react";
 import {
+  Alert,
+  AlertDescription,
+  Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,6 +21,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Textarea,
 } from "@gbb/ui";
 import { useMentorList, useRequestMentor } from "../hooks/useMentor";
@@ -61,9 +67,9 @@ function RequestDialog({ mentors, initialMentorId, onClose }: {
             Tim GBB akan menghubungkanmu dengan mentor sesuai kebutuhanmu.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer has-[:checked]:border-primary">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors has-checked:border-primary">
               <input
                 type="radio"
                 name="req-mode"
@@ -89,7 +95,7 @@ function RequestDialog({ mentors, initialMentorId, onClose }: {
                 )}
               </div>
             </label>
-            <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer has-[:checked]:border-primary">
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors has-checked:border-primary">
               <input
                 type="radio"
                 name="req-mode"
@@ -102,7 +108,7 @@ function RequestDialog({ mentors, initialMentorId, onClose }: {
                   Saya butuh mentor, tapi belum tahu siapa — bantu pilihkan
                 </div>
                 {mode === "curhat" && (
-                  <div className="space-y-1.5">
+                  <div className="grid gap-2">
                     <Label htmlFor="req-curhat" className="sr-only">Ceritakan kebutuhanmu</Label>
                     <Textarea
                       id="req-curhat"
@@ -117,12 +123,12 @@ function RequestDialog({ mentors, initialMentorId, onClose }: {
             </label>
           </div>
           {validationError && <p className="text-sm text-destructive">{validationError}</p>}
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
               Batal
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              <Send className="h-4 w-4 mr-2" />
+              <Send className="size-4" />
               {mutation.isPending ? "Mengirim…" : "Kirim Request"}
             </Button>
           </DialogFooter>
@@ -134,47 +140,47 @@ function RequestDialog({ mentors, initialMentorId, onClose }: {
 
 function MentorCard({ mentor, onRequest }: { mentor: Mentor; onRequest: () => void }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-medium truncate" title={mentor.nama}>{mentor.nama}</div>
-          <div className="text-sm text-muted-foreground truncate">{mentor.bidang_keahlian}</div>
+    <Card className="h-full gap-2 py-4">
+      <CardContent className="flex flex-1 flex-col gap-2 px-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="truncate font-medium" title={mentor.nama}>{mentor.nama}</div>
+            <div className="truncate text-sm text-muted-foreground">{mentor.bidang_keahlian}</div>
+          </div>
+          {mentor.is_internal && (
+            <Badge variant="outline" className="shrink-0 text-primary">🏠 Tim GBB</Badge>
+          )}
         </div>
-        {mentor.is_internal && (
-          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-            🏠 Tim GBB
-          </span>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <Calendar className="h-3.5 w-3.5" />
-          {mentor.jumlah_event} event
-        </span>
-        {mentor.avg_rating != null ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-            {mentor.avg_rating.toFixed(1)}
+            <Calendar className="size-3.5" />
+            {mentor.jumlah_event} event
           </span>
-        ) : (
-          <span className="text-xs">Belum ada rating</span>
-        )}
-        {mentor.linkedin_url && (
-          <a
-            href={mentor.linkedin_url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-primary hover:underline"
-          >
-            <Linkedin className="h-3.5 w-3.5" />
-            LinkedIn
-          </a>
-        )}
-      </div>
-      <Button size="sm" variant="outline" className="mt-auto" onClick={onRequest}>
-        Request 1-on-1
-      </Button>
-    </div>
+          {mentor.avg_rating != null ? (
+            <span className="inline-flex items-center gap-1">
+              <Star className="size-3.5 fill-amber-400 text-amber-400" />
+              {mentor.avg_rating.toFixed(1)}
+            </span>
+          ) : (
+            <span className="text-xs">Belum ada rating</span>
+          )}
+          {mentor.linkedin_url && (
+            <a
+              href={mentor.linkedin_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              <Linkedin className="size-3.5" />
+              LinkedIn
+            </a>
+          )}
+        </div>
+        <Button size="sm" variant="outline" className="mt-auto" onClick={onRequest}>
+          Request 1-on-1
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -200,30 +206,32 @@ export function MentorPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Mentor</h1>
-        <Button size="sm" onClick={() => setRequestFor({ open: true })}>
-          <Users className="h-4 w-4 mr-2" />
-          Request 1-on-1
-        </Button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Mentor</h1>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setRequestFor({ open: true })}>
+            <Users className="size-4" />
+            Request 1-on-1
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
-        <Info className="h-4 w-4 shrink-0 mt-0.5" />
-        <span>
+      <Alert>
+        <Info className="size-4" />
+        <AlertDescription>
           Kontak mentor tidak dibagikan langsung. Untuk terhubung dengan mentor, gunakan tombol
           Request 1-on-1 — Tim Program GBB yang akan menjadwalkan.
-        </span>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             placeholder="Cari mentor…"
-            className="pl-9 w-64"
+            className="w-64 pl-9"
           />
         </div>
         <Select value={bidang} onValueChange={setBidang}>
@@ -242,15 +250,18 @@ export function MentorPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-xl bg-muted" />
+            <Skeleton key={i} className="h-36 rounded-xl" />
           ))}
         </div>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Tidak ada mentor ditemukan</p>
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+          <Users className="size-10 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Tidak ada mentor ditemukan</p>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((m) => (
             <MentorCard
               key={m.id}

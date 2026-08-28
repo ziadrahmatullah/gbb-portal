@@ -1,11 +1,17 @@
 import { useState } from "react";
-import type { ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import type { ChangeEvent, MouseEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import {
+  ArrowDown,
+  ArrowUp,
   BarChart3,
+  Download,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  Copy,
   Eye,
   GraduationCap,
   Pencil,
@@ -14,6 +20,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge, Skeleton } from "@gbb/ui";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -33,12 +40,15 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { StatCard } from "@/shared/components/StatCard";
-import { useBeswanList, useBeswanStats } from "../hooks/useBeswan";
-import { assetUrl } from "../services";
-import type { BeswanListItem } from "../services";
+import { useBeswanList, useBeswanStats, useUpdateBeswanStatus } from "../hooks/useBeswan";
+import { assetUrl, downloadBeswanExcel } from "../services";
+import type { BeswanListItem, BeswanStatus } from "../services";
 import { CreateBeswanDialog, EditBeswanDialog } from "./BeswanFormDialogs";
 
 const ALL_STATUS = "all";
+
+type StatusFilter = "aktif" | "alumni" | typeof ALL_STATUS;
+type SortOrder = "asc" | "desc";
 
 export function BeswanAvatar({
   beswan,
@@ -71,24 +81,80 @@ export function BeswanAvatar({
 export function StatusBadge({ status }: { status?: string }) {
   if (!status) return null;
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-        status === "aktif" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-      )}
+    <Badge
+      variant={status === "aktif" ? "default" : "outline"}
+      className={status === "aktif" ? "capitalize" : "capitalize text-muted-foreground"}
     >
       {status}
-    </span>
+    </Badge>
+  );
+}
+
+// Segmented slider aktif/alumni: kedua label di dalam kontrol, thumb geser
+// kanan-kiri menutupi status yang sedang aktif. Satu tombol toggle (bukan dua
+// tombol per sisi) supaya tetap terasa seperti switch geser.
+function StatusSlider({
+  status,
+  disabled,
+  onChange,
+}: {
+  status: string;
+  disabled?: boolean;
+  onChange: (status: BeswanStatus) => void;
+}) {
+  const aktif = status === "aktif";
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={aktif}
+      disabled={disabled}
+      title={aktif ? "Aktif — klik untuk jadikan alumni" : "Alumni — klik untuk aktifkan kembali"}
+      onClick={(e: MouseEvent) => {
+        // Row-nya klik-able ke halaman detail — jangan ikut ternavigasi
+        e.stopPropagation();
+        onChange(aktif ? "alumni" : "aktif");
+      }}
+      className="relative grid grid-cols-2 items-center rounded-full border bg-muted p-0.5 text-xs font-medium select-none cursor-pointer disabled:pointer-events-none disabled:opacity-50"
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-full transition-transform duration-200",
+          aktif ? "translate-x-0 bg-primary" : "translate-x-full bg-background border shadow-sm"
+        )}
+      />
+      <span
+        className={cn(
+          "relative z-10 px-2.5 py-0.5 transition-colors",
+          aktif ? "text-primary-foreground" : "text-muted-foreground"
+        )}
+      >
+        Aktif
+      </span>
+      <span
+        className={cn(
+          "relative z-10 px-2.5 py-0.5 transition-colors",
+          aktif ? "text-muted-foreground" : "text-foreground"
+        )}
+      >
+        Alumni
+      </span>
+    </button>
   );
 }
 
 export function BeswanListPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState(ALL_STATUS);
+  const [status, setStatus] = useState<StatusFilter>(ALL_STATUS);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  // null = sort nama nonaktif (jangan kirim sort_by/order ke API)
+  const [sortNama, setSortNama] = useState<SortOrder | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<BeswanListItem | null>(null);
+  const statusMutation = useUpdateBeswanStatus();
 
   // Mengikuti filter periode global di sidebar
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
@@ -100,7 +166,43 @@ export function BeswanListPage() {
     periode_id: periodeId,
     search: search || undefined,
     status: status === ALL_STATUS ? undefined : status,
+    sort_by: sortNama ? "nama" : undefined,
+    order: sortNama ?? undefined,
   });
+
+  // Siklus klik header Nama: nonaktif → asc → desc → nonaktif
+  const toggleSortNama = () => {
+    setSortNama((s) => (s === null ? "asc" : s === "asc" ? "desc" : null));
+    setPage(1);
+  };
+
+  // Export Excel dengan filter & sort yang sedang aktif (tanpa page/limit —
+  // backend mengabaikannya dan mengekspor semua baris yang cocok)
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await downloadBeswanExcel({
+        periode_id: periodeId,
+        search: search || undefined,
+        status: status === ALL_STATUS ? undefined : status,
+        sort_by: sortNama ? "nama" : undefined,
+        order: sortNama ?? undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Pesan error sudah di-toast oleh interceptor apiClient
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -109,10 +211,10 @@ export function BeswanListPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Database Beswan</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Database Beswan</h1>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="size-4 mr-2" />
           Tambah
         </Button>
       </div>
@@ -141,7 +243,7 @@ export function BeswanListPage() {
         </div>
         <Select
           value={status}
-          onValueChange={(v: string) => {
+          onValueChange={(v: StatusFilter) => {
             setStatus(v);
             setPage(1);
           }}
@@ -155,15 +257,40 @@ export function BeswanListPage() {
             <SelectItem value="alumni">Alumni</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          className="ms-auto"
+          onClick={handleExport}
+          disabled={exporting || isLoading}
+        >
+          <Download />
+          {exporting ? "Mengekspor…" : "Export Excel"}
+        </Button>
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-14">Foto</TableHead>
-              <TableHead>Nama</TableHead>
+              <TableHead>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleSortNama}
+                  className={cn("-ms-3 h-8", sortNama && "text-foreground")}
+                >
+                  Nama
+                  {sortNama === "asc" ? (
+                    <ArrowUp className="size-3.5" />
+                  ) : sortNama === "desc" ? (
+                    <ArrowDown className="size-3.5" />
+                  ) : (
+                    <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+                  )}
+                </Button>
+              </TableHead>
               <TableHead>NIM</TableHead>
               <TableHead>Batch</TableHead>
               <TableHead>Status</TableHead>
@@ -175,7 +302,7 @@ export function BeswanListPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-8 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -187,31 +314,64 @@ export function BeswanListPage() {
               </TableRow>
             ) : (
               items.map((b) => (
-                <TableRow key={b.id}>
+                // Seluruh row klik-able ke detail; tombol di dalam row wajib
+                // stopPropagation supaya tidak ikut memicu navigasi
+                <TableRow
+                  key={b.id}
+                  onClick={() => navigate(`/panel/beswan/${b.id}`)}
+                  className="cursor-pointer"
+                >
                   <TableCell>
                     <BeswanAvatar beswan={b} className="h-9 w-9" />
                   </TableCell>
                   <TableCell>
                     <div className="font-medium">{b.nama_lengkap}</div>
-                    <div className="text-xs text-muted-foreground">{b.email}</div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="truncate">{b.email}</span>
+                      <button
+                        title="Salin email"
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          navigator.clipboard
+                            .writeText(b.email)
+                            .then(() => toast.success("Email disalin"))
+                            .catch(() => toast.error("Gagal menyalin email"));
+                        }}
+                        className="rounded p-0.5 transition-colors hover:bg-accent hover:text-foreground"
+                      >
+                        <Copy className="size-3" />
+                      </button>
+                    </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{b.nim}</TableCell>
                   <TableCell className="text-sm">{b.batch ?? "—"}</TableCell>
                   <TableCell>
-                    <StatusBadge status={b.status} />
+                    {b.status ? (
+                      <StatusSlider
+                        status={b.status}
+                        disabled={statusMutation.isPending}
+                        onChange={(status) => statusMutation.mutate({ id: b.id, status })}
+                      />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Link
                         to={`/panel/beswan/${b.id}`}
                         title="Lihat detail"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Eye className="h-4 w-4" />
                       </Link>
                       <button
                         title="Edit"
-                        onClick={() => setEditing(b)}
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          setEditing(b);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Pencil className="h-4 w-4" />

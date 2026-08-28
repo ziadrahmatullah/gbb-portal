@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
 import { KategoriManagerContent } from "@/domains/keuangan/components/KategoriManager";
 import { UsersTab } from "./UsersTab";
 import { TemplatesTab } from "./TemplatesTab";
@@ -19,29 +19,34 @@ export function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Settings / Konfigurasi</h1>
-
-      <div className="flex flex-wrap gap-1 border-b">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-              tab === t.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Settings / Konfigurasi</h1>
+        <p className="text-muted-foreground">Kelola user, template pesan, kategori, dan AI.</p>
       </div>
 
-      {tab === "users" && <UsersTab />}
-      {tab === "templates" && <TemplatesTab />}
-      {tab === "kategori" && <KategoriManagerContent />}
-      {tab === "ai" && <AIConfigTab />}
+      <Tabs value={tab} onValueChange={(v: string) => setTab(v as TabKey)} className="space-y-4">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList>
+            {TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value="users" className="space-y-4">
+          <UsersTab />
+        </TabsContent>
+        <TabsContent value="templates" className="space-y-4">
+          <TemplatesTab />
+        </TabsContent>
+        <TabsContent value="kategori" className="space-y-4">
+          <KategoriManagerContent />
+        </TabsContent>
+        <TabsContent value="ai" className="space-y-4">
+          <AIConfigTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

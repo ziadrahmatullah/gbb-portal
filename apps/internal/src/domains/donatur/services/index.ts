@@ -21,7 +21,7 @@ export interface Donatur {
   nominal_default?: number | null;
   skema: string; // sebulan_patungan | semester_patungan | sebulan_donasi | semester_donasi | belum_bersedia
   is_checked: boolean;
-  linked_email?: string | null;
+  has_password: boolean;
   tags?: string[];
   periodes?: DonaturPeriodeInfo[];
 }
@@ -30,15 +30,7 @@ export interface DonaturStats {
   total: number;
   aktif_periode: number;
   belum_diklasifikasi: number;
-  belum_terlink: number;
-}
-
-export interface PendingLogin {
-  email: string;
-  nama: string;
-  first_seen_at: string;
-  last_seen_at: string;
-  attempt_count: number;
+  belum_set_password: number;
 }
 
 export interface MonitoringBulan {
@@ -109,6 +101,7 @@ export async function getDonaturStats() {
 export async function createDonatur(body: {
   nama: string;
   email: string;
+  password: string;
   hp?: string;
   organisasi?: string;
   nominal_default?: number;
@@ -162,23 +155,12 @@ export async function removeTag(id: number, tag: string) {
   return res.message;
 }
 
-// ─── Link akun ───────────────────────────────────────────────────────────
+// ─── Password (login donatur pakai email+password, bukan Google OAuth lagi) ──
 
-export async function getPendingLogins(search?: string) {
-  const res = await apiClient.get<PendingLogin[]>(
-    "/internal/donatur/pending-logins",
-    search ? { search } : undefined
-  );
-  return res.data ?? [];
-}
-
-export async function linkUser(id: number, email: string) {
-  const res = await apiClient.put(`/internal/donatur/${id}/link-user`, { email });
-  return res.data;
-}
-
-export async function unlinkUser(id: number) {
-  const res = await apiClient.delete(`/internal/donatur/${id}/link-user`);
+// Admin/AnC set password baru untuk donatur, tanpa perlu password lama
+// (mis. saat donatur lupa password) — pengganti fitur Link Akun yang lama.
+export async function resetDonaturPassword(id: number, password: string) {
+  const res = await apiClient.put(`/internal/donatur/${id}/reset-password`, { password });
   return res.message;
 }
 

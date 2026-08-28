@@ -41,7 +41,7 @@ function formatRupiah(value) {
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 text-xs shadow-md space-y-1">
+    <div className="rounded-lg bg-card px-3 py-2 text-xs shadow-md space-y-1">
       <p className="font-semibold mb-1">{label}</p>
       {payload.map((entry) => (
         <div key={entry.dataKey} className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export function TransactionTrendChart({ categoryId, districtId, mosqueId, trendF
   const yearOptions = [currentYear - 2, currentYear - 1, currentYear].map(String);
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-4">
+    <div className="rounded-xl bg-card shadow-md p-4 space-y-4">
       {/* Chart header + filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-sm font-semibold">Transaction Trend</p>

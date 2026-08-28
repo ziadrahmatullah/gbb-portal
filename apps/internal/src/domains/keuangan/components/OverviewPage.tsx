@@ -11,8 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { ArrowDownCircle, ArrowUpCircle, Hash, Scale } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@gbb/ui";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
-import { useUIStore } from "@/shared/store/useUIStore";
 import { StatCard } from "@/shared/components/StatCard";
 import {
   Table,
@@ -25,33 +25,24 @@ import {
 import { useOverview, useOverviewBreakdown } from "../hooks/useKeuangan";
 import { formatNominal } from "../utils";
 
-// Palet dari reference dataviz (tervalidasi 6-checks di surface GBB light/dark).
-// Kontras WARN beberapa slot light → relief: legend + tabel per kategori di bawah chart.
-const VIZ = {
-  light: {
-    series: ["#2a78d6", "#1baf7a", "#eda100", "#008300", "#4a3aa7", "#e34948", "#e87ba4", "#eb6834"],
-    grid: "#e4e4ec",
-    text: "#52514e",
-    surface: "#ffffff",
-  },
-  dark: {
-    series: ["#3987e5", "#199e70", "#c98500", "#008300", "#9085e9", "#e66767", "#d55181", "#d95926"],
-    grid: "#33363a",
-    text: "#c3c2b7",
-    surface: "#1a1c1e",
-  },
-};
+// Palet chart mengikuti token tema (--chart-1..5); kategori lebih dari 5 mengulang warna.
+// Relief kontras: legend + tabel per kategori di bawah chart.
+const SERIES = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+const GRID = "var(--border)";
+const TEXT = "var(--muted-foreground)";
+const SURFACE = "var(--card)";
 
 const formatCompact = (v: number) =>
   new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(v);
 
 const formatRupiah = (v: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(v);
-
-function useVizColors() {
-  const isDark = useUIStore((s) => s.isDark);
-  return isDark ? VIZ.dark : VIZ.light;
-}
 
 function ChartCard({
   title,
@@ -63,35 +54,38 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {legend && (
-          <div className="flex flex-wrap items-center gap-3">
-            {legend.map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: l.color }} />
-                {l.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="h-60">{children}</div>
-    </div>
+    <Card className="gap-3 py-4">
+      <CardHeader className="px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm">{title}</CardTitle>
+          {legend && (
+            <div className="flex flex-wrap items-center gap-3">
+              {legend.map((l) => (
+                <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-4">
+        <div className="h-60">{children}</div>
+      </CardContent>
+    </Card>
   );
 }
 
 function EmptyChartState() {
   return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+    <div className="flex h-full items-center justify-center rounded-lg border text-xs text-muted-foreground">
       Belum ada data transaksi
     </div>
   );
 }
 
 export function OverviewPage() {
-  const c = useVizColors();
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
   const { data: overview, isLoading } = useOverview(periodeId);
   const { data: breakdown, isLoading: breakdownLoading } = useOverviewBreakdown(periodeId);
@@ -101,19 +95,22 @@ export function OverviewPage() {
   const komposisiOut = perKategori.filter((k) => k.tipe === "cash_out");
 
   const tooltipStyle = {
-    background: c.surface,
-    border: `1px solid ${c.grid}`,
-    borderRadius: 8,
+    background: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius)",
     fontSize: 12,
-    color: c.text,
+    color: "var(--popover-foreground)",
   };
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Overview Keuangan</h1>
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Overview Keuangan</h1>
+        <p className="text-muted-foreground">Ringkasan cashflow mengikuti filter periode global.</p>
+      </div>
 
       {/* Ringkasan per range (bukan saldo absolut) — ikut filter periode global */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard icon={ArrowDownCircle} label="Total Masuk" value={overview ? formatRupiah(overview.total_masuk) : "—"} loading={isLoading} />
         <StatCard icon={ArrowUpCircle} label="Total Keluar" value={overview ? formatRupiah(overview.total_keluar) : "—"} loading={isLoading} />
         <StatCard icon={Scale} label="Net" value={overview ? formatRupiah(overview.net) : "—"} loading={isLoading} />
@@ -125,8 +122,8 @@ export function OverviewPage() {
         <ChartCard
           title="Tren Cashflow /bulan"
           legend={[
-            { color: c.series[0], label: "Masuk" },
-            { color: c.series[1], label: "Keluar" },
+            { color: SERIES[0], label: "Masuk" },
+            { color: SERIES[1], label: "Keluar" },
           ]}
         >
           {breakdownLoading || perBulan.length === 0 ? (
@@ -134,19 +131,19 @@ export function OverviewPage() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={perBulan} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                <CartesianGrid stroke={c.grid} vertical={false} />
-                <XAxis dataKey="bulan" tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={{ stroke: c.grid }} />
-                <YAxis tickFormatter={formatCompact} tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
+                <CartesianGrid stroke={GRID} vertical={false} />
+                <XAxis dataKey="bulan" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
+                <YAxis tickFormatter={formatCompact} tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={false} width={52} />
                 <Tooltip
-                  cursor={{ fill: c.grid, opacity: 0.4 }}
+                  cursor={{ fill: GRID, opacity: 0.4 }}
                   contentStyle={tooltipStyle}
                   formatter={(value, name) => [
                     formatRupiah(Number(value ?? 0)),
                     name === "masuk" ? "Masuk" : "Keluar",
                   ]}
                 />
-                <Bar dataKey="masuk" name="masuk" fill={c.series[0]} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="keluar" name="keluar" fill={c.series[1]} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="masuk" name="masuk" fill={SERIES[0]} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="keluar" name="keluar" fill={SERIES[1]} radius={[4, 4, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -155,7 +152,7 @@ export function OverviewPage() {
         {/* Komposisi pengeluaran per kategori */}
         <ChartCard
           title="Komposisi Pengeluaran per Kategori"
-          legend={komposisiOut.slice(0, 8).map((k, i) => ({ color: c.series[i % 8], label: k.nama }))}
+          legend={komposisiOut.slice(0, 8).map((k, i) => ({ color: SERIES[i % SERIES.length], label: k.nama }))}
         >
           {breakdownLoading || komposisiOut.length === 0 ? (
             <EmptyChartState />
@@ -170,11 +167,11 @@ export function OverviewPage() {
                   innerRadius="45%"
                   outerRadius="80%"
                   paddingAngle={2}
-                  stroke={c.surface}
+                  stroke={SURFACE}
                   strokeWidth={2}
                 >
                   {komposisiOut.slice(0, 8).map((k, i) => (
-                    <Cell key={k.nama} fill={c.series[i % 8]} />
+                    <Cell key={k.nama} fill={SERIES[i % SERIES.length]} />
                   ))}
                 </Pie>
               </PieChart>
@@ -184,7 +181,7 @@ export function OverviewPage() {
       </div>
 
       {/* Tabel per kategori (sekaligus table view untuk aksesibilitas chart) */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -198,7 +195,7 @@ export function OverviewPage() {
             {breakdownLoading ? (
               <TableRow>
                 <TableCell colSpan={4}>
-                  <div className="h-6 animate-pulse rounded bg-muted" />
+                  <Skeleton className="h-6 w-full" />
                 </TableCell>
               </TableRow>
             ) : perKategori.length === 0 ? (

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Pencil, Plus } from "lucide-react";
+import { Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -80,14 +81,14 @@ function KategoriForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border p-3 space-y-3">
+    <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-4 space-y-4 shadow-sm">
       <h4 className="text-sm font-semibold">{editing ? `Edit — ${editing.nama}` : "Tambah Kategori"}</h4>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
           <Label htmlFor="k-nama">Nama</Label>
           <Input id="k-nama" value={nama} onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)} required disabled={saving} />
         </div>
-        <div className="space-y-1.5">
+        <div className="grid gap-2">
           <Label>Tipe</Label>
           <Select value={tipe} onValueChange={setTipe} disabled={saving}>
             <SelectTrigger>
@@ -101,7 +102,7 @@ function KategoriForm({
           </Select>
         </div>
         {!editing && (
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Induk (kosong = kategori utama)</Label>
             <Select value={parentId} onValueChange={setParentId} disabled={saving}>
               <SelectTrigger>
@@ -118,12 +119,12 @@ function KategoriForm({
             </Select>
           </div>
         )}
-        <div className="space-y-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="k-urutan">Urutan</Label>
           <Input id="k-urutan" type="number" min={1} value={urutan} onChange={(e: ChangeEvent<HTMLInputElement>) => setUrutan(e.target.value)} disabled={saving} />
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className="grid gap-2">
         <Label htmlFor="k-keywords">Keywords auto-match (opsional)</Label>
         <Input
           id="k-keywords"
@@ -192,7 +193,7 @@ export function KategoriManagerContent() {
           />
         )}
 
-        <div className="rounded-lg border overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -207,7 +208,7 @@ export function KategoriManagerContent() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ) : (

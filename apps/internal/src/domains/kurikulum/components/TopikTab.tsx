@@ -1,17 +1,20 @@
 import { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent, FormEvent, MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   FileText,
   Pencil,
   Plus,
   Search,
   Trash2,
-  Youtube,
 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/domains/auth/store/useAuthStore";
+import { hasAnyRole } from "@/shared/constants/roles";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { Button } from "@/shared/components/ui/button";
@@ -42,12 +45,11 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import {
+  useCopyTopik,
   useCreateTopik,
   useDeleteTopik,
   useTopikList,
-  useTopikUsulanList,
   useUpdateTopik,
-  useUpdateTopikUsulanStatus,
 } from "../hooks/useKurikulum";
 import type { Topik } from "../services";
 
@@ -59,18 +61,86 @@ const STATUS_LABEL: Record<string, string> = {
   done: "Done",
 };
 
-function TopikStatusBadge({ status }: { status: string }) {
+export function TopikStatusBadge({ status }: { status: string }) {
+  if (status === "done") {
+    return <Badge>{STATUS_LABEL[status]}</Badge>;
+  }
+  if (status === "ongoing") {
+    return (
+      <Badge variant="outline" className="border-yellow-500/40 text-yellow-700 dark:text-yellow-400">
+        {STATUS_LABEL[status]}
+      </Badge>
+    );
+  }
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-        status === "done" && "bg-primary/10 text-primary",
-        status === "ongoing" && "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
-        status === "planned" && "bg-muted text-muted-foreground"
-      )}
-    >
+    <Badge variant="outline" className="text-muted-foreground">
       {STATUS_LABEL[status] ?? status}
-    </span>
+    </Badge>
+  );
+}
+
+const STATUS_ORDER = ["planned", "ongoing", "done"] as const;
+type TopikStatus = (typeof STATUS_ORDER)[number];
+
+// Warna thumb & label aktif per status — mengikuti warna badge status lama
+// (planned netral, ongoing kuning, done primary)
+const THUMB_CLASS: Record<TopikStatus, string> = {
+  planned: "bg-background border shadow-sm",
+  ongoing: "bg-yellow-500/15 border border-yellow-500/40",
+  done: "bg-primary",
+};
+const ACTIVE_LABEL_CLASS: Record<TopikStatus, string> = {
+  planned: "text-foreground",
+  ongoing: "text-yellow-700 dark:text-yellow-400",
+  done: "text-primary-foreground",
+};
+
+// Slider 3 segmen: semua label di dalam kontrol, thumb geser ke status yang
+// berlaku; klik segmen langsung menyimpan status itu.
+function TopikStatusSlider({
+  status,
+  disabled,
+  onChange,
+}: {
+  status: string;
+  disabled?: boolean;
+  onChange: (status: TopikStatus) => void;
+}) {
+  const idx = Math.max(0, STATUS_ORDER.indexOf(status as TopikStatus));
+  return (
+    <div
+      role="radiogroup"
+      className="relative grid w-fit grid-cols-3 items-center rounded-full border bg-muted p-0.5 text-xs font-medium select-none"
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-full transition-all duration-200",
+          THUMB_CLASS[STATUS_ORDER[idx]]
+        )}
+        style={{ transform: `translateX(${idx * 100}%)` }}
+      />
+      {STATUS_ORDER.map((s) => (
+        <button
+          key={s}
+          type="button"
+          role="radio"
+          aria-checked={s === status}
+          disabled={disabled}
+          onClick={(e: MouseEvent) => {
+            // Row-nya klik-able ke dialog detail — jangan ikut terbuka
+            e.stopPropagation();
+            if (s !== status) onChange(s);
+          }}
+          className={cn(
+            "relative z-10 rounded-full px-2.5 py-0.5 cursor-pointer transition-colors disabled:pointer-events-none disabled:opacity-50",
+            s === status ? ACTIVE_LABEL_CLASS[s] : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {STATUS_LABEL[s]}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -79,7 +149,6 @@ interface TopikFormState {
   urutan: string;
   judul: string;
   detail: string;
-  tor_url: string;
   status: "planned" | "ongoing" | "done";
 }
 
@@ -104,15 +173,17 @@ function TopikFormDialog({
     urutan: "",
     judul: "",
     detail: "",
-    tor_url: "",
     status: "planned",
   };
   const [form, setForm] = useState<TopikFormState>(emptyForm);
+  // File TOR dipilih user (null = tidak mengganti TOR yang ada)
+  const [tor, setTor] = useState<File | null>(null);
   // Prefill saat target edit / default periode berubah (adjust-during-render)
   const [prevKey, setPrevKey] = useState("");
   const key = editing ? `edit-${editing.id}` : `create-${open}-${defaultPeriodeId ?? ""}`;
   if (open && key !== prevKey) {
     setPrevKey(key);
+    setTor(null);
     setForm(
       editing
         ? {
@@ -120,7 +191,6 @@ function TopikFormDialog({
             urutan: String(editing.urutan),
             judul: editing.judul,
             detail: editing.detail ?? "",
-            tor_url: editing.tor_url ?? "",
             status: (editing.status as TopikFormState["status"]) ?? "planned",
           }
         : emptyForm
@@ -140,8 +210,8 @@ function TopikFormDialog({
             urutan: Number(form.urutan),
             judul: form.judul,
             detail: form.detail,
-            tor_url: form.tor_url,
             status: form.status,
+            tor: tor ?? undefined,
           },
         },
         { onSuccess: onClose }
@@ -154,7 +224,7 @@ function TopikFormDialog({
           urutan: Number(form.urutan),
           judul: form.judul,
           detail: form.detail || undefined,
-          tor_url: form.tor_url || undefined,
+          tor: tor ?? undefined,
         },
         { onSuccess: onClose }
       );
@@ -170,9 +240,9 @@ function TopikFormDialog({
             {editing ? "Ubah topik kurikulum." : "Tambahkan topik kurikulum ke sebuah periode."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="grid gap-4">
           {!editing && (
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Periode</Label>
               <Select
                 value={form.periode_id}
@@ -192,7 +262,7 @@ function TopikFormDialog({
               </Select>
             </div>
           )}
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="t-urutan">Urutan</Label>
             <Input
               id="t-urutan"
@@ -204,7 +274,7 @@ function TopikFormDialog({
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="t-judul">Judul topik</Label>
             <Input
               id="t-judul"
@@ -214,7 +284,7 @@ function TopikFormDialog({
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="t-detail">Detail (opsional)</Label>
             <Textarea
               id="t-detail"
@@ -224,20 +294,33 @@ function TopikFormDialog({
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
-            {/* Backend tidak punya endpoint upload file TOR — field ini string URL biasa */}
-            <Label htmlFor="t-tor">URL TOR (link dokumen, opsional)</Label>
+          <div className="grid gap-2">
+            {/* TOR di-upload ke storage backend (field multipart "tor");
+                kosong = TOR yang ada tidak berubah */}
+            <Label htmlFor="t-tor">TOR (Terms of Reference)</Label>
             <Input
               id="t-tor"
-              type="url"
-              placeholder="https://…"
-              value={form.tor_url}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => set("tor_url", e.target.value)}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setTor(e.target.files?.[0] ?? null)}
               disabled={saving}
             />
+            {editing?.tor_url && (
+              <p className="text-xs text-muted-foreground">
+                <a
+                  href={editing.tor_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Lihat TOR saat ini
+                </a>{" "}
+                — memilih file baru akan menggantikannya.
+              </p>
+            )}
           </div>
           {editing && (
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Status</Label>
               <Select
                 value={form.status}
@@ -255,7 +338,7 @@ function TopikFormDialog({
               </Select>
             </div>
           )}
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -269,80 +352,121 @@ function TopikFormDialog({
   );
 }
 
-function TopikUsulanSection() {
-  const { data, isLoading } = useTopikUsulanList({ limit: 20 });
-  const updateStatus = useUpdateTopikUsulanStatus();
-  const items = data?.items ?? [];
+function CopyTopikDialog({
+  open,
+  defaultSourceId,
+  onClose,
+}: {
+  open: boolean;
+  defaultSourceId?: string;
+  onClose: () => void;
+}) {
+  const { data: periodeOptions } = usePeriodeOptions();
+  const copyMutation = useCopyTopik();
+  const saving = copyMutation.isPending;
+
+  const [sourceId, setSourceId] = useState("");
+  const [targetId, setTargetId] = useState("");
+  // Prefill source dari filter periode aktif saat dialog dibuka (adjust-during-render)
+  const [prevKey, setPrevKey] = useState("");
+  const key = `${open}-${defaultSourceId ?? ""}`;
+  if (open && key !== prevKey) {
+    setPrevKey(key);
+    setSourceId(defaultSourceId ?? "");
+    setTargetId("");
+  }
+
+  // reset() membersihkan pesan error inline supaya tidak nyangkut
+  // di percobaan berikutnya / saat dialog dibuka ulang
+  const handleClose = () => {
+    copyMutation.reset();
+    onClose();
+  };
+  const pick = (setter: (v: string) => void) => (v: string) => {
+    setter(v);
+    copyMutation.reset();
+  };
+
+  const samePeriode = Boolean(sourceId) && sourceId === targetId;
+  const canSubmit = Boolean(sourceId) && Boolean(targetId) && !samePeriode;
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    copyMutation.mutate(
+      { sourcePeriodeId: Number(sourceId), targetPeriodeId: Number(targetId) },
+      { onSuccess: handleClose }
+    );
+  };
+
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-semibold">Usulan Topik dari Beswan</h3>
-      <p className="text-xs text-muted-foreground">
-        Usulan dikirim beswan dari portalnya — tandai sudah ditinjau setelah dipertimbangkan.
-      </p>
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usulan</TableHead>
-              <TableHead className="w-40">Beswan</TableHead>
-              <TableHead className="w-28">Status</TableHead>
-              <TableHead className="w-16" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  <div className="h-5 animate-pulse rounded bg-muted" />
-                </TableCell>
-              </TableRow>
-            ) : items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
-                  Belum ada usulan topik
-                </TableCell>
-              </TableRow>
-            ) : (
-              items.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.topik_usulan}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{u.nama_beswan}</TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-                        u.status === "reviewed"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {u.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {u.status === "pending" && (
-                      <button
-                        title="Tandai sudah ditinjau"
-                        disabled={updateStatus.isPending}
-                        onClick={() => updateStatus.mutate({ id: u.id, status: "reviewed" })}
-                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <Dialog open={open} onOpenChange={(o: boolean) => !o && handleClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Copy Topik Antar Periode</DialogTitle>
+          <DialogDescription>
+            Semua topik periode sumber disalin ke periode tujuan — urutan dipertahankan,
+            status di-reset ke Planned, dan ditempatkan setelah topik yang sudah ada.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
+            <Label>Salin dari periode</Label>
+            <Select value={sourceId} onValueChange={pick(setSourceId)} disabled={saving}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih periode sumber" />
+              </SelectTrigger>
+              <SelectContent>
+                {periodeOptions?.items.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.nama}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label>Ke periode</Label>
+            <Select value={targetId} onValueChange={pick(setTargetId)} disabled={saving}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih periode tujuan" />
+              </SelectTrigger>
+              <SelectContent>
+                {periodeOptions?.items.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.nama}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {samePeriode && (
+            <p className="text-sm text-destructive">Periode sumber dan tujuan tidak boleh sama.</p>
+          )}
+          {/* Pesan 400/404 backend (mis. "periode sumber tidak memiliki topik") */}
+          {copyMutation.error && (
+            <p className="text-sm text-destructive">{copyMutation.error.message}</p>
+          )}
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
+              Batal
+            </Button>
+            <Button type="submit" disabled={saving || !canSubmit}>
+              {saving ? "Menyalin…" : "Salin Topik"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function TopikTab() {
+  const navigate = useNavigate();
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
+  // Endpoint copy dibatasi backend ke admin/pcm — sembunyikan tombolnya untuk role lain
+  const role = useAuthStore((s) => s.role);
+  const canCopy = hasAnyRole(role, ["admin", "pcm"]);
   const { data: periodeOptions } = usePeriodeOptions();
   const selectedPeriode = periodeId
     ? periodeOptions?.items.find((p) => String(p.id) === periodeId)
@@ -353,6 +477,7 @@ export function TopikTab() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [editing, setEditing] = useState<Topik | null>(null);
   const [deleting, setDeleting] = useState<Topik | null>(null);
 
@@ -364,6 +489,9 @@ export function TopikTab() {
     status: status === ALL_STATUS ? undefined : status,
   });
   const deleteMutation = useDeleteTopik();
+  // Untuk slider status di tabel — kirim hanya field status (multipart),
+  // field lain tidak berubah di backend
+  const statusMutation = useUpdateTopik();
 
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -383,10 +511,18 @@ export function TopikTab() {
             "Semua Periode (atur lewat Filter Periode di sidebar)"
           )}
         </div>
-        <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Topik
-        </Button>
+        <div className="flex items-center gap-2">
+          {canCopy && (
+            <Button size="sm" variant="outline" onClick={() => setCopyOpen(true)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Topik
+            </Button>
+          )}
+          <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Topik
+          </Button>
+        </div>
       </div>
 
       {/* Filter */}
@@ -423,16 +559,16 @@ export function TopikTab() {
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-36">Periode</TableHead>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Topik</TableHead>
               <TableHead>Detail</TableHead>
               <TableHead className="w-20">TOR</TableHead>
-              <TableHead className="w-24">Status</TableHead>
-              <TableHead className="w-20">Media</TableHead>
+              <TableHead className="w-56">Status</TableHead>
               <TableHead className="w-24 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -441,7 +577,7 @@ export function TopikTab() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={7}>
-                    <div className="h-5 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -453,7 +589,14 @@ export function TopikTab() {
               </TableRow>
             ) : (
               items.map((t) => (
-                <TableRow key={t.id}>
+                // Row klik-able ke halaman detail (media per event ada di sana);
+                // kontrol di dalam row wajib stopPropagation
+                <TableRow
+                  key={t.id}
+                  onClick={() => navigate(`/panel/kurikulum/topik/${t.id}`)}
+                  className="cursor-pointer"
+                >
+                  <TableCell className="text-sm text-muted-foreground">{t.periode_nama}</TableCell>
                   <TableCell className="font-mono text-xs">{t.urutan}</TableCell>
                   <TableCell className="font-medium">{t.judul}</TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-72 truncate">
@@ -465,6 +608,7 @@ export function TopikTab() {
                         href={t.tor_url}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
                       >
                         <FileText className="h-3.5 w-3.5" />
@@ -475,51 +619,31 @@ export function TopikTab() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <TopikStatusBadge status={t.status} />
-                  </TableCell>
-                  {/* Media (YouTube/Slide) dari event ber-topik_id, di-embed backend */}
-                  <TableCell>
-                    {!t.youtube_url && !t.slide_url ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        {t.youtube_url && (
-                          <a
-                            href={t.youtube_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Rekaman YouTube"
-                            className="text-primary hover:opacity-75"
-                          >
-                            <Youtube className="h-4 w-4" />
-                          </a>
-                        )}
-                        {t.slide_url && (
-                          <a
-                            href={t.slide_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Slide/materi"
-                            className="text-primary hover:opacity-75"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </a>
-                        )}
-                      </span>
-                    )}
+                    <TopikStatusSlider
+                      status={t.status}
+                      disabled={statusMutation.isPending}
+                      onChange={(status) => statusMutation.mutate({ id: t.id, body: { status } })}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <button
                         title="Edit"
-                        onClick={() => { setEditing(t); setFormOpen(true); }}
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          setEditing(t);
+                          setFormOpen(true);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         title="Hapus"
-                        onClick={() => setDeleting(t)}
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          setDeleting(t);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -573,13 +697,17 @@ export function TopikTab() {
         )}
       </div>
 
-      <TopikUsulanSection />
-
       <TopikFormDialog
         open={formOpen}
         editing={editing}
         defaultPeriodeId={periodeId}
         onClose={() => { setFormOpen(false); setEditing(null); }}
+      />
+
+      <CopyTopikDialog
+        open={copyOpen}
+        defaultSourceId={periodeId}
+        onClose={() => setCopyOpen(false)}
       />
 
       {/* Dialog konfirmasi hapus */}
@@ -591,7 +719,7 @@ export function TopikTab() {
               Yakin ingin menghapus topik <strong>{deleting?.judul}</strong>?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { GraduationCap, Send } from "lucide-react";
-import { Button, Input, Label } from "@gbb/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { useDaftarMentor, useMentorStats } from "../hooks/useMentor";
 
@@ -31,13 +31,13 @@ export function MentorPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <GraduationCap className="h-6 w-6 text-primary" />
+    <div className="max-w-2xl space-y-4">
+      <div className="mb-2">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <GraduationCap className="size-6 text-primary" />
           Jadilah Mentor GBB!
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-muted-foreground">
           Kami membutuhkan mentor untuk agenda Growth &amp; mentoring beswan. Ada
           merchandise menarik untuk mentor terdaftar! 🎁
         </p>
@@ -52,64 +52,69 @@ export function MentorPage() {
         />
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-5 space-y-4">
-        <h2 className="font-semibold">Form Pendaftaran Mentor</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Form Pendaftaran Mentor</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="mn-nama">Nama Lengkap *</Label>
+              <Input
+                id="mn-nama"
+                value={nama}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)}
+                required
+                disabled={daftar.isPending}
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="mn-nama">Nama Lengkap *</Label>
-          <Input
-            id="mn-nama"
-            value={nama}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)}
-            required
-            disabled={daftar.isPending}
-          />
-        </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mn-bidang">Bidang Keahlian *</Label>
+              <Input
+                id="mn-bidang"
+                value={bidang}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setBidang(e.target.value)}
+                placeholder="mis. Software Engineering, Human Resources"
+                required
+                disabled={daftar.isPending}
+              />
+            </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="mn-bidang">Bidang Keahlian *</Label>
-          <Input
-            id="mn-bidang"
-            value={bidang}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setBidang(e.target.value)}
-            placeholder="mis. Software Engineering, Human Resources"
-            required
-            disabled={daftar.isPending}
-          />
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="mn-cv">Upload CV (.pdf) *</Label>
+                <Input
+                  id="mn-cv"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
+                  required
+                  disabled={daftar.isPending}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mn-linkedin">LinkedIn URL</Label>
+                <Input
+                  id="mn-linkedin"
+                  type="url"
+                  value={linkedin}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setLinkedin(e.target.value)}
+                  placeholder="https://linkedin.com/in/..."
+                  disabled={daftar.isPending}
+                />
+              </div>
+            </div>
 
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="mn-cv">Upload CV (.pdf) *</Label>
-            <Input
-              id="mn-cv"
-              type="file"
-              accept="application/pdf"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
-              required
-              disabled={daftar.isPending}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="mn-linkedin">LinkedIn URL</Label>
-            <Input
-              id="mn-linkedin"
-              type="url"
-              value={linkedin}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setLinkedin(e.target.value)}
-              placeholder="https://linkedin.com/in/..."
-              disabled={daftar.isPending}
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <Button type="submit" disabled={daftar.isPending || !nama.trim() || !bidang.trim() || !cv}>
-            <Send className="h-4 w-4 mr-2" />
-            {daftar.isPending ? "Mengirim…" : "Daftar Jadi Mentor"}
-          </Button>
-        </div>
-      </form>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={daftar.isPending || !nama.trim() || !bidang.trim() || !cv}>
+                <Send className="size-4" />
+                {daftar.isPending ? "Mengirim…" : "Daftar Jadi Mentor"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

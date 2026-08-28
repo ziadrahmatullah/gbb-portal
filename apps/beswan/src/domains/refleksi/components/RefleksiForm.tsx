@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { CheckCircle2, FileText, Paperclip, Save, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Input, Label, Textarea } from "@gbb/ui";
+import { Button, Card, CardContent, Input, Label, Textarea } from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import { parseJSONString } from "../services";
 import type { Kondisi, OpsiPilihan, Pertanyaan, RefleksiRes } from "../services";
@@ -99,12 +99,12 @@ function FileUploadField({
         <ul className="space-y-1">
           {urls.map((u) => (
             <li key={u} className="flex items-center gap-2 text-sm">
-              <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <FileText className="size-4 shrink-0 text-muted-foreground" />
               <a href={assetUrl(u)} target="_blank" rel="noreferrer" className="text-primary hover:underline truncate">
                 {u.split("/").pop()}
               </a>
               <button type="button" onClick={() => onRemoveUrl(u)} aria-label="Hapus file" className="text-muted-foreground hover:text-destructive">
-                <X className="h-3.5 w-3.5" />
+                <X className="size-3.5" />
               </button>
             </li>
           ))}
@@ -114,11 +114,11 @@ function FileUploadField({
         <ul className="space-y-1">
           {pending.map((f, i) => (
             <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Paperclip className="h-4 w-4 shrink-0" />
+              <Paperclip className="size-4 shrink-0" />
               <span className="truncate">{f.name}</span>
               <span className="text-xs">(belum diupload)</span>
               <button type="button" onClick={() => onRemovePending(i)} aria-label="Batalkan file" className="hover:text-destructive">
-                <X className="h-3.5 w-3.5" />
+                <X className="size-3.5" />
               </button>
             </li>
           ))}
@@ -134,7 +134,7 @@ function FileUploadField({
         onChange={handlePick}
       />
       <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
-        <Paperclip className="h-4 w-4 mr-2" />
+        <Paperclip className="size-4" />
         Pilih File
       </Button>
       <p className="text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
   if (existing?.status === "submitted") {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-900 dark:bg-emerald-950">
-        <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-600 dark:text-emerald-400" />
+        <CheckCircle2 className="mx-auto size-8 text-emerald-600 dark:text-emerald-400" />
         <p className="mt-2 font-medium text-emerald-800 dark:text-emerald-200">
           Refleksi bulan ini sudah disubmit
         </p>
@@ -252,12 +252,13 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {pertanyaan.filter(isVisible).map((q, idx) => {
         const opsi = parseJSONString<OpsiPilihan>(q.opsi) ?? {};
         const value = answers[q.id] ?? "";
         return (
-          <div key={q.id} className="rounded-xl border bg-card p-4 space-y-2">
+          <Card key={q.id} className="gap-2 py-4">
+            <CardContent className="space-y-2 px-4">
             <Label htmlFor={`q-${q.id}`} className="flex gap-1.5 text-sm font-medium">
               <span className="text-muted-foreground">{idx + 1}.</span>
               <span>
@@ -331,19 +332,20 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
                 }
               />
             )}
-          </div>
+            </CardContent>
+          </Card>
         );
       })}
 
       {submitError && (
-        <p className="text-sm text-destructive rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+        <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {submitError}
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={handleDraft} disabled={busy}>
-          <Save className="h-4 w-4 mr-2" />
+          <Save className="size-4" />
           {saveDraft.isPending ? "Menyimpan…" : "Simpan Draft"}
         </Button>
         {confirmSubmit ? (
@@ -360,7 +362,7 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
           </>
         ) : (
           <Button onClick={() => setConfirmSubmit(true)} disabled={busy}>
-            <Send className="h-4 w-4 mr-2" />
+            <Send className="size-4" />
             Submit Refleksi
           </Button>
         )}

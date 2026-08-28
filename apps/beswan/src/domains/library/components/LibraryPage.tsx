@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { BookOpen, FileDown, Mic, PlayCircle, Search, Send, Sparkles, Tag, Upload } from "lucide-react";
 import {
+  Badge,
   Button,
+  Card,
+  CardContent,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Textarea,
 } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
@@ -43,8 +47,8 @@ function UsulTopikDialog({ onClose }: { onClose: () => void }) {
             Topik yang kamu usulkan akan ditinjau tim GBB untuk materi/event berikutnya.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="ut-topik">Topik yang ingin dipelajari</Label>
             <Textarea
               id="ut-topik"
@@ -56,12 +60,12 @@ function UsulTopikDialog({ onClose }: { onClose: () => void }) {
               disabled={mutation.isPending}
             />
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
               Batal
             </Button>
             <Button type="submit" disabled={mutation.isPending || !topik.trim()}>
-              <Send className="h-4 w-4 mr-2" />
+              <Send className="size-4" />
               {mutation.isPending ? "Mengirim…" : "Kirim Usulan"}
             </Button>
           </DialogFooter>
@@ -75,61 +79,63 @@ function LibraryCard({ item }: { item: LibraryItem }) {
   const TipeIcon = item.tipe === "event_materi" ? Mic : Upload;
   const tags = splitTags(item.tags);
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-2">
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-          <TipeIcon className="h-4 w-4 text-primary" />
-        </div>
-        <div className="min-w-0">
-          <div className="font-medium truncate" title={item.nama}>
-            {item.nama}
+    <Card className="h-full gap-2 py-4">
+      <CardContent className="flex flex-1 flex-col gap-2 px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="shrink-0 rounded-lg bg-primary/10 p-2">
+            <TipeIcon className="size-4 text-primary" />
           </div>
-          <div className="text-xs text-muted-foreground">
-            {item.tipe === "event_materi" ? "Materi event" : "Upload PCM"}
+          <div className="min-w-0">
+            <div className="truncate font-medium" title={item.nama}>
+              {item.nama}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {item.tipe === "event_materi" ? "Materi event" : "Upload PCM"}
+            </div>
           </div>
         </div>
-      </div>
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {tags.map((t) => (
-            <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              #{t}
-            </span>
-          ))}
-        </div>
-      )}
-      {item.deskripsi && <p className="text-sm text-muted-foreground line-clamp-2">{item.deskripsi}</p>}
-      <div className="flex items-start gap-1.5 text-xs">
-        <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-        {item.ai_summary ? (
-          <span className="italic line-clamp-2">“{item.ai_summary}”</span>
-        ) : (
-          <span className="text-muted-foreground">Belum ada ringkasan AI</span>
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((t) => (
+              <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
+                #{t}
+              </Badge>
+            ))}
+          </div>
         )}
-      </div>
-      <div className="flex items-center gap-4 mt-auto">
-        <a
-          href={item.file_url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-        >
-          <FileDown className="h-4 w-4" />
-          Download
-        </a>
-        {item.youtube_url && (
+        {item.deskripsi && <p className="line-clamp-2 text-sm text-muted-foreground">{item.deskripsi}</p>}
+        <div className="flex items-start gap-1.5 text-xs">
+          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+          {item.ai_summary ? (
+            <span className="line-clamp-2 italic">“{item.ai_summary}”</span>
+          ) : (
+            <span className="text-muted-foreground">Belum ada ringkasan AI</span>
+          )}
+        </div>
+        <div className="mt-auto flex items-center gap-4 pt-1">
           <a
-            href={item.youtube_url}
+            href={item.file_url}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
-            <PlayCircle className="h-4 w-4" />
-            YouTube
+            <FileDown className="size-4" />
+            Download
           </a>
-        )}
-      </div>
-    </div>
+          {item.youtube_url && (
+            <a
+              href={item.youtube_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <PlayCircle className="size-4" />
+              YouTube
+            </a>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -151,27 +157,29 @@ export function LibraryPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Library Materi</h1>
-        <Button size="sm" onClick={() => setUsulOpen(true)}>
-          <Send className="h-4 w-4 mr-2" />
-          Usul Topik
-        </Button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Library Materi</h1>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setUsulOpen(true)}>
+            <Send className="size-4" />
+            Usul Topik
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 max-w-md">
+      <div className="grid max-w-md grid-cols-2 gap-4">
         <StatCard icon={BookOpen} label="Total Materi" value={String(stats?.total_materi ?? "—")} loading={statsLoading} />
         <StatCard icon={Tag} label="Topik Tag" value={String(stats?.total_tag ?? "—")} loading={statsLoading} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             placeholder="Cari materi…"
-            className="pl-9 w-64"
+            className="w-64 pl-9"
           />
         </div>
         <Select value={tag} onValueChange={setTag}>
@@ -190,15 +198,18 @@ export function LibraryPage() {
       </div>
 
       {isLoading ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-xl bg-muted" />
+            <Skeleton key={i} className="h-44 rounded-xl" />
           ))}
         </div>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Tidak ada materi ditemukan</p>
+        <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+          <BookOpen className="size-10 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Tidak ada materi ditemukan</p>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((item) => (
             <LibraryCard key={item.id} item={item} />
           ))}

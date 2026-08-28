@@ -11,9 +11,9 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { Button } from "@/shared/components/ui/button";
+import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
 import {
   DASHBOARD_KEY,
   useDashboardAnalitik,
@@ -95,14 +95,16 @@ function TrendDonaturTab() {
   // dari Google Sheets pendaftaran donatur.
   return (
     <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="max-w-md rounded-xl border bg-card p-8 text-center shadow-sm">
-        <HandHeart className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
-        <h2 className="text-lg font-semibold">Trend Donatur</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Sumber data tab ini adalah Google Sheets pendaftaran donatur dan endpoint
-          backend-nya belum tersedia.
-        </p>
-      </div>
+      <Card className="max-w-md p-8 text-center">
+        <div>
+          <HandHeart className="mx-auto mb-4 size-10 text-muted-foreground/60" />
+          <h2 className="text-lg font-semibold">Trend Donatur</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Sumber data tab ini adalah Google Sheets pendaftaran donatur dan endpoint
+            backend-nya belum tersedia.
+          </p>
+        </div>
+      </Card>
     </div>
   );
 }
@@ -151,36 +153,39 @@ export function DashboardPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={!canRefresh}>
-          <RefreshCw className="h-4 w-4 mr-2" />
+          <RefreshCw className="size-4 mr-2" />
           Refresh
         </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-              tab === t.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v: string) => setTab(v as TabKey)} className="space-y-4">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList>
+            {TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-      {tab === "event" && <EventTab periodeId={periodeId} />}
-      {tab === "analitik" && <AnalitikTab periodeId={periodeId} />}
-      {tab === "trend-donatur" && <TrendDonaturTab />}
-      {tab === "growth" && <GrowthTab />}
+        <TabsContent value="event" className="space-y-4">
+          <EventTab periodeId={periodeId} />
+        </TabsContent>
+        <TabsContent value="analitik" className="space-y-4">
+          <AnalitikTab periodeId={periodeId} />
+        </TabsContent>
+        <TabsContent value="trend-donatur" className="space-y-4">
+          <TrendDonaturTab />
+        </TabsContent>
+        <TabsContent value="growth" className="space-y-4">
+          <GrowthTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -1,18 +1,25 @@
 import { useState } from "react";
-import type { ChangeEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import type { ChangeEvent, MouseEvent } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   Calendar,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
+  Eye,
   FileText,
   Mic,
   Plus,
   Search,
   Youtube,
 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { StatCard } from "@/shared/components/StatCard";
@@ -33,25 +40,126 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { useEventList, useEventStats } from "../hooks/useEvent";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
+import { useAuthStore } from "@/domains/auth/store/useAuthStore";
+import { hasAnyRole } from "@/shared/constants/roles";
+import { useEventList, useEventStats, useUpdateEventStatus } from "../hooks/useEvent";
 import { formatEventDate } from "../utils";
-import type { EventItem } from "../services";
+import type { EventItem, EventStatus } from "../services";
 import { CreateEventWizard } from "./EventFormDialogs";
 
 const ALL = "all";
 
+// Urutan segmen slider status (enum baru backend)
+export const EVENT_STATUS_OPTIONS = ["draft", "published", "done", "cancelled"] as const;
+
+// Aturan transisi status (FE-only): done final; cancelled hanya bisa kembali
+// ke published (tidak boleh ke done); published boleh mundur ke draft.
+const STATUS_TRANSITIONS: Record<EventStatus, EventStatus[]> = {
+  draft: ["published", "cancelled"],
+  published: ["draft", "done", "cancelled"],
+  done: [],
+  cancelled: ["published"],
+};
+
+// Warna aksen per status — dipakai trigger pill & dot di item menu
+const DOT_CLASS: Record<EventStatus, string> = {
+  draft: "bg-muted-foreground/60",
+  published: "bg-blue-500",
+  done: "bg-primary",
+  cancelled: "bg-destructive",
+};
+const TRIGGER_CLASS: Record<EventStatus, string> = {
+  draft: "border-border bg-muted text-muted-foreground",
+  published: "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  done: "border-primary/30 bg-primary/10 text-primary",
+  cancelled: "border-destructive/30 bg-destructive/10 text-destructive",
+};
+
+// Dropdown status bergaya: trigger berupa pill berwarna sesuai status (dot +
+// label + chevron), item menu ber-dot warna dengan aturan transisi — target
+// di luar aturan disabled. Status done terkunci total (pill statis).
+export function EventStatusDropdown({
+  status,
+  disabled,
+  onChange,
+}: {
+  status: string;
+  disabled?: boolean;
+  onChange: (status: EventStatus) => void;
+}) {
+  const current = (
+    EVENT_STATUS_OPTIONS.includes(status as EventStatus) ? status : "draft"
+  ) as EventStatus;
+  const allowed = STATUS_TRANSITIONS[current];
+  const locked = allowed.length === 0; // done = final
+  const hint =
+    current === "done"
+      ? "Status Done bersifat final — tidak bisa diubah lagi"
+      : current === "cancelled"
+        ? "Event cancelled hanya bisa dikembalikan ke Published"
+        : undefined;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled || locked}>
+        <button
+          type="button"
+          title={hint}
+          // Jaga-jaga bila dipakai di dalam konteks klik-able (row/kartu)
+          onClick={(e: MouseEvent) => e.stopPropagation()}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize transition-opacity",
+            TRIGGER_CLASS[current],
+            disabled || locked ? "cursor-not-allowed" : "cursor-pointer hover:opacity-80"
+          )}
+        >
+          <span className={cn("size-2 rounded-full", DOT_CLASS[current])} />
+          {current}
+          {!locked && <ChevronDown className="size-3 opacity-70" />}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {EVENT_STATUS_OPTIONS.map((s) => {
+          const isCurrent = s === current;
+          const canGo = allowed.includes(s);
+          return (
+            <DropdownMenuItem
+              key={s}
+              disabled={!canGo}
+              onClick={() => canGo && onChange(s)}
+              className="gap-2 capitalize"
+            >
+              <span className={cn("size-2 rounded-full", DOT_CLASS[s])} />
+              {s}
+              {isCurrent && <Check className="ml-auto size-3.5" />}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function EventStatusBadge({ status }: { status: string }) {
   return (
-    <span
+    <Badge
+      variant="outline"
       className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-        status === "done" && "bg-primary/10 text-primary",
-        status === "upcoming" && "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
-        status === "cancelled" && "bg-destructive/10 text-destructive"
+        "capitalize",
+        status === "draft" && "text-muted-foreground",
+        status === "published" &&
+          "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400",
+        status === "done" && "border-primary/30 bg-primary/10 text-primary",
+        status === "cancelled" && "border-destructive/30 bg-destructive/10 text-destructive"
       )}
     >
       {status}
-    </span>
+    </Badge>
   );
 }
 
@@ -90,15 +198,23 @@ export function MediaLinks({ event }: { event: EventItem }) {
 }
 
 export function EventListPage() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [tipe, setTipe] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
+  // null = sort tanggal nonaktif (jangan kirim sort_by/order — backend memakai
+  // default urut terbaru-dibuat)
+  const [sortTanggal, setSortTanggal] = useState<"asc" | "desc" | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  // Daftar event tanpa rekaman default terlipat — jumlahnya bisa banyak
+  const [belumRekamanOpen, setBelumRekamanOpen] = useState(false);
 
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
+  // Endpoint ganti status dibatasi backend ke admin/pcm
+  const role = useAuthStore((s) => s.role);
+  const canSetStatus = hasAnyRole(role, ["admin", "pcm"]);
+  const statusMutation = useUpdateEventStatus();
 
   const { data: stats, isLoading: statsLoading } = useEventStats(periodeId);
   const { data, isLoading } = useEventList({
@@ -108,7 +224,15 @@ export function EventListPage() {
     search: search || undefined,
     tipe: tipe === ALL ? undefined : tipe,
     status: status === ALL ? undefined : status,
+    sort_by: sortTanggal ? "tanggal" : undefined,
+    order: sortTanggal ?? undefined,
   });
+
+  // Siklus klik header Tanggal: nonaktif → asc → desc → nonaktif
+  const toggleSortTanggal = () => {
+    setSortTanggal((s) => (s === null ? "asc" : s === "asc" ? "desc" : null));
+    setPage(1);
+  };
 
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -118,40 +242,60 @@ export function EventListPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Event Talkshow</h1>
-        <Button size="sm" onClick={() => setWizardOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Buat Event
-        </Button>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Event Talkshow</h1>
+          <p className="text-muted-foreground">Kelola jadwal, absensi, dan materi event.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setWizardOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Buat Event
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Mic} label="Total Event" value={String(stats?.total ?? "—")} loading={statsLoading} />
         <StatCard icon={CheckCircle2} label="Done" value={String(stats?.done ?? "—")} loading={statsLoading} />
-        <StatCard icon={Calendar} label="Upcoming" value={String(stats?.upcoming ?? "—")} loading={statsLoading} />
+        <StatCard icon={Calendar} label="Published" value={String(stats?.published ?? "—")} loading={statsLoading} />
         <StatCard icon={AlertTriangle} label="Belum Rekaman" value={String(belumRekaman.length)} loading={statsLoading} />
       </div>
 
-      {/* Alert: event done tanpa rekaman/materi */}
+      {/* Alert: event done tanpa rekaman/materi — daftar terlipat, klik untuk buka */}
       {belumRekaman.length > 0 && (
-        <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
-          <div className="flex items-center gap-2 font-medium text-yellow-700 dark:text-yellow-400">
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
+          <button
+            type="button"
+            onClick={() => setBelumRekamanOpen((o) => !o)}
+            aria-expanded={belumRekamanOpen}
+            className="flex w-full items-center gap-2 font-medium text-yellow-700 dark:text-yellow-400"
+          >
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            {belumRekaman.length} event selesai belum ada link rekaman/materi
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {belumRekaman.map((e) => (
-              <Link
-                key={e.id}
-                to={`/panel/event/${e.id}`}
-                className="rounded-full border bg-card px-2.5 py-0.5 text-xs hover:bg-accent transition-colors"
-              >
-                {e.kode_event} · {e.nama_event}
-              </Link>
-            ))}
-          </div>
+            <span className="text-left">
+              {belumRekaman.length} event selesai belum ada link rekaman/materi
+            </span>
+            <ChevronDown
+              className={cn(
+                "ml-auto h-4 w-4 shrink-0 transition-transform",
+                belumRekamanOpen && "rotate-180"
+              )}
+            />
+          </button>
+          {belumRekamanOpen && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {belumRekaman.map((e) => (
+                <Link
+                  key={e.id}
+                  to={`/panel/event/${e.id}`}
+                  className="rounded-full border bg-card px-2.5 py-0.5 text-xs shadow-sm hover:bg-accent transition-colors"
+                >
+                  {e.kode_event} · {e.nama_event}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -198,7 +342,8 @@ export function EventListPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>Semua Status</SelectItem>
-            <SelectItem value="upcoming">Upcoming</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="published">Published</SelectItem>
             <SelectItem value="done">Done</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
@@ -206,40 +351,55 @@ export function EventListPage() {
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-32">Kode</TableHead>
               <TableHead>Nama Event</TableHead>
-              <TableHead className="w-24">Tanggal</TableHead>
+              <TableHead className="w-28">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleSortTanggal}
+                  className={cn("-ms-3 h-8", sortTanggal && "text-foreground")}
+                >
+                  Tanggal
+                  {sortTanggal === "asc" ? (
+                    <ArrowUp className="size-3.5" />
+                  ) : sortTanggal === "desc" ? (
+                    <ArrowDown className="size-3.5" />
+                  ) : (
+                    <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+                  )}
+                </Button>
+              </TableHead>
               <TableHead className="w-24">Mentor</TableHead>
-              <TableHead className="w-28">Status</TableHead>
+              <TableHead className="w-32">Status</TableHead>
               <TableHead className="w-20">Media</TableHead>
+              <TableHead className="w-16 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                  <TableCell colSpan={7}>
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                   Tidak ada event ditemukan
                 </TableCell>
               </TableRow>
             ) : (
               items.map((ev) => (
-                <TableRow
-                  key={ev.id}
-                  onClick={() => navigate(`/panel/event/${ev.id}`)}
-                  className="cursor-pointer"
-                >
+                // Row sengaja TIDAK klik-able: dropdown status di dalamnya rawan
+                // salah klik ke row — navigasi detail lewat ikon mata di kolom Aksi
+                <TableRow key={ev.id}>
                   <TableCell className="font-mono text-xs">{ev.kode_event}</TableCell>
                   <TableCell>
                     <div className="font-medium">{ev.nama_event}</div>
@@ -264,20 +424,38 @@ export function EventListPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <EventStatusBadge status={ev.status} />
+                    {canSetStatus ? (
+                      <EventStatusDropdown
+                        status={ev.status}
+                        disabled={statusMutation.isPending}
+                        onChange={(status) => statusMutation.mutate({ id: ev.id, status })}
+                      />
+                    ) : (
+                      <EventStatusBadge status={ev.status} />
+                    )}
                   </TableCell>
                   <TableCell>
                     <MediaLinks event={ev} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Link
+                      to={`/panel/event/${ev.id}`}
+                      title="Lihat detail"
+                      className="inline-flex p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+      </div>
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>
                 Menampilkan {(page - 1) * limit + 1}–{Math.min(page * limit, totalItems)} dari {totalItems}
@@ -312,9 +490,8 @@ export function EventListPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Render kondisional = mount ulang tiap dibuka, supaya state wizard selalu segar */}
       {wizardOpen && <CreateEventWizard open onClose={() => setWizardOpen(false)} />}

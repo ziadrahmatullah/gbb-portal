@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Lock, Pencil, Plug, Plus, Trash2 } from "lucide-react";
+import { Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -102,8 +103,8 @@ function AIConfigFormDialog({
             API key disimpan terenkripsi di server dan tidak pernah ditampilkan kembali.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label>Provider</Label>
             <Select value={provider} onValueChange={setProvider} disabled={saving || !!editing}>
               <SelectTrigger>
@@ -118,21 +119,21 @@ function AIConfigFormDialog({
               <p className="text-xs text-muted-foreground">Provider tidak dapat diubah setelah dibuat.</p>
             )}
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ai-label">Label</Label>
             <Input id="ai-label" value={label} onChange={(e: ChangeEvent<HTMLInputElement>) => setLabel(e.target.value)} placeholder="mis. Claude Opus 4.8" required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ai-model">Model</Label>
             <Input id="ai-model" value={model} onChange={(e: ChangeEvent<HTMLInputElement>) => setModel(e.target.value)} placeholder="mis. claude-opus-4-8" required disabled={saving} />
           </div>
           {needBaseUrl && (
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ai-baseurl">Base URL (wajib untuk openai_compatible)</Label>
               <Input id="ai-baseurl" type="url" value={baseUrl} onChange={(e: ChangeEvent<HTMLInputElement>) => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" required disabled={saving} />
             </div>
           )}
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ai-key" className="flex items-center gap-1.5">
               <Lock className="h-3.5 w-3.5" />
               API Key {editing && "(kosongkan untuk mempertahankan key lama)"}
@@ -148,7 +149,7 @@ function AIConfigFormDialog({
             />
             {keyError && <p className="text-sm text-destructive">{keyError}</p>}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -185,7 +186,7 @@ export function AIConfigTab() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -201,7 +202,7 @@ export function AIConfigTab() {
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={5}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -285,7 +286,7 @@ export function AIConfigTab() {
               Yakin ingin menghapus provider <strong>{deleting?.label}</strong>?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>

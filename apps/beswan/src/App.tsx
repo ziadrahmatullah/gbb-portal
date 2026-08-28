@@ -6,6 +6,7 @@ import { LoginPage } from "@/domains/auth/components/LoginPage";
 import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
 import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { BerandaPage } from "@/domains/beranda";
+import { EventPage, EventDetailPage } from "@/domains/event";
 import { LibraryPage } from "@/domains/library";
 import { MentorPage } from "@/domains/mentor";
 import { RefleksiPage } from "@/domains/refleksi";
@@ -23,6 +24,8 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/panel" element={<AppLayout />}>
               <Route index element={<BerandaPage />} />
+              <Route path="event" element={<EventPage />} />
+              <Route path="event/:id" element={<EventDetailPage />} />
               <Route path="library" element={<LibraryPage />} />
               <Route path="mentor" element={<MentorPage />} />
               <Route path="refleksi" element={<RefleksiPage />} />

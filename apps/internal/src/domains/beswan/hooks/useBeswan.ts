@@ -7,13 +7,18 @@ import {
   getBeswanRefleksi,
   getBeswanStats,
   updateBeswan,
+  updateBeswanStatus,
 } from "../services";
-import type { CreateBeswanReq } from "../services";
-import type { ListParams } from "@/shared/lib/apiTypes";
+import type {
+  BeswanListParams,
+  BeswanStatus,
+  CreateBeswanReq,
+  UpdateBeswanReq,
+} from "../services";
 
 export const BESWAN_KEY = "beswan";
 
-export function useBeswanList(params: ListParams = {}) {
+export function useBeswanList(params: BeswanListParams = {}) {
   return useQuery({
     queryKey: [BESWAN_KEY, "list", params],
     queryFn: () => getBeswanList(params),
@@ -54,10 +59,22 @@ export function useCreateBeswan() {
   });
 }
 
+export function useUpdateBeswanStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: BeswanStatus }) =>
+      updateBeswanStatus(id, status),
+    onSuccess: (_, { status }) => {
+      toast.success(`Status beswan diubah menjadi ${status}`);
+      queryClient.invalidateQueries({ queryKey: [BESWAN_KEY] });
+    },
+  });
+}
+
 export function useUpdateBeswan() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, form }: { id: number; form: FormData }) => updateBeswan(id, form),
+    mutationFn: ({ id, body }: { id: number; body: UpdateBeswanReq }) => updateBeswan(id, body),
     onSuccess: () => {
       toast.success("Data beswan berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: [BESWAN_KEY] });

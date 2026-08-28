@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { StickyNote, Trash2 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -37,16 +38,16 @@ const ANON = "anon";
 
 export function StatusKlasifikasiBadge({ status }: { status: string }) {
   return (
-    <span
+    <Badge
+      variant="outline"
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
         status === "inputted"
-          ? "bg-primary/10 text-primary"
-          : "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400"
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
       )}
     >
       {status === "inputted" ? "Inputted" : "? unknown"}
-    </span>
+    </Badge>
   );
 }
 
@@ -205,7 +206,7 @@ function CatatanDialog({
           placeholder="Catatan internal untuk baris ini…"
           disabled={updateMutation.isPending}
         />
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={updateMutation.isPending}>
             Batal
           </Button>
@@ -255,7 +256,7 @@ export function CashflowTable({
   const colSpan = editable ? 11 : 10;
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+    <div className="overflow-x-auto rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow>
@@ -277,7 +278,7 @@ export function CashflowTable({
             Array.from({ length: 4 }).map((_, i) => (
               <TableRow key={i}>
                 <TableCell colSpan={colSpan}>
-                  <div className="h-6 animate-pulse rounded bg-muted" />
+                  <Skeleton className="h-6 w-full" />
                 </TableCell>
               </TableRow>
             ))

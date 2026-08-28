@@ -12,6 +12,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { Badge, Card, CardContent } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/shared/components/StatCard";
 import { Button } from "@/shared/components/ui/button";
@@ -59,7 +60,7 @@ function DuplikatTable({ duplicates }: { duplicates: CashflowDuplicate[] }) {
       <h4 className="text-sm font-semibold text-muted-foreground">
         Baris duplikat — dilewati, tidak disimpan ({duplicates.length})
       </h4>
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto opacity-60">
+      <div className="overflow-x-auto rounded-md border bg-card opacity-60">
         <Table>
           <TableHeader>
             <TableRow>
@@ -80,9 +81,9 @@ function DuplikatTable({ duplicates }: { duplicates: CashflowDuplicate[] }) {
                 <TableCell className="text-sm max-w-64 truncate">{d.deskripsi}</TableCell>
                 <TableCell className="text-right font-mono text-sm">{formatNominal(d.nominal)}</TableCell>
                 <TableCell>
-                  <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  <Badge variant="outline" className="text-muted-foreground">
                     DUPLIKAT
-                  </span>
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}
@@ -136,37 +137,39 @@ export function UploadWizard({
       </div>
 
       {step === 1 && (
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4 max-w-xl">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
+        <Card className="max-w-xl">
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Upload Mutasi Rekening</h3>
+                <p className="text-sm text-muted-foreground">
+                  File .xlsx ekspor mutasi BSI — 1 sheet per bulan. Baris duplikat (FT Number +
+                  nominal sudah ada) otomatis dilewati; sisanya langsung tersimpan dan
+                  di-auto-klasifikasi.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold">Upload Mutasi Rekening</h3>
-              <p className="text-sm text-muted-foreground">
-                File .xlsx ekspor mutasi BSI — 1 sheet per bulan. Baris duplikat (FT Number +
-                nominal sudah ada) otomatis dilewati; sisanya langsung tersimpan dan
-                di-auto-klasifikasi.
-              </p>
-            </div>
-          </div>
-          <Input
-            type="file"
-            accept=".xlsx"
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
-            disabled={uploadMutation.isPending}
-          />
-          <Button onClick={handleUpload} disabled={!file || uploadMutation.isPending}>
-            <Upload className="h-4 w-4 mr-2" />
-            {uploadMutation.isPending ? "Memproses…" : "Upload & Proses"}
-          </Button>
-        </div>
+            <Input
+              type="file"
+              accept=".xlsx"
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
+              disabled={uploadMutation.isPending}
+            />
+            <Button onClick={handleUpload} disabled={!file || uploadMutation.isPending}>
+              <Upload className="h-4 w-4 mr-2" />
+              {uploadMutation.isPending ? "Memproses…" : "Upload & Proses"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {step === 2 && batch && (
         <div className="space-y-4">
           {/* Metric cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
             <StatCard icon={FileSpreadsheet} label="Total Baris" value={String(batch.summary.total_rows)} />
             <StatCard icon={ArrowDownCircle} label="Cash In" value={String(cashIn)} />
             <StatCard icon={ArrowUpCircle} label="Cash Out" value={String(cashOut)} />

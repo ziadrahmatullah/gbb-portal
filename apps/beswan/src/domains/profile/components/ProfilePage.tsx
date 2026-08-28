@@ -2,7 +2,16 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { FileText, GraduationCap, Save, UserRound } from "lucide-react";
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -16,6 +25,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
@@ -24,7 +40,7 @@ import type { MyIPK } from "../services";
 
 function ReadOnlyField({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className="grid gap-2">
       <Label className="text-muted-foreground">{label}</Label>
       <Input value={value ?? ""} readOnly disabled className="bg-muted/50" />
     </div>
@@ -74,8 +90,8 @@ function IPKDialog({
             Satu entri per periode — mengisi ulang periode yang sama akan menimpa data lama.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label>Periode *</Label>
             {/* Pilihan dibatasi periode yang diikuti beswan (dari dashboard), bukan dropdown bebas */}
             <Select value={periodeId} onValueChange={setPeriodeId} disabled={!!existing}>
@@ -91,8 +107,8 @@ function IPKDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label htmlFor="ipk-ips">IP Semester</Label>
               <Input
                 id="ipk-ips"
@@ -105,7 +121,7 @@ function IPKDialog({
                 placeholder="opsional"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ipk-ipk">IPK Kumulatif *</Label>
               <Input
                 id="ipk-ipk"
@@ -119,7 +135,7 @@ function IPKDialog({
               />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ipk-transkrip">Transkrip (PDF)</Label>
             <Input
               id="ipk-transkrip"
@@ -133,7 +149,7 @@ function IPKDialog({
               </p>
             )}
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={upsert.isPending}>
               Batal
             </Button>
@@ -188,174 +204,182 @@ export function ProfilePage() {
   };
 
   if (isLoading) {
-    return <div className="h-64 animate-pulse rounded-xl bg-muted" />;
+    return <Skeleton className="h-64 w-full max-w-3xl rounded-xl" />;
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
-        <UserRound className="h-6 w-6 text-primary" />
-        Profile
-      </h1>
+    <div className="max-w-3xl space-y-4">
+      <div className="mb-2">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <UserRound className="size-6 text-primary" />
+          Profile
+        </h1>
+      </div>
 
       {/* ── Identitas ── */}
-      <form onSubmit={handleSave} className="rounded-xl border bg-card p-5 space-y-4">
-        <div className="flex items-center gap-4">
-          {profile?.foto_url ? (
-            <img
-              src={assetUrl(profile.foto_url)}
-              alt="Foto profil"
-              className="h-16 w-16 rounded-full object-cover border"
-            />
-          ) : (
-            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-xl font-semibold">
-              {profile?.nama_lengkap?.[0] ?? "?"}
+      <form onSubmit={handleSave}>
+        <Card>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="size-16 border">
+                {profile?.foto_url && <AvatarImage src={assetUrl(profile.foto_url)} alt="Foto profil" />}
+                <AvatarFallback className="text-xl font-semibold">
+                  {profile?.nama_lengkap?.[0] ?? "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-semibold">{profile?.nama_lengkap}</div>
+                <div className="text-sm text-muted-foreground">
+                  {profile?.batch ? `Batch ${profile.batch}` : profile?.status ?? ""}
+                </div>
+              </div>
             </div>
-          )}
-          <div>
-            <div className="font-semibold">{profile?.nama_lengkap}</div>
-            <div className="text-sm text-muted-foreground">
-              {profile?.batch ? `Batch ${profile.batch}` : profile?.status ?? ""}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ReadOnlyField label="Nama Lengkap" value={profile?.nama_lengkap} />
+              <ReadOnlyField label="NIM" value={profile?.nim} />
+              <ReadOnlyField label="Email" value={profile?.email} />
+              <div className="grid gap-2">
+                <Label htmlFor="pf-hp">No. HP *</Label>
+                <Input
+                  id="pf-hp"
+                  value={hpValue}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setHp(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
-        </div>
+            <p className="text-xs text-muted-foreground">
+              Nama, NIM, dan email hanya bisa diubah oleh Tim Program GBB.
+            </p>
 
-        <div className="grid sm:grid-cols-2 gap-3">
-          <ReadOnlyField label="Nama Lengkap" value={profile?.nama_lengkap} />
-          <ReadOnlyField label="NIM" value={profile?.nim} />
-          <ReadOnlyField label="Email" value={profile?.email} />
-          <div className="space-y-1.5">
-            <Label htmlFor="pf-hp">No. HP *</Label>
-            <Input
-              id="pf-hp"
-              value={hpValue}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setHp(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Nama, NIM, dan email hanya bisa diubah oleh Tim Program GBB.
-        </p>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="pf-foto">Foto Profil</Label>
-            <Input
-              id="pf-foto"
-              type="file"
-              accept="image/jpeg,image/png"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setFoto(e.target.files?.[0])}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pf-cv">CV (PDF)</Label>
-            <Input
-              id="pf-cv"
-              type="file"
-              accept="application/pdf"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
-            />
-            {profile?.cv_url && (
-              <a
-                href={assetUrl(profile.cv_url)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-              >
-                <FileText className="h-3 w-3" />
-                Lihat CV saat ini
-              </a>
-            )}
-          </div>
-        </div>
-
-        <Button type="submit" disabled={update.isPending || !dirty || !hpValue.trim()}>
-          <Save className="h-4 w-4 mr-2" />
-          {update.isPending ? "Menyimpan…" : "Simpan Perubahan"}
-        </Button>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="pf-foto">Foto Profil</Label>
+                <Input
+                  id="pf-foto"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFoto(e.target.files?.[0])}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pf-cv">CV (PDF)</Label>
+                <Input
+                  id="pf-cv"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
+                />
+                {profile?.cv_url && (
+                  <a
+                    href={assetUrl(profile.cv_url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <FileText className="size-3" />
+                    Lihat CV saat ini
+                  </a>
+                )}
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={update.isPending || !dirty || !hpValue.trim()}>
+              <Save className="size-4" />
+              {update.isPending ? "Menyimpan…" : "Simpan Perubahan"}
+            </Button>
+          </CardFooter>
+        </Card>
       </form>
 
       {/* ── Akademik ── */}
-      <section className="rounded-xl border bg-card p-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-primary" />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <GraduationCap className="size-5 text-primary" />
             Data Akademik (IPK)
-          </h2>
-          <Button size="sm" onClick={() => setIpkDialog({ existing: null })}>
-            Isi / Update IPK
-          </Button>
-        </div>
-
-        {missingActive.map((p) => (
-          <div
-            key={p.periode_id}
-            className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
-          >
-            🎓 Kamu belum mengisi IPK untuk periode aktif {p.periode_nama}.{" "}
-            <button
-              type="button"
-              className="underline font-medium"
-              onClick={() => setIpkDialog({ existing: null, presetPeriodeId: p.periode_id })}
+          </CardTitle>
+          <CardAction>
+            <Button size="sm" onClick={() => setIpkDialog({ existing: null })}>
+              Isi / Update IPK
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {missingActive.map((p) => (
+            <div
+              key={p.periode_id}
+              className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
             >
-              Isi sekarang
-            </button>
-          </div>
-        ))}
+              🎓 Kamu belum mengisi IPK untuk periode aktif {p.periode_nama}.{" "}
+              <button
+                type="button"
+                className="font-medium underline"
+                onClick={() => setIpkDialog({ existing: null, presetPeriodeId: p.periode_id })}
+              >
+                Isi sekarang
+              </button>
+            </div>
+          ))}
 
-        {ipkLoading ? (
-          <div className="h-20 animate-pulse rounded-lg bg-muted" />
-        ) : ipkList.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Belum ada data IPK</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 pr-3 font-medium">Periode</th>
-                  <th className="py-2 pr-3 font-medium">IP Semester</th>
-                  <th className="py-2 pr-3 font-medium">IPK Kumulatif</th>
-                  <th className="py-2 pr-3 font-medium">Transkrip</th>
-                  <th className="py-2 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {ipkList.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3">{periodeNama(row.periode_id)}</td>
-                    <td className="py-2 pr-3">{row.ip_semester ?? "—"}</td>
-                    <td className="py-2 pr-3 font-medium">{row.ipk}</td>
-                    <td className="py-2 pr-3">
-                      {row.transkip_url ? (
-                        <a
-                          href={assetUrl(row.transkip_url)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
+          {ipkLoading ? (
+            <Skeleton className="h-20 w-full rounded-lg" />
+          ) : ipkList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <GraduationCap className="size-10 text-muted-foreground/60" />
+              <p className="text-sm text-muted-foreground">Belum ada data IPK</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Periode</TableHead>
+                    <TableHead>IP Semester</TableHead>
+                    <TableHead>IPK Kumulatif</TableHead>
+                    <TableHead>Transkrip</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ipkList.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{periodeNama(row.periode_id)}</TableCell>
+                      <TableCell>{row.ip_semester ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{row.ipk}</TableCell>
+                      <TableCell>
+                        {row.transkip_url ? (
+                          <a
+                            href={assetUrl(row.transkip_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            Lihat
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIpkDialog({ existing: row })}
                         >
-                          Lihat
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="py-2 text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setIpkDialog({ existing: row })}
-                      >
-                        Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                          Edit
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {ipkDialog && (
         <IPKDialog

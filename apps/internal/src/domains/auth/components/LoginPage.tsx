@@ -2,9 +2,7 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { Input } from "@/shared/components/ui/input";
-import { Label } from "@/shared/components/ui/label";
-import { Button } from "@/shared/components/ui/button";
+import { Button, Input, Label, LoginShowcase } from "@gbb/ui";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export function LoginPage() {
@@ -30,20 +28,38 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <div className="text-center mb-8">
-          <img src="/assets/logo/gbb-logo-stacked.png" alt="Baik Berdampak" className="h-24 w-auto mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground mt-1">Portal Internal GBB</p>
-        </div>
+    <div className="flex min-h-svh gap-4 bg-background p-4">
+      {/* Panel kiri: showcase program GBB (desktop saja) */}
+      <div className="hidden w-1/2 lg:block">
+        <LoginShowcase />
+      </div>
 
-        {/* Card */}
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Panel kanan: form login */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Brand */}
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-secondary p-3 shadow-lg">
+              <img
+                src="/assets/logo/gbb-logo-mark-white.png"
+                alt="Baik Berdampak"
+                className="size-full object-contain"
+              />
+            </div>
             <div className="space-y-1.5">
+              <h1 className="text-2xl font-bold tracking-tight">Selamat Datang Kembali di GBB!</h1>
+              <p className="text-sm text-muted-foreground">
+                Masuk ke Portal Internal untuk mengelola program beasiswa Baik Berdampak.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            {error && (
+              <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>
+            )}
+
+            <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -58,7 +74,7 @@ export function LoginPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
@@ -66,7 +82,7 @@ export function LoginPage() {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
-                  placeholder="Enter your password"
+                  placeholder="Masukkan password"
                   value={form.password}
                   onChange={handleChange}
                   required
@@ -80,21 +96,21 @@ export function LoginPage() {
                   tabIndex={-1}
                   disabled={loading}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              {loading ? "Signing in…" : "Sign in"}
+            <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="size-4 animate-spin mr-2" />}
+              {loading ? "Memproses…" : "Masuk"}
             </Button>
           </form>
-        </div>
 
-        <p className="text-xs text-center text-muted-foreground mt-6">
-          GBB Portal v1.0
-        </p>
+          <p className="text-center text-xs text-muted-foreground">
+            Hak Cipta © {new Date().getFullYear()} Baik Berdampak
+          </p>
+        </div>
       </div>
     </div>
   );

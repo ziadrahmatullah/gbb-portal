@@ -1,3 +1,4 @@
+import { DateInput } from "@gbb/ui";
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -77,9 +78,9 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
             semua beswan periode.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Batch/Periode</Label>
               <Select
                 value={periodeId}
@@ -101,7 +102,7 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Event sumber (opsional)</Label>
               <Select value={eventId} onValueChange={setEventId} disabled={saving || !periodeId}>
                 <SelectTrigger>
@@ -118,33 +119,33 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
               </Select>
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="p-judul">Judul</Label>
             <Input id="p-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="p-deskripsi">Soal / Deskripsi</Label>
             <Textarea id="p-deskripsi" rows={3} value={deskripsi} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDeskripsi(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="p-lampiran">Lampiran soal (opsional, PDF/DOCX/PPTX)</Label>
             <Input id="p-lampiran" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={(e: ChangeEvent<HTMLInputElement>) => setLampiran(e.target.files?.[0] ?? null)} disabled={saving} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
               <Label htmlFor="p-tanggal">Deadline</Label>
-              <Input id="p-tanggal" type="date" value={tanggal} onChange={(e: ChangeEvent<HTMLInputElement>) => setTanggal(e.target.value)} required disabled={saving} />
+              <DateInput id="p-tanggal" value={tanggal} onChange={(e: ChangeEvent<HTMLInputElement>) => setTanggal(e.target.value)} required disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="p-jam">Jam</Label>
               <Input id="p-jam" type="time" value={jam} onChange={(e: ChangeEvent<HTMLInputElement>) => setJam(e.target.value)} disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="p-nilai-maks">Nilai maksimum</Label>
               <Input id="p-nilai-maks" type="number" min={1} placeholder="100" value={nilaiMaks} onChange={(e: ChangeEvent<HTMLInputElement>) => setNilaiMaks(e.target.value)} disabled={saving} />
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -196,29 +197,29 @@ export function EditPenugasanDialog({
             Periode, event sumber, dan nilai maksimum tidak dapat diubah setelah dibuat.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="pe-judul">Judul</Label>
             <Input id="pe-judul" value={judul} onChange={(e: ChangeEvent<HTMLInputElement>) => setJudul(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="pe-deskripsi">Soal / Deskripsi</Label>
             <Textarea id="pe-deskripsi" rows={3} value={deskripsi} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDeskripsi(e.target.value)} required disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="pe-lampiran">Ganti lampiran (opsional)</Label>
             <Input id="pe-lampiran" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={(e: ChangeEvent<HTMLInputElement>) => setLampiran(e.target.files?.[0] ?? null)} disabled={saving} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="grid gap-2">
               <Label htmlFor="pe-tanggal">Deadline</Label>
-              <Input id="pe-tanggal" type="date" value={tanggal} onChange={(e: ChangeEvent<HTMLInputElement>) => setTanggal(e.target.value)} required disabled={saving} />
+              <DateInput id="pe-tanggal" value={tanggal} onChange={(e: ChangeEvent<HTMLInputElement>) => setTanggal(e.target.value)} required disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="pe-jam">Jam</Label>
               <Input id="pe-jam" type="time" value={jam} onChange={(e: ChangeEvent<HTMLInputElement>) => setJam(e.target.value)} required disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={setStatus} disabled={saving}>
                 <SelectTrigger>
@@ -231,7 +232,7 @@ export function EditPenugasanDialog({
               </Select>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>

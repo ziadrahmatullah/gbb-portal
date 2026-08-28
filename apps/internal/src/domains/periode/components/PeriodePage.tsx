@@ -1,7 +1,16 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { Badge, DateInput, Skeleton } from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -85,25 +94,21 @@ function suggestFromLast(items: Periode[]): FormState {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-        status === "aktif" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-      )}
+    <Badge
+      variant={status === "aktif" ? "default" : "outline"}
+      className={status === "aktif" ? "capitalize" : "capitalize text-muted-foreground"}
     >
       {status}
-    </span>
+    </Badge>
   );
 }
 
 function PeriodeForm({
-  editing,
   initial,
   saving,
   onCancel,
   onSubmit,
 }: {
-  editing: Periode | null;
   initial: FormState;
   saving: boolean;
   onCancel: () => void;
@@ -126,13 +131,9 @@ function PeriodeForm({
   };
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <h3 className="text-sm font-semibold mb-4">
-        {editing ? `Edit Periode — ${editing.nama}` : "Tambah Periode"}
-      </h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="periode-nama">Nama batch</Label>
             <Input
               id="periode-nama"
@@ -143,7 +144,7 @@ function PeriodeForm({
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="periode-goal">Goal (opsional)</Label>
             <Input
               id="periode-goal"
@@ -153,7 +154,7 @@ function PeriodeForm({
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Semester</Label>
             <div className="flex items-center gap-6 h-9">
               {([
@@ -174,7 +175,7 @@ function PeriodeForm({
               ))}
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Status</Label>
             <Select
               value={form.status}
@@ -190,22 +191,20 @@ function PeriodeForm({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="periode-mulai">Mulai</Label>
-            <Input
+            <DateInput
               id="periode-mulai"
-              type="date"
               value={form.start_date}
               onChange={(e: ChangeEvent<HTMLInputElement>) => set("start_date", e.target.value)}
               required
               disabled={saving}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="periode-selesai">Selesai</Label>
-            <Input
+            <DateInput
               id="periode-selesai"
-              type="date"
               value={form.end_date}
               onChange={(e: ChangeEvent<HTMLInputElement>) => set("end_date", e.target.value)}
               required
@@ -213,17 +212,16 @@ function PeriodeForm({
             />
           </div>
         </div>
-        {dateError && <p className="text-sm text-destructive">{dateError}</p>}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
-            Batal
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Menyimpan…" : "Simpan"}
-          </Button>
-        </div>
-      </form>
-    </div>
+      {dateError && <p className="text-sm text-destructive">{dateError}</p>}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
+          Batal
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {saving ? "Menyimpan…" : "Simpan"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
@@ -251,6 +249,17 @@ export function PeriodePage() {
   const updateMutation = useUpdatePeriode();
   const deleteMutation = useDeletePeriode();
   const saving = createMutation.isPending || updateMutation.isPending;
+
+  // Toggle status langsung dari tabel (tanpa buka dialog edit) — instance
+  // mutation terpisah supaya pending state tidak tercampur dengan form dialog
+  const statusMutation = useUpdatePeriode();
+  const togglingId = statusMutation.isPending ? statusMutation.variables?.id : null;
+  const toggleStatus = (p: Periode) => {
+    statusMutation.mutate({
+      id: p.id,
+      body: { status: p.status === "aktif" ? "selesai" : "aktif" },
+    });
+  };
 
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -284,14 +293,14 @@ export function PeriodePage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Konfigurasi Periode</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Konfigurasi Periode</h1>
         {isAdmin && (
           <Button
             size="sm"
             onClick={() => setFormOpen({ editing: null, initial: suggestFromLast(items) })}
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="size-4 mr-2" />
             Tambah
           </Button>
         )}
@@ -330,7 +339,7 @@ export function PeriodePage() {
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -347,7 +356,7 @@ export function PeriodePage() {
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={isAdmin ? 6 : 5}>
-                    <div className="h-5 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -376,6 +385,18 @@ export function PeriodePage() {
                   {isAdmin && (
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <button
+                          title={p.status === "aktif" ? "Tandai selesai" : "Aktifkan kembali"}
+                          onClick={() => toggleStatus(p)}
+                          disabled={togglingId === p.id}
+                          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:pointer-events-none disabled:opacity-50"
+                        >
+                          {p.status === "aktif" ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4" />
+                          )}
+                        </button>
                         <button
                           title="Edit"
                           onClick={() =>
@@ -463,16 +484,38 @@ export function PeriodePage() {
         )}
       </div>
 
-      {/* Form inline di bawah tabel (bukan modal) — sesuai wireframe */}
-      {isAdmin && formOpen && (
-        <PeriodeForm
-          key={formOpen.editing?.id ?? "create"}
-          editing={formOpen.editing}
-          initial={formOpen.initial}
-          saving={saving}
-          onCancel={() => setFormOpen(null)}
-          onSubmit={handleSubmit}
-        />
+      {/* Form tambah/edit sebagai dialog pop-up */}
+      {isAdmin && (
+        <Dialog
+          open={!!formOpen}
+          onOpenChange={(open: boolean) => {
+            if (!open && !saving) setFormOpen(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            {formOpen && (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {formOpen.editing ? `Edit Periode — ${formOpen.editing.nama}` : "Tambah Periode"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {formOpen.editing
+                      ? "Ubah data periode lalu simpan."
+                      : "Isi data periode baru lalu simpan."}
+                  </DialogDescription>
+                </DialogHeader>
+                <PeriodeForm
+                  key={formOpen.editing?.id ?? "create"}
+                  initial={formOpen.initial}
+                  saving={saving}
+                  onCancel={() => setFormOpen(null)}
+                  onSubmit={handleSubmit}
+                />
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Dialog konfirmasi hapus */}
@@ -485,7 +528,7 @@ export function PeriodePage() {
               bisa dibatalkan.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>

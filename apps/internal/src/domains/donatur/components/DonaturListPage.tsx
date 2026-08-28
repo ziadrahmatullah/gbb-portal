@@ -5,14 +5,14 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Link2,
+  KeyRound,
   Pencil,
   Plus,
   Search,
   Tag as TagIcon,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Badge, Skeleton } from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
@@ -37,7 +37,7 @@ import {
 import { useCreateDonatur, useDonaturList, useDonaturStats } from "../hooks/useDonatur";
 import { SKEMA_OPTIONS, skemaLabel, tagMeta } from "../services";
 import type { Donatur } from "../services";
-import { CreateDonaturDialog, EditDonaturDialog, LinkAkunDialog, TagDialog } from "./DonaturDialogs";
+import { CreateDonaturDialog, EditDonaturDialog, ResetPasswordDialog, TagDialog } from "./DonaturDialogs";
 
 const ALL = "all";
 
@@ -72,13 +72,13 @@ export function DonaturListPage() {
   const [search, setSearch] = useState("");
   const [skema, setSkema] = useState(ALL);
   const [belumKlasif, setBelumKlasif] = useState(false);
-  const [belumTerlink, setBelumTerlink] = useState(false);
+  const [belumSetPassword, setBelumSetPassword] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Donatur | null>(null);
   const [tagging, setTagging] = useState<Donatur | null>(null);
-  const [linking, setLinking] = useState<Donatur | null>(null);
+  const [resettingPassword, setResettingPassword] = useState<Donatur | null>(null);
 
   const { data: stats, isLoading: statsLoading } = useDonaturStats();
   const { data, isLoading } = useDonaturList({
@@ -91,10 +91,10 @@ export function DonaturListPage() {
   const createMutation = useCreateDonatur();
 
   const raw = data?.items ?? [];
-  // Filter belum-klasifikasi (skema belum_bersedia) & belum-terlink di FE
+  // Filter belum-klasifikasi (skema belum_bersedia) & belum-set-password di FE
   const items = raw.filter((d) => {
     if (belumKlasif && d.skema !== "belum_bersedia") return false;
-    if (belumTerlink && d.linked_email) return false;
+    if (belumSetPassword && d.has_password) return false;
     return true;
   });
   const totalPages = data?.totalPages ?? 1;
@@ -106,22 +106,27 @@ export function DonaturListPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Database Donatur</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Database Donatur</h1>
+          <p className="text-muted-foreground">Data donatur beserta skema dan status per periode.</p>
+        </div>
         {canMutate && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Tambah
+            </Button>
+          </div>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Users} label="Total Donatur" value={String(stats?.total ?? "—")} loading={statsLoading} />
         <StatCard icon={CheckCircle2} label="Aktif Periode" value={String(stats?.aktif_periode ?? "—")} loading={statsLoading} />
         <StatCard icon={AlertTriangle} label="Belum Diklasif." value={String(stats?.belum_diklasifikasi ?? "—")} loading={statsLoading} />
-        <StatCard icon={Link2} label="Belum Ter-link" value={String(stats?.belum_terlink ?? "—")} loading={statsLoading} />
+        <StatCard icon={KeyRound} label="Belum Set Password" value={String(stats?.belum_set_password ?? "—")} loading={statsLoading} />
       </div>
 
       {/* Alert belum diklasifikasi */}
@@ -167,16 +172,16 @@ export function DonaturListPage() {
           Belum Diklasifikasi
         </Button>
         <Button
-          variant={belumTerlink ? "default" : "outline"}
+          variant={belumSetPassword ? "default" : "outline"}
           size="sm"
-          onClick={() => setBelumTerlink((v) => !v)}
+          onClick={() => setBelumSetPassword((v) => !v)}
         >
-          Belum Ter-link
+          Belum Set Password
         </Button>
       </div>
 
       {/* Tabel dengan matriks periode */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -197,7 +202,7 @@ export function DonaturListPage() {
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={5 + periodeColumns.length + (canMutate ? 1 : 0)}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -216,9 +221,12 @@ export function DonaturListPage() {
                   <TableCell className="font-mono text-xs">{d.kode || "—"}</TableCell>
                   <TableCell className="text-sm">
                     {d.skema === "belum_bersedia" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-yellow-500/40 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400"
+                      >
                         <AlertTriangle className="h-3 w-3" /> blm diklasif.
-                      </span>
+                      </Badge>
                     ) : (
                       skemaLabel(d.skema)
                     )}
@@ -238,23 +246,10 @@ export function DonaturListPage() {
                     );
                   })}
                   <TableCell>
-                    {d.linked_email ? (
-                      <button
-                        onClick={() => canMutate && setLinking(d)}
-                        disabled={!canMutate}
-                        title={d.linked_email}
-                        className={cn(
-                          "inline-flex items-center gap-1 text-xs",
-                          canMutate ? "text-primary hover:underline" : "text-primary"
-                        )}
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span className="max-w-24 truncate">{d.linked_email}</span>
-                      </button>
-                    ) : canMutate ? (
-                      <Button variant="outline" size="sm" className="h-7" onClick={() => setLinking(d)}>
-                        <Link2 className="h-3.5 w-3.5 mr-1" />
-                        Link
+                    {canMutate ? (
+                      <Button variant="outline" size="sm" className="h-7" onClick={() => setResettingPassword(d)}>
+                        <KeyRound className="h-3.5 w-3.5 mr-1" />
+                        Reset Password
                       </Button>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
@@ -285,10 +280,11 @@ export function DonaturListPage() {
             )}
           </TableBody>
         </Table>
+      </div>
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>
                 {raw.length === items.length
@@ -317,9 +313,8 @@ export function DonaturListPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {createOpen && (
         <CreateDonaturDialog
@@ -330,7 +325,9 @@ export function DonaturListPage() {
       )}
       {editing && <EditDonaturDialog donatur={editing} onClose={() => setEditing(null)} />}
       {tagging && <TagDialog donatur={tagging} onClose={() => setTagging(null)} />}
-      {linking && <LinkAkunDialog donatur={linking} onClose={() => setLinking(null)} />}
+      {resettingPassword && (
+        <ResetPasswordDialog donatur={resettingPassword} onClose={() => setResettingPassword(null)} />
+      )}
     </div>
   );
 }

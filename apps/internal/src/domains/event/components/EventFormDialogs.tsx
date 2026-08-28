@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { DateInput, SearchableSelect } from "@gbb/ui";
 import { useCreateEvent, useUpdateEvent } from "../hooks/useEvent";
 import type { AssignMentorReq, EventItem } from "../services";
 
@@ -100,7 +101,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
 
   return (
     <Dialog open={open} onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Buat Event</DialogTitle>
           <DialogDescription>
@@ -108,57 +109,53 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
             non-kurikulum.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Periode</Label>
-              <Select
+              <SearchableSelect
                 value={periodeId}
-                onValueChange={(v: string) => {
+                onChange={(v: string) => {
                   setPeriodeId(v);
                   setTopikId(NO_TOPIK);
                 }}
+                options={(periodeOptions?.items ?? []).map((p) => ({
+                  id: String(p.id),
+                  name: p.nama,
+                }))}
+                placeholder="Pilih periode"
+                searchPlaceholder="Cari periode…"
+                emptyMessage="Periode tidak ditemukan"
                 disabled={saving}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih periode" />
-                </SelectTrigger>
-                <SelectContent>
-                  {periodeOptions?.items.map((p) => (
-                    <SelectItem key={p.id} value={String(p.id)}>
-                      {p.nama}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                hideClear
+              />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Topik kurikulum (opsional)</Label>
-              <Select
+              <SearchableSelect
                 value={topikId}
-                onValueChange={setTopikId}
+                onChange={(v: string) => setTopikId(v || NO_TOPIK)}
+                options={[
+                  { id: NO_TOPIK, name: "— (non-kurikulum)" },
+                  ...(topikOptions?.items ?? []).map((t) => ({
+                    id: String(t.id),
+                    name: `${t.urutan}. ${t.judul}`,
+                  })),
+                ]}
+                placeholder="— (non-kurikulum)"
+                searchPlaceholder="Cari topik…"
+                emptyMessage="Topik tidak ditemukan"
                 disabled={saving || !periodeId}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_TOPIK}>— (non-kurikulum)</SelectItem>
-                  {topikOptions?.items.map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.urutan}. {t.judul}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                hideClear
+              />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="e-nama">Nama event</Label>
             <Input id="e-nama" value={form.nama_event} onChange={set("nama_event")} required disabled={saving} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Tipe</Label>
               <Select value={form.tipe} onValueChange={(v: string) => setForm((p) => ({ ...p, tipe: v }))} disabled={saving}>
                 <SelectTrigger>
@@ -171,7 +168,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Format</Label>
               <Select value={form.format} onValueChange={(v: string) => setForm((p) => ({ ...p, format: v }))} disabled={saving}>
                 <SelectTrigger>
@@ -185,29 +182,29 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1.5 col-span-2 lg:col-span-1">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label htmlFor="e-tanggal">Tanggal</Label>
-              <Input id="e-tanggal" type="date" value={form.tanggal} onChange={set("tanggal")} required disabled={saving} />
+              <DateInput id="e-tanggal" value={form.tanggal} onChange={set("tanggal")} required disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="e-mulai">Jam mulai</Label>
               <Input id="e-mulai" type="time" value={form.jam_mulai} onChange={set("jam_mulai")} disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="e-selesai">Jam selesai</Label>
               <Input id="e-selesai" type="time" value={form.jam_selesai} onChange={set("jam_selesai")} disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="e-kapasitas">Kapasitas</Label>
               <Input id="e-kapasitas" type="number" min={0} value={form.kapasitas} onChange={set("kapasitas")} disabled={saving} />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="e-lokasi">Lokasi / Link</Label>
             <Input id="e-lokasi" value={form.lokasi} onChange={set("lokasi")} placeholder="mis. Zoom Meeting / Aula Kampus" disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="e-deskripsi">Deskripsi (opsional)</Label>
             <Textarea id="e-deskripsi" rows={2} value={form.deskripsi} onChange={set("deskripsi")} disabled={saving} />
           </div>
@@ -229,24 +226,20 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
             </div>
             {mentors.map((row, i) => (
               <div key={i} className="flex items-center gap-2">
-                <Select
-                  value={row.mentor_id}
-                  onValueChange={(v: string) => setMentorRow(i, { mentor_id: v })}
-                  disabled={saving}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Pilih mentor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mentorOptions?.items
+                <div className="flex-1">
+                  <SearchableSelect
+                    value={row.mentor_id}
+                    onChange={(v: string) => setMentorRow(i, { mentor_id: v })}
+                    options={(mentorOptions?.items ?? [])
                       .filter((m) => m.id === Number(row.mentor_id) || !mentors.some((r) => r.mentor_id === String(m.id)))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.nama} — {m.bidang_keahlian}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                      .map((m) => ({ id: String(m.id), name: `${m.nama} — ${m.bidang_keahlian}` }))}
+                    placeholder="Pilih mentor"
+                    searchPlaceholder="Cari mentor…"
+                    emptyMessage="Mentor tidak ditemukan"
+                    disabled={saving}
+                    hideClear
+                  />
+                </div>
                 <Select
                   value={row.peran}
                   onValueChange={(v: MentorRow["peran"]) => setMentorRow(i, { peran: v })}
@@ -280,7 +273,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
             {mentorError && <p className="text-sm text-destructive">{mentorError}</p>}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
@@ -297,6 +290,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
 export function EditEventDialog({ event, onClose }: { event: EventItem | null; onClose: () => void }) {
   const updateMutation = useUpdateEvent();
   const { data: mentorOptions } = useMentorOptions();
+  const { data: periodeOptions } = usePeriodeOptions();
   const [form, setForm] = useState({
     nama_event: "",
     tipe: "",
@@ -309,6 +303,14 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
     kapasitas: "",
   });
   const [mentors, setMentors] = useState<MentorRow[]>([]);
+  // Periode event; dikirim ke payload hanya bila berubah dari periode awal.
+  // Backend otomatis mengosongkan topik_id saat periode berubah.
+  const [periodeId, setPeriodeId] = useState("");
+  // Topik event; opsi mengikuti periode yang SEDANG dipilih di form ini
+  const [topikId, setTopikId] = useState(NO_TOPIK);
+  const { data: topikOptions } = useTopikList(
+    periodeId ? { periode_id: periodeId, limit: 100 } : { limit: 0 }
+  );
   // Roster mentor cuma disertakan di payload PUT kalau memang disentuh user —
   // backend mengganti SELURUH roster begitu key "mentors" ada di body (lihat
   // catatan di UpdateEventReq), jadi edit lain (nama/tanggal/dst) tidak boleh
@@ -317,6 +319,8 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
   const [prevId, setPrevId] = useState<number | null>(null);
   if (event && event.id !== prevId) {
     setPrevId(event.id);
+    setPeriodeId(String(event.periode_id));
+    setTopikId(event.topik_id ? String(event.topik_id) : NO_TOPIK);
     setForm({
       nama_event: event.nama_event,
       tipe: event.tipe,
@@ -353,6 +357,11 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
     setMentors((prev) => prev.filter((_, idx) => idx !== i));
   };
 
+  const periodeChanged = !!event && !!periodeId && periodeId !== String(event.periode_id);
+  // Nilai awal topik (NO_TOPIK = non-kurikulum); topik_id dikirim hanya bila berubah
+  const initialTopik = event?.topik_id ? String(event.topik_id) : NO_TOPIK;
+  const topikChanged = !!event && topikId !== initialTopik;
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!event) return;
@@ -361,6 +370,11 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
       {
         id: event.id,
         body: {
+          // periode_id hanya dikirim bila berubah — tidak dikirim = tidak diubah
+          ...(periodeChanged ? { periode_id: Number(periodeId) } : {}),
+          // topik_id: 0 = lepas tautan; pindah periode tanpa topik baru pun
+          // otomatis dilepas backend, jadi aman
+          ...(topikChanged ? { topik_id: topikId === NO_TOPIK ? 0 : Number(topikId) } : {}),
           nama_event: form.nama_event,
           tipe: form.tipe,
           format: form.format,
@@ -383,18 +397,76 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
 
   return (
     <Dialog open={!!event} onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Event{event ? ` — ${event.kode_event}` : ""}</DialogTitle>
-          <DialogDescription>Topik tidak dapat diubah lewat edit.</DialogDescription>
+          <DialogDescription>
+            Topik harus milik periode event; memindah periode melepas tautan topik lama. Kode
+            event tidak berubah.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Periode</Label>
+              <SearchableSelect
+                value={periodeId}
+                onChange={(v: string) => {
+                  setPeriodeId(v);
+                  // Topik terikat periode — reset lalu opsi dimuat ulang
+                  setTopikId(NO_TOPIK);
+                  updateMutation.reset();
+                }}
+                options={(periodeOptions?.items ?? []).map((p) => ({
+                  id: String(p.id),
+                  name: p.nama,
+                }))}
+                placeholder="Pilih periode"
+                searchPlaceholder="Cari periode…"
+                emptyMessage="Periode tidak ditemukan"
+                disabled={saving}
+                hideClear
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Topik</Label>
+              <SearchableSelect
+                value={topikId}
+                onChange={(v: string) => {
+                  setTopikId(v || NO_TOPIK);
+                  updateMutation.reset();
+                }}
+                options={[
+                  { id: NO_TOPIK, name: "Tanpa Topik (non-kurikulum)" },
+                  ...(topikOptions?.items ?? []).map((t) => ({
+                    id: String(t.id),
+                    name: `${t.urutan}. ${t.judul}`,
+                  })),
+                ]}
+                placeholder="Tanpa Topik (non-kurikulum)"
+                searchPlaceholder="Cari topik…"
+                emptyMessage="Topik tidak ditemukan"
+                disabled={saving || !periodeId}
+                hideClear
+              />
+            </div>
+          </div>
+          {periodeChanged && (
+            <p className="text-xs text-yellow-700 dark:text-yellow-400">
+              Memindah periode akan melepas tautan topik event ini — Anda bisa langsung memilih
+              topik baru dari periode tujuan di dropdown Topik.
+            </p>
+          )}
+          {/* Pesan 400/404 backend, mis. "topik bukan milik periode event ini" */}
+          {updateMutation.error && (
+            <p className="text-sm text-destructive">{updateMutation.error.message}</p>
+          )}
+          <div className="grid gap-2">
             <Label htmlFor="ee-nama">Nama event</Label>
             <Input id="ee-nama" value={form.nama_event} onChange={set("nama_event")} required disabled={saving} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
               <Label>Tipe</Label>
               <Select value={form.tipe} onValueChange={(v: string) => setForm((p) => ({ ...p, tipe: v }))} disabled={saving}>
                 <SelectTrigger>
@@ -407,7 +479,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label>Format</Label>
               <Select value={form.format} onValueChange={(v: string) => setForm((p) => ({ ...p, format: v }))} disabled={saving}>
                 <SelectTrigger>
@@ -421,29 +493,29 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1.5 col-span-2 lg:col-span-1">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label htmlFor="ee-tanggal">Tanggal</Label>
-              <Input id="ee-tanggal" type="date" value={form.tanggal} onChange={set("tanggal")} required disabled={saving} />
+              <DateInput id="ee-tanggal" value={form.tanggal} onChange={set("tanggal")} required disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ee-mulai">Jam mulai</Label>
               <Input id="ee-mulai" type="time" value={form.jam_mulai} onChange={set("jam_mulai")} disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ee-selesai">Jam selesai</Label>
               <Input id="ee-selesai" type="time" value={form.jam_selesai} onChange={set("jam_selesai")} disabled={saving} />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid gap-2">
               <Label htmlFor="ee-kapasitas">Kapasitas</Label>
               <Input id="ee-kapasitas" type="number" min={0} value={form.kapasitas} onChange={set("kapasitas")} disabled={saving} />
             </div>
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ee-lokasi">Lokasi / Link</Label>
             <Input id="ee-lokasi" value={form.lokasi} onChange={set("lokasi")} disabled={saving} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ee-deskripsi">Deskripsi</Label>
             <Textarea id="ee-deskripsi" rows={2} value={form.deskripsi} onChange={set("deskripsi")} disabled={saving} />
             {/* PUT partial: string kosong dilewati backend, jadi deskripsi tidak bisa dikosongkan */}
@@ -462,24 +534,20 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
             )}
             {mentors.map((row, i) => (
               <div key={i} className="flex items-center gap-2">
-                <Select
-                  value={row.mentor_id}
-                  onValueChange={(v: string) => setMentorRow(i, { mentor_id: v })}
-                  disabled={saving}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Pilih mentor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mentorOptions?.items
+                <div className="flex-1">
+                  <SearchableSelect
+                    value={row.mentor_id}
+                    onChange={(v: string) => setMentorRow(i, { mentor_id: v })}
+                    options={(mentorOptions?.items ?? [])
                       .filter((m) => m.id === Number(row.mentor_id) || !mentors.some((r) => r.mentor_id === String(m.id)))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.nama} — {m.bidang_keahlian}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                      .map((m) => ({ id: String(m.id), name: `${m.nama} — ${m.bidang_keahlian}` }))}
+                    placeholder="Pilih mentor"
+                    searchPlaceholder="Cari mentor…"
+                    emptyMessage="Mentor tidak ditemukan"
+                    disabled={saving}
+                    hideClear
+                  />
+                </div>
                 <Select
                   value={row.peran}
                   onValueChange={(v: MentorRow["peran"]) => setMentorRow(i, { peran: v })}
@@ -509,7 +577,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
             ))}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>

@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
 import { TopikTab } from "./TopikTab";
+import { TopikUsulanTab } from "./TopikUsulanTab";
 import { LibraryTab } from "./LibraryTab";
 
 const TABS = [
   { key: "kurikulum", label: "Kurikulum" },
+  { key: "usulan", label: "Usulan Topik" },
   { key: "library", label: "Library" },
 ] as const;
 
@@ -15,27 +17,31 @@ export function KurikulumPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Kurikulum &amp; Library</h1>
-
-      <div className="flex flex-wrap gap-1 border-b">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-              tab === t.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Kurikulum &amp; Library</h1>
       </div>
 
-      {tab === "kurikulum" && <TopikTab />}
-      {tab === "library" && <LibraryTab />}
+      <Tabs value={tab} onValueChange={(v: string) => setTab(v as TabKey)} className="space-y-4">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList>
+            {TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        <TabsContent value="kurikulum" className="space-y-4">
+          <TopikTab />
+        </TabsContent>
+        <TabsContent value="usulan" className="space-y-4">
+          <TopikUsulanTab />
+        </TabsContent>
+        <TabsContent value="library" className="space-y-4">
+          <LibraryTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

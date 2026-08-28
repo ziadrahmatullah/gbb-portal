@@ -130,7 +130,7 @@ export function ArticleList() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl border bg-card p-4 space-y-4">
+      <div className="rounded-xl bg-card shadow-md p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Filter className="h-4 w-4" />

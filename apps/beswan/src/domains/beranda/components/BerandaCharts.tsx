@@ -7,34 +7,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useUIStore } from "@/shared/store/useUIStore";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@gbb/ui";
 import type { ChartBulanan, ChartIPK } from "../services";
 
-// Palet tervalidasi dataviz validator terhadap surface card GBB
-// (light #f7f7fa: PASS + relief legend/label; dark #1a1c1e: PASS penuh)
-const VIZ = {
-  light: {
-    series1: "#2a78d6", // blue — Kehadiran / IPK
-    series2: "#1baf7a", // aqua — Avg Nilai
-    grid: "#e4e4ec",
-    text: "#52514e",
-    surface: "#ffffff",
-  },
-  dark: {
-    series1: "#3987e5",
-    series2: "#199e70",
-    grid: "#33363a",
-    text: "#c3c2b7",
-    surface: "#1a1c1e",
-  },
-};
+// Warna chart ikut token tema (theme.css) — otomatis menyesuaikan light/dark
+const SERIES_1 = "var(--chart-1)"; // Kehadiran / IPK
+const SERIES_2 = "var(--chart-2)"; // Avg Nilai
+const GRID = "var(--border)";
+const TEXT = "var(--muted-foreground)";
+
+const TOOLTIP_STYLE = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius)",
+  color: "var(--popover-foreground)",
+  fontSize: 12,
+} as const;
 
 const BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
-
-function useVizColors() {
-  const isDark = useUIStore((s: { isDark: boolean }) => s.isDark);
-  return isDark ? VIZ.dark : VIZ.light;
-}
 
 function ChartCard({
   title,
@@ -46,28 +36,32 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
+    <Card className="gap-3 py-4">
+      <CardHeader className="px-4">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
         {legend && (
-          <div className="flex items-center gap-4">
-            {legend.map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: l.color }} />
-                {l.label}
-              </span>
-            ))}
-          </div>
+          <CardAction>
+            <div className="flex items-center gap-4">
+              {legend.map((l) => (
+                <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          </CardAction>
         )}
-      </div>
-      <div className="h-56">{children}</div>
-    </div>
+      </CardHeader>
+      <CardContent className="px-4">
+        <div className="h-56">{children}</div>
+      </CardContent>
+    </Card>
   );
 }
 
 function EmptyChartState() {
   return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+    <div className="flex h-full items-center justify-center rounded-lg border text-xs text-muted-foreground">
       Belum ada data untuk periode ini
     </div>
   );
@@ -75,7 +69,6 @@ function EmptyChartState() {
 
 // Kehadiran% & rata-rata nilai per bulan — skala sama 0–100, satu sumbu Y
 export function ChartTrenBulanan({ data }: { data: ChartBulanan[] }) {
-  const c = useVizColors();
   const rows = data.map((d) => ({
     label: `${BULAN_PENDEK[d.bulan - 1]} ${String(d.tahun).slice(2)}`,
     kehadiran: Math.round(d.kehadiran_persen * 10) / 10,
@@ -87,8 +80,8 @@ export function ChartTrenBulanan({ data }: { data: ChartBulanan[] }) {
     <ChartCard
       title="Tren Kehadiran & Nilai /bulan"
       legend={[
-        { color: c.series1, label: "Kehadiran %" },
-        { color: c.series2, label: "Avg Nilai" },
+        { color: SERIES_1, label: "Kehadiran %" },
+        { color: SERIES_2, label: "Avg Nilai" },
       ]}
     >
       {rows.length === 0 ? (
@@ -96,15 +89,12 @@ export function ChartTrenBulanan({ data }: { data: ChartBulanan[] }) {
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
-            <CartesianGrid stroke={c.grid} vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={{ stroke: c.grid }} />
-            <YAxis domain={[0, 100]} tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={false} width={44} />
-            <Tooltip
-              cursor={{ stroke: c.grid, strokeWidth: 1 }}
-              contentStyle={{ background: c.surface, border: `1px solid ${c.grid}`, borderRadius: 8, fontSize: 12, color: c.text }}
-            />
-            <Line type="monotone" dataKey="kehadiran" name="Kehadiran %" stroke={c.series1} strokeWidth={2} dot={{ r: 3, fill: c.series1 }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="nilai" name="Avg Nilai" stroke={c.series2} strokeWidth={2} dot={{ r: 3, fill: c.series2 }} activeDot={{ r: 5 }} />
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
+            <YAxis domain={[0, 100]} tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={false} width={44} />
+            <Tooltip cursor={{ stroke: GRID, strokeWidth: 1 }} contentStyle={TOOLTIP_STYLE} />
+            <Line type="monotone" dataKey="kehadiran" name="Kehadiran %" stroke={SERIES_1} strokeWidth={2} dot={{ r: 3, fill: SERIES_1 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="nilai" name="Avg Nilai" stroke={SERIES_2} strokeWidth={2} dot={{ r: 3, fill: SERIES_2 }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -114,7 +104,6 @@ export function ChartTrenBulanan({ data }: { data: ChartBulanan[] }) {
 
 // IPK kumulatif per semester lintas periode — satu seri
 export function ChartIPKSemester({ data }: { data: ChartIPK[] }) {
-  const c = useVizColors();
   const rows = data.map((d) => ({ label: d.periode_nama, ipk: d.ipk }));
 
   return (
@@ -124,14 +113,11 @@ export function ChartIPKSemester({ data }: { data: ChartIPK[] }) {
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -24 }}>
-            <CartesianGrid stroke={c.grid} vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={{ stroke: c.grid }} />
-            <YAxis domain={[0, 4]} tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
-            <Tooltip
-              cursor={{ stroke: c.grid, strokeWidth: 1 }}
-              contentStyle={{ background: c.surface, border: `1px solid ${c.grid}`, borderRadius: 8, fontSize: 12, color: c.text }}
-            />
-            <Line type="monotone" dataKey="ipk" name="IPK" stroke={c.series1} strokeWidth={2} dot={{ r: 3, fill: c.series1 }} activeDot={{ r: 5 }} />
+            <CartesianGrid stroke={GRID} vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
+            <YAxis domain={[0, 4]} tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
+            <Tooltip cursor={{ stroke: GRID, strokeWidth: 1 }} contentStyle={TOOLTIP_STYLE} />
+            <Line type="monotone" dataKey="ipk" name="IPK" stroke={SERIES_1} strokeWidth={2} dot={{ r: 3, fill: SERIES_1 }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       )}

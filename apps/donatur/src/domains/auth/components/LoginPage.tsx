@@ -1,58 +1,118 @@
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { GoogleLogin } from "@react-oauth/google";
-import type { CredentialResponse } from "@react-oauth/google";
 import { useAuthStore } from "../store/useAuthStore";
+import { Button, Input, Label, LoginShowcase } from "@gbb/ui";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
+  const login = useAuthStore((state) => state.login);
+  const loading = useAuthStore((state) => state.loading);
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSuccess = async (credentialResponse: CredentialResponse) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError("");
-    if (!credentialResponse.credential) {
-      setError("Login Google gagal — token tidak diterima.");
-      return;
-    }
     try {
-      await loginWithGoogle(credentialResponse.credential);
+      await login(form.email, form.password);
       navigate("/beranda", { replace: true });
     } catch (err) {
-      // Pesan dari backend ditampilkan apa adanya, mis. "email tidak terdaftar
-      // sebagai donatur GBB — hubungi admin untuk menautkan akun"
-      setError(err instanceof Error ? err.message : "Login gagal.");
+      setError(err instanceof Error ? err.message : "Login gagal. Silakan coba lagi.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <div className="w-full max-w-sm text-center">
-        <img
-          src="/assets/logo/gbb-logo-stacked.png"
-          alt="Baik Berdampak"
-          className="h-24 w-auto mx-auto mb-4"
-        />
-        <p className="text-sm text-muted-foreground mb-8">Masuk ke Portal Donatur</p>
+    <div className="flex min-h-svh gap-4 bg-background p-4">
+      {/* Panel kiri: showcase program GBB (desktop saja) */}
+      <div className="hidden w-1/2 lg:block">
+        <LoginShowcase />
+      </div>
 
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
-          {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive text-left">
-              {error}
+      {/* Panel kanan: form login */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Brand */}
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-secondary p-3 shadow-lg">
+              <img
+                src="/assets/logo/gbb-logo-mark-white.png"
+                alt="Baik Berdampak"
+                className="size-full object-contain"
+              />
             </div>
-          )}
-
-          <div className="flex justify-center">
-            <GoogleLogin onSuccess={handleSuccess} onError={() => setError("Login Google gagal.")} />
+            <div className="space-y-1.5">
+              <h1 className="text-2xl font-bold tracking-tight">Selamat Datang Kembali di GBB!</h1>
+              <p className="text-sm text-muted-foreground">
+                Masuk ke Portal Donatur untuk memantau dampak donasi dan perkembangan beswan.
+              </p>
+            </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Gunakan email Gmail yang sama dengan saat mengisi form pendaftaran donatur
-            (bit.ly/AlumniMauBantu). Jika berbeda, hubungi Tim AnC agar akunmu ditautkan.
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            {error && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="kamu@email.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="Masukkan password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  disabled={loading}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </div>
+
+            <Button type="submit" variant="secondary" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="size-4 animate-spin mr-2" />}
+              {loading ? "Memproses…" : "Masuk"}
+            </Button>
+          </form>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Hak Cipta © {new Date().getFullYear()} Baik Berdampak
           </p>
         </div>
-
-        <p className="text-xs text-center text-muted-foreground mt-6">GBB Donatur Portal v0.1</p>
       </div>
     </div>
   );

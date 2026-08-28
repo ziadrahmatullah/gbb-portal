@@ -6,30 +6,45 @@ import type { ListParams } from "@/shared/lib/apiTypes";
 export interface Topik {
   id: number;
   periode_id: number;
+  periode_nama: string; // mis. "GBB 2025 Genap"
   urutan: number;
   judul: string;
   detail: string;
   tor_url: string;
   status: string; // planned | ongoing | done
-  // Media di-embed backend dari event ber-topik_id
+}
+
+// Media (rekaman/slide) tidak lagi di-embed di list — ambil per topik lewat
+// GET /internal/kurikulum/topik/:id
+export interface TopikMediaRes {
+  event_id: number;
+  nama_event: string;
+  tanggal: string; // ISO
   youtube_url?: string | null;
   slide_url?: string | null;
 }
 
+export interface TopikDetailRes extends Topik {
+  media: TopikMediaRes[]; // semua event tertaut, urut tanggal ASC
+}
+
+// Create/update topik = multipart (BUKAN JSON): TOR di-upload sebagai file
+// "tor" ke storage backend. tor_url tidak lagi diterima sebagai input —
+// response TopikRes tetap berisi tor_url (URL file yang dihosting backend).
 export interface CreateTopikReq {
   periode_id: number;
   urutan: number;
   judul: string;
   detail?: string;
-  tor_url?: string;
+  tor?: File;
 }
 
 export interface UpdateTopikReq {
   urutan?: number;
   judul?: string;
   detail?: string;
-  tor_url?: string;
   status?: "planned" | "ongoing" | "done";
+  tor?: File;
 }
 
 export interface LibraryItem {
@@ -74,19 +89,54 @@ export async function getTopikList(params: ListParams = {}) {
   return toPaged(res);
 }
 
-export async function createTopik(body: CreateTopikReq) {
-  const res = await apiClient.post<Topik>("/internal/kurikulum/topik", body);
+export async function getTopikDetail(id: number) {
+  const res = await apiClient.get<TopikDetailRes>(`/internal/kurikulum/topik/${id}`);
   return res.data;
 }
 
+export async function createTopik(body: CreateTopikReq) {
+  const form = new FormData();
+  form.append("periode_id", String(body.periode_id));
+  form.append("urutan", String(body.urutan));
+  form.append("judul", body.judul);
+  if (body.detail) form.append("detail", body.detail);
+  if (body.tor) form.append("tor", body.tor);
+  const res = await apiClient.post<Topik>("/internal/kurikulum/topik", form);
+  return res.data;
+}
+
+// Tanpa file "tor" = TOR yang ada tidak berubah
 export async function updateTopik(id: number, body: UpdateTopikReq) {
-  const res = await apiClient.put<Topik>(`/internal/kurikulum/topik/${id}`, body);
+  const form = new FormData();
+  if (body.urutan !== undefined) form.append("urutan", String(body.urutan));
+  if (body.judul) form.append("judul", body.judul);
+  if (body.detail !== undefined) form.append("detail", body.detail);
+  if (body.status) form.append("status", body.status);
+  if (body.tor) form.append("tor", body.tor);
+  const res = await apiClient.put<Topik>(`/internal/kurikulum/topik/${id}`, form);
   return res.data;
 }
 
 export async function deleteTopik(id: number) {
   const res = await apiClient.delete(`/internal/kurikulum/topik/${id}`);
   return res.message;
+}
+
+export interface CopyTopikRes {
+  copied: number;
+  topik: Topik[];
+}
+
+// POST /internal/kurikulum/topik/copy (role admin/pcm) — salin SEMUA topik
+// periode sumber ke periode tujuan: urutan dipertahankan, status di-reset ke
+// "planned", dan bila tujuan sudah punya topik salinan di-append setelah
+// urutan tertingginya (tidak menimpa).
+export async function copyTopik(sourcePeriodeId: number, targetPeriodeId: number) {
+  const res = await apiClient.post<CopyTopikRes>("/internal/kurikulum/topik/copy", {
+    source_periode_id: sourcePeriodeId,
+    target_periode_id: targetPeriodeId,
+  });
+  return res.data;
 }
 
 // ─── Library ─────────────────────────────────────────────────────────────

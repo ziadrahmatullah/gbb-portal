@@ -39,7 +39,7 @@ export function useMentorDetail(id: number | null) {
   return useQuery({
     queryKey: [MENTOR_KEY, "detail", id],
     queryFn: () => getMentorDetail(id as number),
-    enabled: id != null,
+    enabled: id != null && Number.isFinite(id),
   });
 }
 

@@ -16,8 +16,7 @@ interface AuthState {
   token: string | null;
   profile: DonaturProfile | null;
   loading: boolean;
-  // idToken = Google ID token dari @react-oauth/google GoogleLogin onSuccess
-  loginWithGoogle: (idToken: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   setProfile: (profile: DonaturProfile) => void;
 }
@@ -29,11 +28,12 @@ export const useAuthStore = create<AuthState>()(
       profile: null,
       loading: false,
 
-      loginWithGoogle: async (idToken) => {
+      login: async (email, password) => {
         set({ loading: true });
         try {
           const res = await apiClient.post<{ token: string }>("/auth/donatur/login", {
-            id_token: idToken,
+            email,
+            password,
           });
           if (!res.data?.token) {
             throw new Error(typeof res.error === "string" ? res.error : "Login gagal");

@@ -12,3 +12,11 @@ export async function getMyProfile() {
   const res = await apiClient.get<DonaturProfile>("/donatur/profile");
   return res.data;
 }
+
+export async function changeMyPassword(oldPassword: string, newPassword: string) {
+  const res = await apiClient.put("/donatur/account/change-password", {
+    old_password: oldPassword,
+    new_password: newPassword,
+  });
+  return res.message;
+}

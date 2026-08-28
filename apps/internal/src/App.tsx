@@ -11,8 +11,8 @@ import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { DashboardPage } from "@/domains/dashboard";
 import { PeriodePage } from "@/domains/periode";
 import { BeswanListPage, BeswanDetailPage } from "@/domains/beswan";
-import { KurikulumPage } from "@/domains/kurikulum";
-import { MentorListPage } from "@/domains/mentor";
+import { KurikulumPage, TopikDetailPage } from "@/domains/kurikulum";
+import { MentorListPage, MentorDetailPage } from "@/domains/mentor";
 import { EventListPage, EventDetailPage } from "@/domains/event";
 import { PenugasanPage } from "@/domains/penugasan";
 import { RekonsiliasiPage, OverviewPage } from "@/domains/keuangan";
@@ -36,7 +36,9 @@ function App() {
               <Route path="beswan" element={<BeswanListPage />} />
               <Route path="beswan/:id" element={<BeswanDetailPage />} />
               <Route path="kurikulum" element={<KurikulumPage />} />
+              <Route path="kurikulum/topik/:id" element={<TopikDetailPage />} />
               <Route path="mentor" element={<MentorListPage />} />
+              <Route path="mentor/:id" element={<MentorDetailPage />} />
               <Route path="event" element={<EventListPage />} />
               <Route path="event/:id" element={<EventDetailPage />} />
               <Route path="penugasan" element={<PenugasanPage />} />

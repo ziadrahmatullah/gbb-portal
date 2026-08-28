@@ -145,7 +145,7 @@ export function TransactionDetail() {
       </div>
 
       {/* Banner */}
-      <div className="rounded-xl border bg-card px-5 py-4 flex items-center gap-4">
+      <div className="rounded-xl bg-card shadow-md px-5 py-4 flex items-center gap-4">
         <div className={cn(
           "h-12 w-12 rounded-lg flex items-center justify-center shrink-0",
           isIncome ? "bg-emerald-500/10" : "bg-rose-500/10"

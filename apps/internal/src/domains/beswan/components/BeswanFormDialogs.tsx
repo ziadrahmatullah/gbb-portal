@@ -59,24 +59,24 @@ export function CreateBeswanDialog({
           <DialogTitle>Tambah Beswan</DialogTitle>
           <DialogDescription>Daftarkan penerima beasiswa baru ke sebuah periode.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="b-nama">Nama lengkap</Label>
             <Input id="b-nama" value={form.nama_lengkap} onChange={set("nama_lengkap")} required disabled={createMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="b-nim">NIM</Label>
             <Input id="b-nim" value={form.nim} onChange={set("nim")} required disabled={createMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="b-email">Email</Label>
             <Input id="b-email" type="email" value={form.email} onChange={set("email")} required disabled={createMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="b-hp">HP</Label>
             <Input id="b-hp" value={form.hp} onChange={set("hp")} required disabled={createMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label>Periode</Label>
             <Select value={periodeId} onValueChange={setPeriodeId} disabled={createMutation.isPending}>
               <SelectTrigger>
@@ -91,7 +91,7 @@ export function CreateBeswanDialog({
               </SelectContent>
             </Select>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={createMutation.isPending}>
               Batal
             </Button>
@@ -109,11 +109,13 @@ export function EditBeswanDialog({
   beswan,
   onClose,
 }: {
-  beswan: Pick<BeswanListItem, "id" | "nama_lengkap" | "hp"> | null;
+  beswan: Pick<BeswanListItem, "id" | "nama_lengkap" | "email" | "hp"> | null;
   onClose: () => void;
 }) {
   const updateMutation = useUpdateBeswan();
   const [nama, setNama] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [hp, setHp] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
   const [cv, setCv] = useState<File | null>(null);
@@ -122,6 +124,8 @@ export function EditBeswanDialog({
   if (beswan && beswan.id !== prevId) {
     setPrevId(beswan.id);
     setNama(beswan.nama_lengkap);
+    setEmail(beswan.email);
+    setEmailError("");
     setHp(beswan.hp);
     setFoto(null);
     setCv(null);
@@ -130,13 +134,29 @@ export function EditBeswanDialog({
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!beswan) return;
-    // PUT multipart — hanya field terisi yang dikirim (partial)
-    const form = new FormData();
-    if (nama) form.append("nama_lengkap", nama);
-    if (hp) form.append("hp", hp);
-    if (foto) form.append("foto", foto);
-    if (cv) form.append("cv", cv);
-    updateMutation.mutate({ id: beswan.id, form }, { onSuccess: onClose });
+    setEmailError("");
+    updateMutation.mutate(
+      {
+        id: beswan.id,
+        // Partial: hanya field terisi yang dikirim; email hanya bila BERUBAH
+        // dari nilai awal (string kosong / tak dikirim = email tidak diubah)
+        body: {
+          nama_lengkap: nama || undefined,
+          hp: hp || undefined,
+          email: email && email !== beswan.email ? email : undefined,
+          foto: foto ?? undefined,
+          cv: cv ?? undefined,
+        },
+      },
+      {
+        onSuccess: onClose,
+        onError: (err: Error) => {
+          // 400 validasi email (format salah / sudah dipakai beswan lain)
+          // ditampilkan inline di bawah input email
+          if (/email/i.test(err.message)) setEmailError(err.message);
+        },
+      }
+    );
   };
 
   return (
@@ -148,24 +168,44 @@ export function EditBeswanDialog({
             Ubah data profil. Foto dan CV hanya terganti bila file baru dipilih.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="be-nama">Nama lengkap</Label>
             <Input id="be-nama" value={nama} onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)} required disabled={updateMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
+            <Label htmlFor="be-email">Email</Label>
+            <Input
+              id="be-email"
+              type="email"
+              value={email}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                setEmail(e.target.value);
+                setEmailError("");
+              }}
+              required
+              aria-invalid={!!emailError}
+              disabled={updateMutation.isPending}
+            />
+            {emailError && <p className="text-sm text-destructive">{emailError}</p>}
+            <p className="text-xs text-muted-foreground">
+              Email ini dipakai beswan untuk login — mengubahnya berarti mengubah kredensial
+              login mereka.
+            </p>
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="be-hp">HP</Label>
             <Input id="be-hp" value={hp} onChange={(e: ChangeEvent<HTMLInputElement>) => setHp(e.target.value)} required disabled={updateMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="be-foto">Foto (opsional, gambar)</Label>
             <Input id="be-foto" type="file" accept="image/*" onChange={(e: ChangeEvent<HTMLInputElement>) => setFoto(e.target.files?.[0] ?? null)} disabled={updateMutation.isPending} />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="be-cv">CV (opsional, PDF)</Label>
             <Input id="be-cv" type="file" accept="application/pdf" onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0] ?? null)} disabled={updateMutation.isPending} />
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={updateMutation.isPending}>
               Batal
             </Button>

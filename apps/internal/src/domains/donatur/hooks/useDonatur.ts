@@ -7,12 +7,10 @@ import {
   getDonaturList,
   getDonaturStats,
   getMonitoringList,
-  getPendingLogins,
   getPesanTemplates,
-  linkUser,
   removePeriode,
   removeTag,
-  unlinkUser,
+  resetDonaturPassword,
   updateDonatur,
 } from "../services";
 import type { UpdateDonaturReq } from "../services";
@@ -99,31 +97,13 @@ export function useRemoveTag() {
   });
 }
 
-export function usePendingLogins(search: string, enabled: boolean) {
-  return useQuery({
-    queryKey: [DONATUR_KEY, "pending-logins", search],
-    queryFn: () => getPendingLogins(search || undefined),
-    enabled,
-  });
-}
-
-export function useLinkUser() {
+export function useResetDonaturPassword() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, email }: { id: number; email: string }) => linkUser(id, email),
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      resetDonaturPassword(id, password),
     onSuccess: () => {
-      toast.success("Akun berhasil di-link");
-      queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] });
-    },
-  });
-}
-
-export function useUnlinkUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => unlinkUser(id),
-    onSuccess: () => {
-      toast.success("Akun berhasil di-unlink");
+      toast.success("Password donatur berhasil direset");
       queryClient.invalidateQueries({ queryKey: [DONATUR_KEY] });
     },
   });

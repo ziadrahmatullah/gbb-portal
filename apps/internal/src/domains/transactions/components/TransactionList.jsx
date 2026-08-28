@@ -278,7 +278,7 @@ export function TransactionList() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-xl border bg-card p-4 space-y-4">
+      <div className="rounded-xl bg-card shadow-md p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Filter className="h-4 w-4" />
@@ -409,7 +409,7 @@ export function TransactionList() {
       </div>
 
       {/* Summary Bar */}
-      <div className="grid grid-cols-3 gap-4 rounded-xl border bg-card p-4">
+      <div className="grid grid-cols-3 gap-4 rounded-xl bg-card shadow-md p-4">
         <SummaryCard label="Total Pemasukan" amount={summary.total_income || 0} type="income" />
         <SummaryCard label="Total Pengeluaran" amount={summary.total_expense || 0} type="expense" />
         <SummaryCard

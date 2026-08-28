@@ -1,4 +1,5 @@
 import { BarChart3 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 
 // Placeholder untuk chart/tabel yang datanya BELUM tersedia dari backend.
@@ -13,15 +14,19 @@ export function EmptyChartCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border bg-card p-4 shadow-sm", className)}>
-      <h3 className="text-sm font-semibold mb-3">{title}</h3>
-      <div className="flex h-40 items-center justify-center rounded-lg border border-dashed">
-        <div className="text-center text-xs text-muted-foreground px-4">
-          <BarChart3 className="mx-auto mb-2 h-6 w-6 opacity-50" />
-          <div>Data belum tersedia dari backend</div>
-          {note && <div className="mt-1 opacity-75">{note}</div>}
+    <Card className={cn("gap-3 py-4", className)}>
+      <CardHeader className="px-4">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="px-4">
+        <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
+          <div className="text-center text-xs text-muted-foreground px-4">
+            <BarChart3 className="mx-auto mb-2 size-6 opacity-50" />
+            <div>Data belum tersedia dari backend</div>
+            {note && <div className="mt-1 opacity-75">{note}</div>}
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BarChart3,
   BellRing,
+  CalendarX2,
   Check,
   FileDown,
   GraduationCap,
@@ -13,13 +14,18 @@ import {
   Youtube,
 } from "lucide-react";
 import {
-  cn,
+  Badge,
   Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -58,26 +64,20 @@ const formatDeadline = (iso: string) =>
 function TaskStatusBadge({ t }: { t: MyPenugasan }) {
   if (t.hasil_status === "graded") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+      <Badge variant="outline" className="text-primary">
         ✅ {t.nilai}/{t.nilai_maks}
-      </span>
+      </Badge>
     );
   }
   if (t.hasil_status === "submitted") {
     return t.terlambat ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-        ⏰ terlambat
-      </span>
+      <Badge variant="outline" className="text-destructive">⏰ terlambat</Badge>
     ) : (
-      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-700 dark:text-yellow-400">
-        📤 terkumpul
-      </span>
+      <Badge variant="outline" className="text-yellow-700 dark:text-yellow-400">📤 terkumpul</Badge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      ⏳ belum
-    </span>
+    <Badge variant="outline" className="text-muted-foreground">⏳ belum</Badge>
   );
 }
 
@@ -86,38 +86,42 @@ function NotifikasiPanel({ reminders }: { reminders: string[] }) {
   const markRead = useMarkNotifikasiRead();
   const items = data?.items ?? [];
 
-  if (isLoading) return <div className="h-20 animate-pulse rounded-xl bg-muted" />;
+  if (isLoading) return <Skeleton className="h-20 w-full rounded-xl" />;
   if (items.length === 0 && reminders.length === 0) return null;
 
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
-      <h3 className="text-sm font-semibold flex items-center gap-1.5">
-        <BellRing className="h-4 w-4 text-primary" />
-        Notifikasi
-      </h3>
-      <ul className="space-y-1.5">
-        {/* Reminder dari dashboard — string bebas backend, render apa adanya */}
-        {reminders.map((r) => (
-          <li key={r} className="flex items-start gap-2 text-sm text-yellow-700 dark:text-yellow-400">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            {r}
-          </li>
-        ))}
-        {items.map((n) => (
-          <li key={n.id} className="flex items-start justify-between gap-2 text-sm">
-            <span className="flex-1">• {n.pesan}</span>
-            <button
-              title="Tandai dibaca"
-              onClick={() => markRead.mutate(n.id)}
-              disabled={markRead.isPending}
-              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-primary transition-colors shrink-0"
-            >
-              <Check className="h-3.5 w-3.5" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Card className="gap-2 py-4">
+      <CardHeader className="px-4">
+        <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+          <BellRing className="size-4 text-primary" />
+          Notifikasi
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4">
+        <ul className="space-y-1.5">
+          {/* Reminder dari dashboard — string bebas backend, render apa adanya */}
+          {reminders.map((r) => (
+            <li key={r} className="flex items-start gap-2 text-sm text-yellow-700 dark:text-yellow-400">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              {r}
+            </li>
+          ))}
+          {items.map((n) => (
+            <li key={n.id} className="flex items-start justify-between gap-2 text-sm">
+              <span className="flex-1">• {n.pesan}</span>
+              <button
+                title="Tandai dibaca"
+                onClick={() => markRead.mutate(n.id)}
+                disabled={markRead.isPending}
+                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+              >
+                <Check className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -142,13 +146,13 @@ export function BerandaPage() {
   const firstName = (profile?.nama_lengkap ?? dashboard?.nama_lengkap ?? "").split(" ")[0];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">
           👋 {greeting()}, {firstName || "Beswan"}!
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground">
           Hari ini adalah kesempatan baru untuk bertumbuh. Semangat!
         </p>
       </div>
@@ -156,9 +160,9 @@ export function BerandaPage() {
       <NotifikasiPanel reminders={dashboard?.reminders ?? []} />
 
       {/* ═══ Progress Saya ═══ */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Progress Saya</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Progress Saya</h2>
           {periodes.length > 1 && (
             <Select value={selectedPeriode} onValueChange={(v: string) => setPeriodeId(v)}>
               <SelectTrigger className="w-56">
@@ -176,20 +180,25 @@ export function BerandaPage() {
         </div>
 
         {isLoading ? (
-          <div className="h-40 animate-pulse rounded-xl bg-muted" />
+          <Skeleton className="h-40 w-full rounded-xl" />
         ) : !rapor ? (
-          <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Kamu belum terdaftar di periode manapun — hubungi tim GBB.
-          </p>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <GraduationCap className="size-10 text-muted-foreground/60" />
+              <p className="text-sm text-muted-foreground">
+                Kamu belum terdaftar di periode manapun — hubungi tim GBB.
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <StatCard icon={BarChart3} label="Kehadiran" value={`${Math.round(rapor.kehadiran_persen)}%`} />
               <StatCard icon={PencilLine} label="Avg Nilai" value={String(Math.round(rapor.tugas_avg_nilai * 10) / 10)} />
               <StatCard icon={NotebookPen} label="Refleksi" value={`${rapor.refleksi_submitted}/${rapor.refleksi_total}`} />
               <StatCard icon={GraduationCap} label="IPK" value={ipkTerbaru != null ? ipkTerbaru.toFixed(2) : "—"} />
             </div>
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid gap-4 lg:grid-cols-2">
               <ChartTrenBulanan data={rapor.chart_bulanan ?? []} />
               <ChartIPKSemester data={chartIpk} />
             </div>
@@ -198,73 +207,76 @@ export function BerandaPage() {
       </section>
 
       {/* ═══ My Events ═══ */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">My Events</h2>
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold tracking-tight">My Events</h2>
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Belum ada event di periode ini.</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <CalendarX2 className="size-10 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">Belum ada event di periode ini.</p>
+          </div>
         ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {events.map((ev) => (
-              <div key={ev.event_id} className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
-                <div className="flex items-start gap-2">
-                  <div className="rounded-lg bg-primary/10 p-2 shrink-0">
-                    <Mic className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-medium truncate" title={ev.nama_event}>
-                      {ev.nama_event}
+              <Card key={ev.event_id} className="gap-2 py-4">
+                <CardContent className="space-y-2 px-4">
+                  <div className="flex items-start gap-2">
+                    <div className="shrink-0 rounded-lg bg-primary/10 p-2">
+                      <Mic className="size-4 text-primary" />
                     </div>
-                    <div className="text-xs text-muted-foreground">{formatTanggal(ev.tanggal)}</div>
+                    <div className="min-w-0">
+                      <div className="truncate font-medium" title={ev.nama_event}>
+                        {ev.nama_event}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{formatTanggal(ev.tanggal)}</div>
+                    </div>
                   </div>
-                </div>
-                <span
-                  className={cn(
-                    "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                    ev.hadir ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  <Badge
+                    variant="outline"
+                    className={ev.hadir ? "text-primary" : "text-muted-foreground"}
+                  >
+                    {ev.hadir ? "✅ Hadir" : "✗ Tidak hadir"}
+                  </Badge>
+                  {/* Tombol hanya muncul bila link tersedia (tidak semua event ada rekaman) */}
+                  {(ev.youtube_url || ev.slide_url) && (
+                    <div className="flex gap-2">
+                      {ev.youtube_url && (
+                        <a
+                          href={ev.youtube_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+                        >
+                          <Youtube className="size-3.5" /> Video
+                        </a>
+                      )}
+                      {ev.slide_url && (
+                        <a
+                          href={assetUrl(ev.slide_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors hover:bg-accent"
+                        >
+                          <FileDown className="size-3.5" /> Slide
+                        </a>
+                      )}
+                    </div>
                   )}
-                >
-                  {ev.hadir ? "✅ Hadir" : "✗ Tidak hadir"}
-                </span>
-                {/* Tombol hanya muncul bila link tersedia (tidak semua event ada rekaman) */}
-                {(ev.youtube_url || ev.slide_url) && (
-                  <div className="flex gap-2">
-                    {ev.youtube_url && (
-                      <a
-                        href={ev.youtube_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs hover:bg-accent transition-colors"
-                      >
-                        <Youtube className="h-3.5 w-3.5" /> Video
-                      </a>
-                    )}
-                    {ev.slide_url && (
-                      <a
-                        href={assetUrl(ev.slide_url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs hover:bg-accent transition-colors"
-                      >
-                        <FileDown className="h-3.5 w-3.5" /> Slide
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
       </section>
 
       {/* ═══ My Tasks ═══ */}
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">My Tasks</h2>
+          <h2 className="text-lg font-semibold tracking-tight">My Tasks</h2>
           <span className="text-xs text-muted-foreground">
             {tasks ? `${tasks.items.length} dari ${tasks.totalItems} tugas` : ""}
           </span>
         </div>
-        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -277,7 +289,7 @@ export function BerandaPage() {
             <TableBody>
               {(tasks?.items ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={4} className="py-6 text-center text-sm text-muted-foreground">
                     Belum ada tugas
                   </TableCell>
                 </TableRow>
@@ -286,7 +298,7 @@ export function BerandaPage() {
                   <TableRow key={t.id}>
                     <TableCell>
                       <div className="font-medium">{t.judul}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{t.kode_penugasan}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{t.kode_penugasan}</div>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">{formatDeadline(t.deadline)}</TableCell>
                     <TableCell>
@@ -311,12 +323,12 @@ export function BerandaPage() {
       </section>
 
       {/* ═══ Prestasiku ═══ */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-primary" />
+      <section className="space-y-4">
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Trophy className="size-5 text-primary" />
           Prestasiku
         </h2>
-        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -328,7 +340,7 @@ export function BerandaPage() {
             <TableBody>
               {(prestasi?.items ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-sm text-muted-foreground py-6">
+                  <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
                     Belum ada prestasi — tambahkan lewat halaman Refleksi nanti.
                   </TableCell>
                 </TableRow>

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AxiosError, AxiosInstance } from "axios";
+import type { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 import { toast } from "sonner";
 import { getErrorMessage } from "./apiTypes";
 import type { ApiEnvelope } from "./apiTypes";
@@ -31,7 +31,9 @@ axiosInstance.interceptors.request.use((config) => {
 let redirectingToLogin = false;
 
 axiosInstance.interceptors.response.use(
-  (response) => response.data,
+  // Request blob (download file) butuh akses header (Content-Disposition → nama
+  // file), jadi response diteruskan utuh; selain itu di-unwrap ke envelope data.
+  (response) => (response.config.responseType === "blob" ? response : response.data),
   (error: AxiosError<ApiEnvelope>) => {
     const status = error.response?.status;
     const data = error.response?.data;
@@ -90,8 +92,9 @@ function makeClient(instance: AxiosInstance) {
   return {
     get: <T = unknown>(path: string, params?: Params) =>
       instance.get<T, ApiEnvelope<T>>(path, { params }),
+    // Return full AxiosResponse (bukan cuma data) — lihat interceptor response
     getBlob: (path: string, params?: Params) =>
-      instance.get<Blob, Blob>(path, { params, responseType: "blob" }),
+      instance.get<Blob, AxiosResponse<Blob>>(path, { params, responseType: "blob" }),
     post: <T = unknown>(path: string, body?: unknown) =>
       instance.post<T, ApiEnvelope<T>>(path, body),
     put: <T = unknown>(path: string, body?: unknown) =>

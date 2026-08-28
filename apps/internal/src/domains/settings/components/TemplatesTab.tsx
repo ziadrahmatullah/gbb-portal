@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -70,21 +71,25 @@ function TemplateEditor({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
-      <h3 className="text-sm font-semibold">
-        {editing ? `Edit Template — ${editing.nama}` : "Tambah Template"}
-      </h3>
-      <div className="grid md:grid-cols-3 gap-3">
-        <div className="space-y-1.5 md:col-span-2">
+    <Card className="gap-4 py-4">
+      <CardHeader className="px-4">
+        <CardTitle className="text-sm">
+          {editing ? `Edit Template — ${editing.nama}` : "Tambah Template"}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4">
+      <form onSubmit={handleSubmit} className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-2 md:col-span-2">
           <Label htmlFor="t-nama">Nama template</Label>
           <Input id="t-nama" value={nama} onChange={(e: ChangeEvent<HTMLInputElement>) => setNama(e.target.value)} required disabled={saving} />
         </div>
-        <div className="space-y-1.5">
+        <div className="grid gap-2">
           <Label htmlFor="t-konteks">Konteks</Label>
           <Input id="t-konteks" value={konteks} onChange={(e: ChangeEvent<HTMLInputElement>) => setKonteks(e.target.value)} placeholder="mis. donatur" disabled={saving} />
         </div>
       </div>
-      <div className="space-y-1.5">
+      <div className="grid gap-2">
         <Label htmlFor="t-isi">Isi pesan (emoji didukung)</Label>
         <Textarea id="t-isi" rows={3} value={isi} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setIsi(e.target.value)} required disabled={saving} />
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -124,7 +129,9 @@ function TemplateEditor({
           {saving ? "Menyimpan…" : "Simpan"}
         </Button>
       </div>
-    </form>
+      </form>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -158,7 +165,7 @@ export function TemplatesTab() {
         />
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -175,7 +182,7 @@ export function TemplatesTab() {
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -231,7 +238,7 @@ export function TemplatesTab() {
               Yakin ingin menghapus template <strong>{deleting?.nama}</strong>?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>

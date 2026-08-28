@@ -1,5 +1,21 @@
 import { useMemo, useState } from "react";
 import { CalendarCheck, Info, Sparkles, Tag, Wallet, X } from "lucide-react";
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { formatRupiah, BULAN_PENDEK } from "@/shared/lib/format";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
@@ -19,22 +35,22 @@ function EmailBanner() {
   };
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
-      <Info className="h-4 w-4 shrink-0 mt-0.5" />
-      <p className="flex-1">
+    <Alert className="border-secondary/30 bg-secondary/5">
+      <Info className="size-4 text-secondary" />
+      <AlertDescription className="pr-6 text-foreground/80">
         Pastikan email Gmail yang kamu pakai login di portal ini SAMA dengan email saat
         mengisi form bit.ly/AlumniMauBantu. Jika berbeda, hubungi Tim AnC agar akunmu
         dihubungkan, sehingga data beswan &amp; donasi kamu tampil lengkap.
-      </p>
+      </AlertDescription>
       <button
         type="button"
         onClick={dismiss}
         aria-label="Tutup"
-        className="shrink-0 text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100"
+        className="absolute right-3 top-3 text-muted-foreground transition-colors hover:text-foreground"
       >
-        <X className="h-4 w-4" />
+        <X className="size-4" />
       </button>
-    </div>
+    </Alert>
   );
 }
 
@@ -57,39 +73,44 @@ function HistoryKonsistensiTable({
 
   if (history.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-6 text-center rounded-xl border border-dashed">
-        Belum ada riwayat donasi
-      </p>
+      <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+        <CalendarCheck className="size-10 text-muted-foreground/60" />
+        <p className="text-sm text-muted-foreground">Belum ada riwayat donasi</p>
+      </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-muted/50">
-            <th className="py-2 px-3 text-left font-medium sticky left-0 bg-muted/50">Batch</th>
+    <div className="overflow-x-auto rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead className="sticky left-0 bg-muted/50 px-3">Batch</TableHead>
             {columns.map((c) => (
-              <th key={`${c.tahun}-${c.bulan}`} className="py-2 px-3 text-center font-medium whitespace-nowrap">
+              <TableHead key={`${c.tahun}-${c.bulan}`} className="px-3 text-center">
                 {BULAN_PENDEK[c.bulan - 1]} {String(c.tahun).slice(2)}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {history.map((row) => {
             const byCol = new Map(row.bulanan.map((b) => [`${b.tahun}-${b.bulan}`, b.donasi]));
             return (
-              <tr key={row.periode_id} className="border-b last:border-0">
-                <td className="py-2 px-3 font-medium whitespace-nowrap sticky left-0 bg-card">
+              <TableRow key={row.periode_id}>
+                <TableCell className="sticky left-0 bg-card px-3 font-medium">
                   {row.periode_nama}
-                  {row.aktif && <span className="ml-1.5 text-xs text-primary">(aktif)</span>}
-                </td>
+                  {row.aktif && (
+                    <Badge variant="outline" className="ml-1.5 text-primary">
+                      aktif
+                    </Badge>
+                  )}
+                </TableCell>
                 {columns.map((c) => {
                   const key = `${c.tahun}-${c.bulan}`;
                   const donasi = byCol.get(key);
                   return (
-                    <td key={key} className="py-2 px-3 text-center">
+                    <TableCell key={key} className="px-3 text-center">
                       {donasi === undefined ? (
                         <span className="text-muted-foreground/50">—</span>
                       ) : donasi ? (
@@ -97,14 +118,14 @@ function HistoryKonsistensiTable({
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
+                    </TableCell>
                   );
                 })}
-              </tr>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -114,9 +135,9 @@ function HighlightGrid() {
 
   if (isLoading) {
     return (
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded-xl bg-muted" />
+          <Skeleton key={i} className="h-40 rounded-xl" />
         ))}
       </div>
     );
@@ -124,35 +145,32 @@ function HighlightGrid() {
 
   if (!highlights || highlights.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground py-6 text-center rounded-xl border border-dashed">
-        Belum ada highlight
-      </p>
+      <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+        <Sparkles className="size-10 text-muted-foreground/60" />
+        <p className="text-sm text-muted-foreground">Belum ada highlight</p>
+      </div>
     );
   }
 
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {highlights.map((h) => (
-        <a
-          key={h.id}
-          href={h.link_ig}
-          target="_blank"
-          rel="noreferrer"
-          className="group rounded-xl border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-        >
-          {h.gambar_url ? (
-            <img src={h.gambar_url} alt={h.judul} className="h-32 w-full object-cover" />
-          ) : (
-            <div className="h-32 w-full bg-muted flex items-center justify-center text-muted-foreground">
-              <Sparkles className="h-6 w-6" />
-            </div>
-          )}
-          <div className="p-3 space-y-1">
-            <div className="text-sm font-medium line-clamp-2">{h.judul}</div>
-            <span className="inline-flex items-center gap-1 text-xs text-primary group-hover:underline">
-              🔗 Lihat di IG
-            </span>
-          </div>
+        <a key={h.id} href={h.link_ig} target="_blank" rel="noreferrer" className="group">
+          <Card className="gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
+            {h.gambar_url ? (
+              <img src={h.gambar_url} alt={h.judul} className="h-32 w-full object-cover" />
+            ) : (
+              <div className="flex h-32 w-full items-center justify-center bg-muted text-muted-foreground">
+                <Sparkles className="size-6" />
+              </div>
+            )}
+            <CardContent className="space-y-1 p-3">
+              <div className="text-sm font-medium line-clamp-2">{h.judul}</div>
+              <span className="inline-flex items-center gap-1 text-xs text-primary group-hover:underline">
+                🔗 Lihat di IG
+              </span>
+            </CardContent>
+          </Card>
         </a>
       ))}
     </div>
@@ -165,18 +183,18 @@ export function BerandaPage() {
   const firstName = profile?.nama?.split(" ")[0] ?? "";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold">
+    <div className="space-y-4">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">
           👋 Halo{firstName ? `, Kak ${firstName}` : ""}! Terima kasih telah menjadi bagian
           dari perjalanan para beswan.
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Kontribusimu sangat berarti! 💚</p>
+        <p className="text-muted-foreground">Kontribusimu sangat berarti! 💚</p>
       </div>
 
       <EmailBanner />
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           icon={Wallet}
           label="Total Donasi Kamu"
@@ -197,17 +215,21 @@ export function BerandaPage() {
         />
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">History Konsistensi Donasi</h2>
-        {isLoading ? (
-          <div className="h-32 animate-pulse rounded-xl bg-muted" />
-        ) : (
-          <HistoryKonsistensiTable history={data?.history_konsistensi ?? []} />
-        )}
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>History Konsistensi Donasi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-32 rounded-xl" />
+          ) : (
+            <HistoryKonsistensiTable history={data?.history_konsistensi ?? []} />
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Highlight GBB</h2>
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold tracking-tight">Highlight GBB</h2>
         <HighlightGrid />
       </section>
     </div>

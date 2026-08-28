@@ -42,21 +42,21 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
           <DialogTitle>Ganti Password</DialogTitle>
           <DialogDescription>Ubah password akun Anda sendiri.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="grid gap-4">
+          <div className="grid gap-2">
             <Label htmlFor="cp-old">Password lama</Label>
             <Input id="cp-old" type="password" value={oldPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setOldPassword(e.target.value)} required disabled={saving} autoComplete="current-password" />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="cp-new">Password baru (min 8 karakter)</Label>
             <Input id="cp-new" type="password" minLength={8} value={newPassword} onChange={(e: ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)} required disabled={saving} autoComplete="new-password" />
           </div>
-          <div className="space-y-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="cp-confirm">Konfirmasi password baru</Label>
             <Input id="cp-confirm" type="password" minLength={8} value={confirm} onChange={(e: ChangeEvent<HTMLInputElement>) => setConfirm(e.target.value)} required disabled={saving} autoComplete="new-password" />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <DialogFooter className="gap-2 sm:gap-0 pt-1">
+          <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>

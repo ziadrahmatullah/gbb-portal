@@ -40,7 +40,7 @@ function Field({ label, required, hint, className, children }) {
 
 function SectionCard({ icon: Icon, title, description, children }) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="rounded-xl bg-card shadow-md overflow-hidden">
       <div className="px-5 py-4 border-b bg-muted/30 flex items-center gap-3">
         <div className="h-8 w-8 rounded-lg bg-background border flex items-center justify-center shrink-0">
           <Icon className="h-4 w-4 text-muted-foreground" />

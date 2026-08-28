@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
   Globe,
   GraduationCap,
@@ -10,7 +12,9 @@ import {
   Pencil,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react";
+import { SearchableSelect, Skeleton } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -30,15 +34,27 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/ui/dialog";
+import {
+  useDeleteMentor,
   useMentorList,
   useMentorOptions,
   useMentorStats,
 } from "../hooks/useMentor";
-import { MentorDetailDialog, MentorFormDialog, UndipBadge } from "./MentorDialogs";
+import { downloadMentorExcel } from "../services";
+import type { Mentor } from "../services";
+import { MentorFormDialog, UndipBadge } from "./MentorDialogs";
 
 const ALL = "all";
 
 export function MentorListPage() {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [bidang, setBidang] = useState(ALL);
   const [internal, setInternal] = useState(ALL);
@@ -46,8 +62,9 @@ export function MentorListPage() {
   const [limit, setLimit] = useState(10);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [detailId, setDetailId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<Mentor | null>(null);
 
+  const deleteMutation = useDeleteMentor();
   const { data: stats, isLoading: statsLoading } = useMentorStats();
   const { data: options } = useMentorOptions();
   const { data, isLoading } = useMentorList({
@@ -68,12 +85,37 @@ export function MentorListPage() {
   const totalPages = data?.totalPages ?? 1;
   const totalItems = data?.totalItems ?? 0;
 
+  // Export Excel dengan filter yang sedang aktif (tanpa page/limit — backend
+  // mengabaikannya dan mengekspor semua baris yang cocok)
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, filename } = await downloadMentorExcel({
+        search: search || undefined,
+        bidang_keahlian: bidang === ALL ? undefined : bidang,
+        is_internal: internal === ALL ? undefined : internal,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // Pesan error sudah di-toast oleh interceptor apiClient
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const openCreate = () => {
     setEditingId(null);
     setFormOpen(true);
   };
   const openEdit = (id: number) => {
-    setDetailId(null);
     setEditingId(id);
     setFormOpen(true);
   };
@@ -81,10 +123,10 @@ export function MentorListPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Database Mentor</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight">Database Mentor</h1>
         <Button size="sm" onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="size-4 mr-2" />
           Tambah
         </Button>
       </div>
@@ -110,25 +152,24 @@ export function MentorListPage() {
             className="pl-9 w-64"
           />
         </div>
-        <Select
-          value={bidang}
-          onValueChange={(v: string) => {
-            setBidang(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Semua Bidang</SelectItem>
-            {bidangOptions.map((b) => (
-              <SelectItem key={b} value={b}>
-                {b}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Filter bidang dengan pencarian di dalam daftarnya */}
+        <div className="w-56">
+          <SearchableSelect
+            value={bidang}
+            onChange={(v: string) => {
+              setBidang(v || ALL);
+              setPage(1);
+            }}
+            options={[
+              { id: ALL, name: "Semua Bidang" },
+              ...bidangOptions.map((b) => ({ id: b, name: b })),
+            ]}
+            placeholder="Semua Bidang"
+            searchPlaceholder="Cari bidang…"
+            emptyMessage="Bidang tidak ditemukan"
+            hideClear
+          />
+        </div>
         <Select
           value={internal}
           onValueChange={(v: string) => {
@@ -145,10 +186,19 @@ export function MentorListPage() {
             <SelectItem value="false">non-UNDIP</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          variant="outline"
+          className="ms-auto"
+          onClick={handleExport}
+          disabled={exporting || isLoading}
+        >
+          <Download />
+          {exporting ? "Mengekspor…" : "Export Excel"}
+        </Button>
       </div>
 
       {/* Tabel */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -165,7 +215,7 @@ export function MentorListPage() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={6}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -177,7 +227,13 @@ export function MentorListPage() {
               </TableRow>
             ) : (
               items.map((m) => (
-                <TableRow key={m.id}>
+                // Row klik-able ke halaman detail; kontrol di dalam row wajib
+                // stopPropagation supaya tidak ikut memicu navigasi
+                <TableRow
+                  key={m.id}
+                  onClick={() => navigate(`/panel/mentor/${m.id}`)}
+                  className="cursor-pointer"
+                >
                   <TableCell className="font-mono text-xs">{m.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -198,19 +254,33 @@ export function MentorListPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <button
+                      <Link
+                        to={`/panel/mentor/${m.id}`}
                         title="Lihat detail"
-                        onClick={() => setDetailId(m.id)}
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Eye className="h-4 w-4" />
-                      </button>
+                      </Link>
                       <button
                         title="Edit"
-                        onClick={() => openEdit(m.id)}
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          openEdit(m.id);
+                        }}
                         className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        title="Hapus"
+                        onClick={(e: MouseEvent) => {
+                          e.stopPropagation();
+                          setDeleting(m);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </TableCell>
@@ -269,7 +339,33 @@ export function MentorListPage() {
           setEditingId(null);
         }}
       />
-      <MentorDetailDialog id={detailId} onClose={() => setDetailId(null)} onEdit={openEdit} />
+
+      {/* Dialog konfirmasi hapus */}
+      <Dialog open={!!deleting} onOpenChange={(o: boolean) => !o && setDeleting(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Hapus Mentor</DialogTitle>
+            <DialogDescription>
+              Yakin ingin menghapus mentor <strong>{deleting?.nama}</strong>? History event dan
+              feedback-nya tidak akan tampil lagi.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                deleting && deleteMutation.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+              }
+            >
+              {deleteMutation.isPending ? "Menghapus…" : "Ya, Hapus"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

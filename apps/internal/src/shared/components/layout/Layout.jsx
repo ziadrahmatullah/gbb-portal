@@ -320,7 +320,7 @@ export function Layout() {
             <DialogTitle>Konfirmasi Logout</DialogTitle>
             <DialogDescription>Apakah kamu yakin ingin keluar?</DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setShowLogoutDialog(false)}>
               Batal
             </Button>

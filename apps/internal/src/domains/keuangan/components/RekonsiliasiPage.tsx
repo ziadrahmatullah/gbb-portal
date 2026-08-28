@@ -95,7 +95,9 @@ export function RekonsiliasiPage() {
   if (wizardOpen) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Rekonsiliasi — Upload Mutasi</h1>
+        <div className="mb-2">
+          <h1 className="text-2xl font-bold tracking-tight">Rekonsiliasi — Upload Mutasi</h1>
+        </div>
         <UploadWizard kategoris={kategoris} donaturs={donaturs} onClose={() => setWizardOpen(false)} />
       </div>
     );
@@ -104,8 +106,11 @@ export function RekonsiliasiPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Rekonsiliasi Keuangan</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Rekonsiliasi Keuangan</h1>
+          <p className="text-muted-foreground">Catat dan kategorikan mutasi cashflow.</p>
+        </div>
         {canMutate && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setKategoriOpen(true)}>

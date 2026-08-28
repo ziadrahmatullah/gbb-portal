@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 import { NotebookPen } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@gbb/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Skeleton,
+} from "@gbb/ui";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
 import { usePertanyaan, useRefleksi } from "../hooks/useRefleksi";
 import { RefleksiForm } from "./RefleksiForm";
@@ -37,10 +45,10 @@ export function RefleksiPage() {
   const showBanner = isFetched && refleksi?.status !== "submitted";
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <NotebookPen className="h-6 w-6 text-primary" />
+    <div className="space-y-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+          <NotebookPen className="size-6 text-primary" />
           Refleksi Bulanan
         </h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -98,7 +106,7 @@ export function RefleksiPage() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl bg-muted" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
       ) : (
@@ -113,7 +121,7 @@ export function RefleksiPage() {
         />
       )}
 
-      <hr />
+      <Separator />
 
       <PrestasiSection />
     </div>

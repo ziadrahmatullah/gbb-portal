@@ -1,7 +1,22 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Award, CalendarCheck, GraduationCap, Search, Users } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button, Input } from "@gbb/ui";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton,
+} from "@gbb/ui";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
 import { useBeswanList } from "../hooks/useBeswan";
 import { BeswanDetailDialog } from "./BeswanDetailDialog";
@@ -31,7 +46,9 @@ export function DataBeswanPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Data &amp; Kegiatan Beswan</h1>
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Data &amp; Kegiatan Beswan</h1>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <Select
@@ -51,80 +68,85 @@ export function DataBeswanPage() {
           </SelectContent>
         </Select>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             placeholder="Cari beswan…"
-            className="pl-9 w-64"
+            className="w-64 pl-9"
           />
         </div>
       </div>
 
       {!activePeriodeId ? (
-        <p className="text-sm text-muted-foreground py-8 text-center rounded-xl border border-dashed">
-          Belum ada periode untuk ditampilkan
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border py-10 text-center">
+          <Users className="size-10 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Belum ada periode untuk ditampilkan</p>
+        </div>
       ) : isLoading ? (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-48 animate-pulse rounded-xl bg-muted" />
+            <Skeleton key={i} className="h-48 rounded-xl" />
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center rounded-xl border border-dashed">
-          Tidak ada beswan ditemukan
-        </p>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border py-10 text-center">
+          <Search className="size-10 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">Tidak ada beswan ditemukan</p>
+        </div>
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {items.map((b) => (
-            <div key={b.id} className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                {b.foto_url ? (
-                  <img src={b.foto_url} alt={b.nama_lengkap} className="h-10 w-10 rounded-full object-cover" />
-                ) : (
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                    <Users className="h-4 w-4 text-muted-foreground" />
+            <Card key={b.id} className="gap-3 py-4">
+              <CardContent className="flex flex-1 flex-col gap-2 px-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-10">
+                    {b.foto_url && <AvatarImage src={b.foto_url} alt={b.nama_lengkap} />}
+                    <AvatarFallback>
+                      <Users className="size-4 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="truncate font-medium" title={b.nama_lengkap}>
+                    {b.nama_lengkap}
                   </div>
-                )}
-                <div className="font-medium truncate" title={b.nama_lengkap}>
-                  {b.nama_lengkap}
                 </div>
-              </div>
 
-              <div className="text-xs font-semibold text-muted-foreground tracking-wide">
-                📊 Update Terbaru
-              </div>
-              <ul className="text-sm space-y-0.5">
-                <li className="flex items-center gap-1.5">
-                  <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  Hadir {b.kehadiran_hadir}/{b.kehadiran_total} event
-                </li>
-                {b.prestasi_terbaru && (
+                <div className="text-xs font-semibold tracking-wide text-muted-foreground">
+                  📊 Update Terbaru
+                </div>
+                <ul className="space-y-0.5 text-sm">
                   <li className="flex items-center gap-1.5">
-                    <Award className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    {b.prestasi_terbaru}
+                    <CalendarCheck className="size-3.5 shrink-0 text-muted-foreground" />
+                    Hadir {b.kehadiran_hadir}/{b.kehadiran_total} event
                   </li>
-                )}
-                {b.ipk_terbaru != null && (
-                  <li className="flex items-center gap-1.5">
-                    <GraduationCap className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    IPK {b.ipk_terbaru}
-                  </li>
-                )}
-              </ul>
+                  {b.prestasi_terbaru && (
+                    <li className="flex items-center gap-1.5">
+                      <Award className="size-3.5 shrink-0 text-muted-foreground" />
+                      {b.prestasi_terbaru}
+                    </li>
+                  )}
+                  {b.ipk_terbaru != null && (
+                    <li className="flex items-center gap-1.5">
+                      <GraduationCap className="size-3.5 shrink-0 text-muted-foreground" />
+                      IPK {b.ipk_terbaru}
+                    </li>
+                  )}
+                </ul>
 
-              {b.ringkasan && (
-                <p className="text-xs text-muted-foreground italic line-clamp-3">“{b.ringkasan}”</p>
-              )}
+                {b.ringkasan && (
+                  <p className="text-xs italic text-muted-foreground line-clamp-3">“{b.ringkasan}”</p>
+                )}
 
-              <div className="text-sm text-muted-foreground mt-auto">
-                Refleksi: {b.refleksi_submitted}/{b.refleksi_total} bulan
-              </div>
-              <Button size="sm" variant="outline" onClick={() => setDetailId(b.id)}>
-                Lihat Detail
-              </Button>
-            </div>
+                <div className="mt-auto text-sm text-muted-foreground">
+                  Refleksi: {b.refleksi_submitted}/{b.refleksi_total} bulan
+                </div>
+              </CardContent>
+              <CardFooter className="px-4">
+                <Button size="sm" variant="outline" className="w-full" onClick={() => setDetailId(b.id)}>
+                  Lihat Detail
+                </Button>
+              </CardFooter>
+            </Card>
           ))}
         </div>
       )}

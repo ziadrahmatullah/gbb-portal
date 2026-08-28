@@ -1,5 +1,6 @@
 import { Component } from "react";
-import { Button } from "@gbb/ui";
+import { AlertTriangle } from "lucide-react";
+import { Button, Card, CardContent } from "@gbb/ui";
 
 export class ErrorBoundary extends Component {
   constructor(props) {
@@ -21,26 +22,26 @@ export class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-          <div className="w-full max-w-md">
-            <div className="rounded-xl border bg-card p-6 shadow-sm text-center space-y-4">
-              <div className="text-6xl">⚠️</div>
+        <div className="bg-muted/30 grid min-h-svh place-items-center px-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="space-y-4 text-center">
+              <AlertTriangle className="mx-auto size-10 text-destructive" />
               <div>
-                <h1 className="text-xl font-bold text-destructive">Something went wrong</h1>
-                <p className="text-sm text-muted-foreground mt-2">
+                <h1 className="text-xl font-bold tracking-tight">Something went wrong</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
                   An error occurred while rendering this page. Please try refreshing.
                 </p>
               </div>
 
               {this.state.error && (
-                <div className="bg-muted p-3 rounded-lg text-left">
-                  <p className="text-xs font-mono text-destructive break-words">
+                <div className="rounded-md border bg-muted/50 p-3 text-left">
+                  <p className="font-mono text-xs wrap-break-word text-destructive">
                     {this.state.error.toString()}
                   </p>
                 </div>
               )}
 
-              <div className="flex gap-2 justify-center">
+              <div className="flex justify-center gap-2">
                 <Button
                   variant="outline"
                   onClick={() => window.location.reload()}
@@ -53,8 +54,8 @@ export class ErrorBoundary extends Component {
                   Try Again
                 </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       );
     }

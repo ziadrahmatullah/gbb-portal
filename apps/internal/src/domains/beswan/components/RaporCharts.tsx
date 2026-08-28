@@ -7,35 +7,24 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useUIStore } from "@/shared/store/useUIStore";
+import { Card, CardContent, CardHeader, CardTitle } from "@gbb/ui";
 import type { BeswanChartBulanan, BeswanChartIPK } from "../services";
 
-// Palet divalidasi dengan dataviz validator terhadap surface card GBB:
-// light #f7f7fa → PASS (WARN kontras aqua 2.63:1 → relief: legend + label seri visible)
-// dark  #1a1c1e → PASS semua check
-const VIZ = {
-  light: {
-    series1: "#2a78d6", // blue — Kehadiran / IPK
-    series2: "#1baf7a", // aqua — Avg Nilai
-    grid: "#e4e4ec",
-    text: "#52514e",
-    surface: "#ffffff",
-  },
-  dark: {
-    series1: "#3987e5",
-    series2: "#199e70",
-    grid: "#33363a",
-    text: "#c3c2b7",
-    surface: "#1a1c1e",
-  },
-};
+// Warna seri mengikuti token chart tema (--chart-1..5) — otomatis ikut light/dark.
+const SERIES_1 = "var(--chart-1)";
+const SERIES_2 = "var(--chart-2)";
+const GRID = "var(--border)";
+const TEXT = "var(--muted-foreground)";
+
+const TOOLTIP_STYLE = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius)",
+  fontSize: 12,
+  color: "var(--popover-foreground)",
+} as const;
 
 const BULAN_PENDEK = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
-
-function useVizColors() {
-  const isDark = useUIStore((s) => s.isDark);
-  return isDark ? VIZ.dark : VIZ.light;
-}
 
 function ChartCard({
   title,
@@ -47,28 +36,32 @@ function ChartCard({
   legend?: { color: string; label: string }[];
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {legend && (
-          <div className="flex items-center gap-4">
-            {legend.map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: l.color }} />
-                {l.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="h-56">{children}</div>
-    </div>
+    <Card className="gap-3 py-4">
+      <CardHeader className="px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm">{title}</CardTitle>
+          {legend && (
+            <div className="flex items-center gap-4">
+              {legend.map((l) => (
+                <span key={l.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-4">
+        <div className="h-56">{children}</div>
+      </CardContent>
+    </Card>
   );
 }
 
 function EmptyChartState() {
   return (
-    <div className="flex h-full items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+    <div className="flex h-full items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
       Belum ada data untuk periode ini
     </div>
   );
@@ -77,10 +70,9 @@ function EmptyChartState() {
 // Kehadiran (%) & rata-rata nilai tugas per bulan — keduanya skala 0–100,
 // jadi satu sumbu Y dipakai bersama (bukan dual-axis).
 export function ChartKehadiranNilai({ data }: { data: BeswanChartBulanan[] }) {
-  const c = useVizColors();
   const legend = [
-    { color: c.series1, label: "Kehadiran %" },
-    { color: c.series2, label: "Avg Nilai" },
+    { color: SERIES_1, label: "Kehadiran %" },
+    { color: SERIES_2, label: "Avg Nilai" },
   ];
   const rows = data.map((d) => ({
     label: `${BULAN_PENDEK[d.bulan - 1]} ${String(d.tahun).slice(2)}`,
@@ -96,21 +88,12 @@ export function ChartKehadiranNilai({ data }: { data: BeswanChartBulanan[] }) {
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
-            <CartesianGrid stroke={c.grid} strokeDasharray="0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={{ stroke: c.grid }} />
-            <YAxis domain={[0, 100]} tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={false} width={44} />
-            <Tooltip
-              cursor={{ stroke: c.grid, strokeWidth: 1 }}
-              contentStyle={{
-                background: c.surface,
-                border: `1px solid ${c.grid}`,
-                borderRadius: 8,
-                fontSize: 12,
-                color: c.text,
-              }}
-            />
-            <Line type="monotone" dataKey="kehadiran" name="Kehadiran %" stroke={c.series1} strokeWidth={2} dot={{ r: 3, fill: c.series1 }} activeDot={{ r: 5 }} />
-            <Line type="monotone" dataKey="nilai" name="Avg Nilai" stroke={c.series2} strokeWidth={2} dot={{ r: 3, fill: c.series2 }} activeDot={{ r: 5 }} />
+            <CartesianGrid stroke={GRID} strokeDasharray="0" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
+            <YAxis domain={[0, 100]} tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={false} width={44} />
+            <Tooltip cursor={{ stroke: GRID, strokeWidth: 1 }} contentStyle={TOOLTIP_STYLE} />
+            <Line type="monotone" dataKey="kehadiran" name="Kehadiran %" stroke={SERIES_1} strokeWidth={2} dot={{ r: 3, fill: SERIES_1 }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="nilai" name="Avg Nilai" stroke={SERIES_2} strokeWidth={2} dot={{ r: 3, fill: SERIES_2 }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -120,7 +103,6 @@ export function ChartKehadiranNilai({ data }: { data: BeswanChartBulanan[] }) {
 
 // IPK kumulatif per semester lintas periode — satu seri, judul sudah menamai seri.
 export function ChartIPK({ data }: { data: BeswanChartIPK[] }) {
-  const c = useVizColors();
   const rows = data.map((d) => ({
     label: d.periode_nama,
     ipk: d.ipk,
@@ -133,20 +115,11 @@ export function ChartIPK({ data }: { data: BeswanChartIPK[] }) {
       ) : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -24 }}>
-            <CartesianGrid stroke={c.grid} strokeDasharray="0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={{ stroke: c.grid }} />
-            <YAxis domain={[0, 4]} tick={{ fill: c.text, fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
-            <Tooltip
-              cursor={{ stroke: c.grid, strokeWidth: 1 }}
-              contentStyle={{
-                background: c.surface,
-                border: `1px solid ${c.grid}`,
-                borderRadius: 8,
-                fontSize: 12,
-                color: c.text,
-              }}
-            />
-            <Line type="monotone" dataKey="ipk" name="IPK" stroke={c.series1} strokeWidth={2} dot={{ r: 3, fill: c.series1 }} activeDot={{ r: 5 }} />
+            <CartesianGrid stroke={GRID} strokeDasharray="0" vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={{ stroke: GRID }} />
+            <YAxis domain={[0, 4]} tick={{ fill: TEXT, fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
+            <Tooltip cursor={{ stroke: GRID, strokeWidth: 1 }} contentStyle={TOOLTIP_STYLE} />
+            <Line type="monotone" dataKey="ipk" name="IPK" stroke={SERIES_1} strokeWidth={2} dot={{ r: 3, fill: SERIES_1 }} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       )}

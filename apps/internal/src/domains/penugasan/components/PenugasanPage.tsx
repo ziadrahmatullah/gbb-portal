@@ -12,6 +12,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import { Badge, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
@@ -101,18 +102,23 @@ export function PenugasanPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Penugasan</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Penugasan</h1>
+          <p className="text-muted-foreground">Kelola tugas beswan dan pantau pengumpulan.</p>
+        </div>
         {canManage && (
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Buat Penugasan
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Buat Penugasan
+            </Button>
+          </div>
         )}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid gap-4 grid-cols-3">
         <StatCard icon={ClipboardList} label="Total Tugas" value={String(stats?.total ?? "—")} loading={statsLoading} />
         <StatCard icon={CheckCircle2} label="Submitted" value={String(stats?.submitted ?? "—")} loading={statsLoading} />
         <StatCard icon={Hourglass} label="Belum Kumpul" value={String(stats?.belumKumpul ?? "—")} loading={statsLoading} />
@@ -154,7 +160,7 @@ export function PenugasanPage() {
       </div>
 
       {/* MASTER: daftar tugas */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -171,7 +177,7 @@ export function PenugasanPage() {
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell colSpan={canManage ? 6 : 5}>
-                    <div className="h-6 animate-pulse rounded bg-muted" />
+                    <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
@@ -192,16 +198,17 @@ export function PenugasanPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{p.judul}</span>
-                      <span
+                      <Badge
+                        variant="outline"
                         className={cn(
-                          "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                          "capitalize",
                           p.status === "aktif"
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "text-muted-foreground"
                         )}
                       >
                         {p.status}
-                      </span>
+                      </Badge>
                       {p.lampiran_url && (
                         <a
                           href={p.lampiran_url}
@@ -252,10 +259,11 @@ export function PenugasanPage() {
             )}
           </TableBody>
         </Table>
+      </div>
 
-        {/* Pagination */}
-        {totalItems > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex items-center gap-2 text-muted-foreground">
               <span>
                 Menampilkan {(page - 1) * limit + 1}–{Math.min(page * limit, totalItems)} dari {totalItems}
@@ -290,9 +298,8 @@ export function PenugasanPage() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* DETAIL: hasil per beswan untuk tugas terpilih */}
       {selected ? (
@@ -315,7 +322,7 @@ export function PenugasanPage() {
               Yakin ingin menghapus <strong>{deleting?.kode_penugasan} — {deleting?.judul}</strong>?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Batal
             </Button>
