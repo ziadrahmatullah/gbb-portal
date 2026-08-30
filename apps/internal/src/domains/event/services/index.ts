@@ -123,23 +123,31 @@ export async function getEventList(params: EventListParams = {}) {
   return toPaged(res);
 }
 
-// Tidak ada endpoint stats event — agregasi dari total_item + scan event done
-// untuk daftar "belum rekaman/materi" (dipakai metric card + alert banner).
-// Catatan: scan done dibatasi 100 event terbaru; kalau lebih, daftar alert terpotong.
+// Mirror gbb-backend GET /internal/event/stats — selesai=done;
+// berlangsung=published hari ini; akan_datang=published setelah hari ini;
+// draft/cancelled/published-lewat hanya masuk total.
+export interface EventStats {
+  total: number;
+  selesai: number;
+  akan_datang: number;
+  berlangsung: number;
+}
+
+// Stats dari endpoint asli + satu scan event done untuk daftar
+// "belum rekaman/materi" (alert banner). Scan dibatasi 100 event done
+// terbaru; kalau lebih, daftar alert terpotong.
 export async function getEventStats(periodeId?: string) {
   const base = periodeId ? { periode_id: periodeId } : {};
-  const [total, published, done] = await Promise.all([
-    getEventList({ limit: 1, ...base }),
-    getEventList({ limit: 1, status: "published", ...base }),
+  const [stats, done] = await Promise.all([
+    apiClient.get<EventStats>(
+      "/internal/event/stats",
+      periodeId ? { periode_id: periodeId } : undefined
+    ),
     getEventList({ limit: 100, status: "done", ...base }),
   ]);
   const belumRekaman = done.items.filter((e) => !e.rekaman_tersedia || !e.materi_tersedia);
-  return {
-    total: total.totalItems,
-    done: done.totalItems,
-    published: published.totalItems,
-    belumRekaman,
-  };
+  const s = stats.data ?? { total: 0, selesai: 0, akan_datang: 0, berlangsung: 0 };
+  return { ...s, belumRekaman };
 }
 
 export async function getEventDetail(id: number) {

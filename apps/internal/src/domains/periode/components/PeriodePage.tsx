@@ -10,7 +10,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { Badge, DateInput, Skeleton } from "@gbb/ui";
+import { Badge, Skeleton } from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -48,12 +48,20 @@ import type { Periode } from "../services";
 
 const ALL_STATUS = "all";
 
+// Bulan mulai/selesai TERKUNCI mengikuti pilihan semester — admin hanya
+// mengatur tanggal (hari) dan tahun.
+const SEMESTER_RANGE = {
+  1: { startMonth: 1, startLabel: "Januari", startMaxDay: 31, endMonth: 6, endLabel: "Juni", endMaxDay: 30 },
+  2: { startMonth: 7, startLabel: "Juli", startMaxDay: 31, endMonth: 12, endLabel: "Desember", endMaxDay: 31 },
+} as const;
+
 interface FormState {
   nama: string;
   goal: string;
   semester: 1 | 2;
-  start_date: string; // yyyy-mm-dd (input date)
-  end_date: string;
+  start_day: string; // angka hari sebagai string agar input bisa dikosongkan
+  end_day: string;
+  year: string; // satu tahun untuk mulai & selesai (periode = 1 semester)
   status: "aktif" | "selesai";
 }
 
@@ -61,33 +69,48 @@ const EMPTY_FORM: FormState = {
   nama: "",
   goal: "",
   semester: 1,
-  start_date: "",
-  end_date: "",
+  start_day: "1",
+  end_day: "30",
+  year: String(new Date().getFullYear()),
   status: "aktif",
 };
 
-const toDateInput = (iso: string) => iso.slice(0, 10);
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Input angka tanpa spinner atas-bawah bawaan browser — spinner memakan lebar
+// kolom sempit sehingga angkanya terpotong
+const NUM_INPUT_CLASS =
+  "text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+
+// yyyy-mm-dd dari form; bulan diturunkan dari semester, tahun sama untuk keduanya
+function composeDates(form: FormState) {
+  const range = SEMESTER_RANGE[form.semester];
+  return {
+    start: `${form.year}-${pad2(range.startMonth)}-${pad2(Number(form.start_day))}`,
+    end: `${form.year}-${pad2(range.endMonth)}-${pad2(Number(form.end_day))}`,
+  };
+}
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 // Auto-suggest dari periode terakhir (id terbesar) sesuai wireframe:
-// nama berakhiran angka di-increment, semester dibalik, tanggal lanjut 6 bulan.
+// nama berakhiran angka di-increment, semester dibalik, lanjut ke semester
+// berikutnya (sem 1 tahun sama bila terakhir Jul–Des tahun lalu, dst).
 function suggestFromLast(items: Periode[]): FormState {
   if (!items.length) return EMPTY_FORM;
   const last = items.reduce((a, b) => (b.id > a.id ? b : a));
   const m = last.nama.match(/^(.*?)(\d+)\s*$/);
-  const start = new Date(last.end_date);
-  start.setUTCDate(start.getUTCDate() + 1);
-  const end = new Date(start);
-  end.setUTCMonth(end.getUTCMonth() + 6);
-  end.setUTCDate(end.getUTCDate() - 1);
+  const lastEndYear = Number(last.end_date.slice(0, 4));
+  const nextSemester = last.semester === 1 ? 2 : 1;
+  const year = last.semester === 1 ? lastEndYear : lastEndYear + 1;
   return {
     nama: m ? `${m[1]}${Number(m[2]) + 1}` : "",
     goal: "",
-    semester: last.semester === 1 ? 2 : 1,
-    start_date: start.toISOString().slice(0, 10),
-    end_date: end.toISOString().slice(0, 10),
+    semester: nextSemester,
+    start_day: "1",
+    end_day: String(SEMESTER_RANGE[nextSemester].endMaxDay),
+    year: String(year),
     status: "aktif",
   };
 }
@@ -120,10 +143,36 @@ function PeriodeForm({
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const range = SEMESTER_RANGE[form.semester];
+
+  // Ganti semester = bulan ikut pindah; hari di-clamp ke maksimum bulan baru
+  const setSemester = (s: 1 | 2) =>
+    setForm((prev) => {
+      const r = SEMESTER_RANGE[s];
+      const clamp = (v: string, max: number) => (Number(v) > max ? String(max) : v);
+      return {
+        ...prev,
+        semester: s,
+        start_day: clamp(prev.start_day, r.startMaxDay),
+        end_day: clamp(prev.end_day, r.endMaxDay),
+      };
+    });
+
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (form.end_date <= form.start_date) {
-      setDateError("Tanggal selesai harus setelah tanggal mulai");
+    const sd = Number(form.start_day);
+    const ed = Number(form.end_day);
+    if (!sd || sd < 1 || sd > range.startMaxDay) {
+      setDateError(`Tanggal mulai harus 1–${range.startMaxDay} ${range.startLabel}`);
+      return;
+    }
+    if (!ed || ed < 1 || ed > range.endMaxDay) {
+      setDateError(`Tanggal selesai harus 1–${range.endMaxDay} ${range.endLabel}`);
+      return;
+    }
+    const year = Number(form.year);
+    if (!year || year < 2000 || year > 2100) {
+      setDateError("Tahun harus antara 2000–2100");
       return;
     }
     setDateError("");
@@ -166,7 +215,7 @@ function PeriodeForm({
                     type="radio"
                     name="semester"
                     checked={form.semester === opt.value}
-                    onChange={() => set("semester", opt.value)}
+                    onChange={() => setSemester(opt.value)}
                     disabled={saving}
                     className="accent-primary"
                   />
@@ -191,25 +240,66 @@ function PeriodeForm({
               </SelectContent>
             </Select>
           </div>
+          {/* Bulan terkunci mengikuti semester; tahun satu nilai untuk mulai &
+              selesai (diedit di Mulai, tampil terkunci di Selesai). Kedua baris
+              memakai template grid yang sama agar kolomnya sejajar rapi. */}
           <div className="grid gap-2">
-            <Label htmlFor="periode-mulai">Mulai</Label>
-            <DateInput
-              id="periode-mulai"
-              value={form.start_date}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => set("start_date", e.target.value)}
-              required
-              disabled={saving}
-            />
+            <Label htmlFor="periode-mulai-tgl">Mulai</Label>
+            <div className="grid grid-cols-[3.5rem_1fr_4.5rem] items-center gap-2">
+              <Input
+                id="periode-mulai-tgl"
+                type="number"
+                min={1}
+                max={range.startMaxDay}
+                value={form.start_day}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => set("start_day", e.target.value)}
+                className={NUM_INPUT_CLASS}
+                aria-label="Tanggal mulai"
+                required
+                disabled={saving}
+              />
+              <span className="flex h-9 items-center justify-center truncate rounded-md border bg-muted px-2 text-sm text-muted-foreground">
+                {range.startLabel}
+              </span>
+              <Input
+                type="number"
+                min={2000}
+                max={2100}
+                value={form.year}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => set("year", e.target.value)}
+                className={NUM_INPUT_CLASS}
+                aria-label="Tahun periode"
+                required
+                disabled={saving}
+              />
+            </div>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="periode-selesai">Selesai</Label>
-            <DateInput
-              id="periode-selesai"
-              value={form.end_date}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => set("end_date", e.target.value)}
-              required
-              disabled={saving}
-            />
+            <Label htmlFor="periode-selesai-tgl">Selesai</Label>
+            <div className="grid grid-cols-[3.5rem_1fr_4.5rem] items-center gap-2">
+              <Input
+                id="periode-selesai-tgl"
+                type="number"
+                min={1}
+                max={range.endMaxDay}
+                value={form.end_day}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => set("end_day", e.target.value)}
+                className={NUM_INPUT_CLASS}
+                aria-label="Tanggal selesai"
+                required
+                disabled={saving}
+              />
+              <span className="flex h-9 items-center justify-center truncate rounded-md border bg-muted px-2 text-sm text-muted-foreground">
+                {range.endLabel}
+              </span>
+              {/* Tahun selesai selalu sama dengan tahun mulai */}
+              <span
+                className="flex h-9 items-center justify-center rounded-md border bg-muted px-2 text-sm text-muted-foreground"
+                title="Tahun mengikuti tanggal mulai"
+              >
+                {form.year || "—"}
+              </span>
+            </div>
           </div>
         </div>
       {dateError && <p className="text-sm text-destructive">{dateError}</p>}
@@ -265,14 +355,17 @@ export function PeriodePage() {
   const totalPages = data?.totalPages ?? 1;
   const totalItems = data?.totalItems ?? 0;
 
-  const toBody = (form: FormState) => ({
-    nama: form.nama,
-    goal: form.goal || undefined,
-    semester: form.semester,
-    start_date: `${form.start_date}T00:00:00Z`,
-    end_date: `${form.end_date}T00:00:00Z`,
-    status: form.status,
-  });
+  const toBody = (form: FormState) => {
+    const { start, end } = composeDates(form);
+    return {
+      nama: form.nama,
+      goal: form.goal || undefined,
+      semester: form.semester,
+      start_date: `${start}T00:00:00Z`,
+      end_date: `${end}T00:00:00Z`,
+      status: form.status,
+    };
+  };
 
   const handleSubmit = (form: FormState) => {
     if (formOpen?.editing) {
@@ -400,14 +493,17 @@ export function PeriodePage() {
                         <button
                           title="Edit"
                           onClick={() =>
+                            // Bulan tersimpan tidak dibawa ke form — saat
+                            // disimpan, bulan dinormalisasi mengikuti semester
                             setFormOpen({
                               editing: p,
                               initial: {
                                 nama: p.nama,
                                 goal: p.goal ?? "",
                                 semester: p.semester === 2 ? 2 : 1,
-                                start_date: toDateInput(p.start_date),
-                                end_date: toDateInput(p.end_date),
+                                start_day: String(Number(p.start_date.slice(8, 10))),
+                                end_day: String(Number(p.end_date.slice(8, 10))),
+                                year: p.start_date.slice(0, 4),
                                 status: p.status === "selesai" ? "selesai" : "aktif",
                               },
                             })

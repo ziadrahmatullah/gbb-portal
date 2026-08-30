@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell,
   Calendar,
   ClipboardList,
   Clock,
@@ -51,6 +50,7 @@ import {
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
+import { NotificationBell } from "@/domains/notifikasi";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 
 const NAV_ITEMS = [
@@ -208,6 +208,8 @@ export function AppLayout() {
   const logout = useAuthStore((s) => s.logout);
   const { isDark, toggleDark, initTheme } = useUIStore();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  // Reminder deadline untuk popover lonceng — share cache dgn Beranda & sidebar
+  const { data: dashboard } = useMyDashboard();
 
   useEffect(() => {
     initTheme();
@@ -232,16 +234,7 @@ export function AppLayout() {
           <HeaderClock />
           <Separator orientation="vertical" className="hidden !h-6 md:block" />
 
-          {/* Notifikasi placeholder — panel notifikasi ada di Beranda */}
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled
-            title="Notifikasi ada di Beranda"
-            className="text-muted-foreground"
-          >
-            <Bell />
-          </Button>
+          <NotificationBell reminders={dashboard?.reminders ?? []} />
 
           <Button
             variant="ghost"

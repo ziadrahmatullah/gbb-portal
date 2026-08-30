@@ -16,6 +16,7 @@
 │  📊 Dashboard   │                                                    │
 │  👥 Data Beswan │                                                    │
 │  📄 Laporan     │                                                    │
+│  👤 Profile     │                                                    │
 │            │                                                         │
 └────────────┴─────────────────────────────────────────────────────────┘
 ```
@@ -202,17 +203,22 @@
 
 ---
 
-## 6. Profile (Footer Section — bukan menu sidebar)
+## 6. Profile (menu sidebar sendiri — bukan footer)
+
+Sebelumnya profil dirender sebagai footer di bawah tiap halaman; kini jadi
+halaman sendiri di menu sidebar "Profile" (route `/profile`).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ─── Profil Donatur ──────────────────────────────────────────  │
+│  Profile                                                        │
+│  Data akun donatur — hubungi admin untuk perubahan identitas.   │
 │                                                                 │
-│  Nama: Ike Agustin Hartanto Putri                               │
-│  Email: ikeagustinhp2@gmail.com                                 │
-│  Kode Donatur: IAH22024                                         │
-│  Batch: BBB1, BBB2, BBB3, BBB4                                  │
-│                                                                 │
-│  🔵 Login via Google (tanpa password) — dikelola di akun Google │
-└─────────────────────────────────────────────────────────────────┘
+│  ┌──────────────────────────────────────────────┐               │
+│  │ (IA)  Ike Agustin Hartanto Putri             │               │
+│  │       ikeagustinhp2@gmail.com                │               │
+│  │       Kode Donatur: IAH22024                 │               │
+│  │       [BBB1] [BBB2] [BBB3] [BBB4]            │               │
+│  │                                              │               │
+│  │  [🔑 Ganti Password]                         │               │
+│  └──────────────────────────────────────────────┘               │
 ```

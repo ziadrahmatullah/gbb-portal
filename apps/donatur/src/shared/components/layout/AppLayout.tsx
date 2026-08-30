@@ -11,6 +11,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  User,
   Users,
 } from "lucide-react";
 import {
@@ -47,7 +48,6 @@ import {
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
-import { ProfileFooter } from "@/domains/profile";
 
 const NAV_ITEMS = [
   { label: "Beranda", path: "/beranda", icon: Home },
@@ -55,6 +55,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Data Beswan", path: "/data-beswan", icon: Users },
   { label: "Laporan", path: "/laporan", icon: FileText },
+  { label: "Profile", path: "/profile", icon: User },
 ];
 
 function initials(name: string | null | undefined): string {
@@ -237,9 +238,6 @@ export function AppLayout() {
         <main className="px-4 py-6 md:px-6">
           <ErrorBoundary>
             <Outlet />
-            {/* Wireframe §6: Profile bukan menu sidebar — footer read-only di
-                bagian bawah tiap halaman */}
-            <ProfileFooter />
           </ErrorBoundary>
         </main>
       </SidebarInset>

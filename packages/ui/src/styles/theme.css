@@ -141,12 +141,15 @@
   --ring: #f56a1f;
   --radius: 0.625rem;
 
-  /* Charts — series colors from the brand palette */
+  /* Charts — kategorikal 5 slot, jangkar brand (1 oranye, 2 biru) + teal/ungu/
+   * magenta. Identitas hue per slot SAMA di light & dark (seri tidak berganti
+   * warna saat ganti tema). Tervalidasi (CVD ΔE≥8, normal ΔE≥15, kontras ≥3:1,
+   * band OKLCH) vs surface kartu #ffffff — jaga urutannya bila mengubah. */
   --chart-1: #f56a1f;
   --chart-2: #0675ee;
-  --chart-3: #535f70;
-  --chart-4: #ffb596;
-  --chart-5: #a2c9ff;
+  --chart-3: #0e9384;
+  --chart-4: #8a4fd3;
+  --chart-5: #c02f6e;
 
   /* Topbar — biru muda brand (secondary-container #d4e3ff) */
   --header: var(--secondary-container);
@@ -183,12 +186,13 @@
   --input: #44474e;
   --ring: #ffb596;
 
-  /* Charts — dark-mode series colors */
-  --chart-1: #ffb596;
-  --chart-2: #a2c9ff;
-  --chart-3: #bbc7db;
-  --chart-4: #f56a1f;
-  --chart-5: #0675ee;
+  /* Charts — dark: hue sama per slot dgn light, lightness disetel ke band
+   * dark (OKLCH L 0.48–0.67). Tervalidasi vs surface kartu #1a1c1e. */
+  --chart-1: #e35f11;
+  --chart-2: #3b8eff;
+  --chart-3: #0d9488;
+  --chart-4: #8f6bf0;
+  --chart-5: #e0559a;
 
   /* Topbar — dark: ikut gelap seperti sidebar/card */
   --header: #1a1c1e;

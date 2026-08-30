@@ -69,34 +69,6 @@ export async function getMyDashboard(periodeId?: string) {
   return res.data;
 }
 
-// ─── Notifikasi ──────────────────────────────────────────────────────────
-
-export interface Notifikasi {
-  id: number;
-  recipient_type: string;
-  tipe: string;
-  pesan: string;
-  is_read: boolean;
-  ref_table?: string | null;
-  ref_id?: number | null;
-  created_at: string;
-}
-
-export async function getNotifikasi(params: ListParams = {}) {
-  const res = await apiClient.get<Notifikasi[]>("/beswan/notifikasi", {
-    page: 1,
-    limit: 20,
-    ...params,
-  });
-  return toPaged(res);
-}
-
-// Backend memvalidasi kepemilikan (404 bila bukan milik beswan yang login)
-export async function markNotifikasiRead(id: number) {
-  const res = await apiClient.put(`/beswan/notifikasi/${id}/read`);
-  return res.message;
-}
-
 // ─── My Tasks ────────────────────────────────────────────────────────────
 
 // MyPenugasanRes = penugasan + hasil milik beswan login (null = belum kumpul)

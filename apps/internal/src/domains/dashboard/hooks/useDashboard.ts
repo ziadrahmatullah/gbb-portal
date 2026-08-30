@@ -3,6 +3,7 @@ import {
   getDashboardEvent,
   getDashboardAnalitik,
   getDashboardGrowth,
+  getDashboardTrendDonatur,
 } from "../services";
 
 export const DASHBOARD_KEY = "dashboard";
@@ -25,5 +26,12 @@ export function useDashboardGrowth() {
   return useQuery({
     queryKey: [DASHBOARD_KEY, "growth"],
     queryFn: () => getDashboardGrowth(),
+  });
+}
+
+export function useDashboardTrendDonatur() {
+  return useQuery({
+    queryKey: [DASHBOARD_KEY, "trend-donatur"],
+    queryFn: () => getDashboardTrendDonatur(),
   });
 }

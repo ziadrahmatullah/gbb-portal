@@ -13,15 +13,32 @@ import {
 } from "lucide-react";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { Button } from "@/shared/components/ui/button";
-import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
+import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
 import {
   DASHBOARD_KEY,
   useDashboardAnalitik,
   useDashboardEvent,
   useDashboardGrowth,
+  useDashboardTrendDonatur,
 } from "../hooks/useDashboard";
 import { StatCard } from "@/shared/components/StatCard";
-import { EmptyChartCard } from "./EmptyChartCard";
+import {
+  CHART_NEUTRAL,
+  CHART_SERIES,
+  ChartBarDuaSeri,
+  ChartBarKategori,
+  ChartBarSeri,
+  ChartDonut,
+  ChartLinePersen,
+} from "./DashboardCharts";
 
 const TABS = [
   { key: "event", label: "Event" },
@@ -49,6 +66,9 @@ const formatCount = (v?: number) => (v == null ? "—" : String(v));
 
 function EventTab({ periodeId }: { periodeId?: string }) {
   const { data, isLoading } = useDashboardEvent(periodeId);
+  const kehadiran = data?.kehadiran;
+  const penugasan = data?.penugasan;
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -58,9 +78,42 @@ function EventTab({ periodeId }: { periodeId?: string }) {
         <StatCard icon={Wallet} label="Donasi Bulan Ini" value={formatRupiah(data?.donasi_bulan_ini)} loading={isLoading} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <EmptyChartCard title="Event per Bulan" />
-        <EmptyChartCard title="Kehadiran Beswan" />
-        <EmptyChartCard title="Penugasan Overview" />
+        <ChartBarSeri
+          className="lg:col-span-2"
+          title="Event per Bulan"
+          rows={data?.event_per_bulan ?? []}
+          name="Event"
+          loading={isLoading}
+        />
+        <ChartDonut
+          title="Kehadiran Beswan"
+          loading={isLoading}
+          centerText={kehadiran ? formatPercent(kehadiran.persen_hadir) : undefined}
+          centerSub="hadir"
+          slices={
+            kehadiran
+              ? [
+                  { label: "Hadir", value: kehadiran.hadir, color: CHART_SERIES[0] },
+                  { label: "Tidak Hadir", value: kehadiran.tidak_hadir, color: CHART_NEUTRAL },
+                ]
+              : []
+          }
+        />
+        {/* pending = ekspektasi pengumpulan (penugasan x beswan) yang belum masuk */}
+        <ChartBarSeri
+          title="Penugasan Overview"
+          name="Pengumpulan"
+          loading={isLoading}
+          rows={
+            penugasan
+              ? [
+                  { label: "Terkumpul", jumlah: penugasan.submitted },
+                  { label: "Dinilai", jumlah: penugasan.graded },
+                  { label: "Belum Masuk", jumlah: penugasan.pending },
+                ]
+              : []
+          }
+        />
       </div>
     </div>
   );
@@ -68,6 +121,8 @@ function EventTab({ periodeId }: { periodeId?: string }) {
 
 function AnalitikTab({ periodeId }: { periodeId?: string }) {
   const { data, isLoading } = useDashboardAnalitik(periodeId);
+  const progress = data?.progress_beswan ?? [];
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -77,34 +132,127 @@ function AnalitikTab({ periodeId }: { periodeId?: string }) {
         <StatCard icon={ClipboardList} label="Refleksi On-time" value={formatPercent(data?.refleksi_ontime)} loading={isLoading} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <EmptyChartCard title="Tren Kehadiran /bulan" />
-        <EmptyChartCard title="Refleksi Completion /bulan" />
-        <EmptyChartCard title="Distribusi IPK" />
-        <EmptyChartCard title="Rata-rata Nilai Tugas /batch" />
+        <ChartLinePersen
+          title="Tren Kehadiran /bulan"
+          rows={data?.tren_kehadiran ?? []}
+          name="Kehadiran"
+          loading={isLoading}
+        />
+        <ChartBarDuaSeri
+          title="Refleksi Completion /bulan"
+          rows={(data?.refleksi_per_bulan ?? []).map((d) => ({
+            label: d.label,
+            a: d.selesai,
+            b: d.total,
+          }))}
+          labelA="Selesai"
+          labelB="Total"
+          loading={isLoading}
+        />
+        {/* 4 bucket tetap dari BE — urutan dipertahankan, jangan sort */}
+        <ChartBarSeri
+          title="Distribusi IPK"
+          rows={(data?.distribusi_ipk ?? []).map((d) => ({ label: d.label, jumlah: d.jumlah }))}
+          name="Beswan"
+          loading={isLoading}
+        />
+        <ChartBarSeri
+          title="Rata-rata Nilai Tugas /batch"
+          rows={(data?.nilai_tugas_per_batch ?? []).map((d) => ({
+            label: d.batch,
+            jumlah: Math.round(d.avg_nilai * 10) / 10,
+          }))}
+          name="Avg Nilai"
+          yMax={100}
+          loading={isLoading}
+        />
       </div>
-      <EmptyChartCard
-        title="Progress per Beswan"
-        note="Tabel per-beswan (kehadiran, tugas, refleksi, IPK, prestasi) menunggu endpoint backend"
-      />
+
+      {/* Tabel per-beswan — sekaligus table view (relief aksesibilitas chart) */}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold">Progress per Beswan</h2>
+        <div className="overflow-x-auto rounded-md border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nama</TableHead>
+                <TableHead className="w-24 text-right">Hadir</TableHead>
+                <TableHead className="w-28 text-right">Avg Nilai</TableHead>
+                <TableHead className="w-24 text-right">Refleksi</TableHead>
+                <TableHead className="w-20 text-right">IPK</TableHead>
+                <TableHead className="w-24 text-right">Prestasi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <Skeleton className="h-6 w-full" />
+                  </TableCell>
+                </TableRow>
+              ) : progress.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                    Belum ada beswan di periode ini
+                  </TableCell>
+                </TableRow>
+              ) : (
+                progress.map((b) => (
+                  <TableRow key={b.beswan_id}>
+                    <TableCell className="font-medium text-sm">{b.nama}</TableCell>
+                    <TableCell className="text-right text-sm">{formatPercent(b.hadir_persen)}</TableCell>
+                    <TableCell className="text-right text-sm">
+                      {Math.round(b.avg_nilai_tugas * 10) / 10}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {b.refleksi_selesai}/{b.refleksi_total}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">{formatIPK(b.ipk)}</TableCell>
+                    <TableCell className="text-right text-sm">{b.prestasi}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }
 
 function TrendDonaturTab() {
-  // Belum ada endpoint backend sama sekali — sumber datanya direncanakan
-  // dari Google Sheets pendaftaran donatur.
+  const { data, isLoading } = useDashboardTrendDonatur();
+  // Chart jenis_beasiswa/kriteria/pekerjaan/saluran_info/alumni/faktor_ragu
+  // dihapus permanen — form donatur tidak pernah mengumpulkan data itu (FEpromt18).
   return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <Card className="max-w-md p-8 text-center">
-        <div>
-          <HandHeart className="mx-auto mb-4 size-10 text-muted-foreground/60" />
-          <h2 className="text-lg font-semibold">Trend Donatur</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Sumber data tab ini adalah Google Sheets pendaftaran donatur dan endpoint
-            backend-nya belum tersedia.
-          </p>
-        </div>
-      </Card>
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          icon={Wallet}
+          label="Est. Komitmen Donasi"
+          value={formatRupiah(data?.total_estimasi_komitmen)}
+          loading={isLoading}
+        />
+        <StatCard
+          icon={HandHeart}
+          label="Calon Donatur"
+          value={formatCount(data?.total_calon_donatur)}
+          loading={isLoading}
+        />
+      </div>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ChartBarSeri
+          title="Tren Pendaftaran Calon Donatur"
+          rows={data?.tren_pendaftaran ?? []}
+          name="Pendaftar"
+          loading={isLoading}
+        />
+        <ChartDonut
+          title="Skema Donasi Dipilih"
+          slices={(data?.skema_donasi ?? []).map((s) => ({ label: s.label, value: s.jumlah }))}
+          loading={isLoading}
+        />
+      </div>
     </div>
   );
 }
@@ -123,15 +271,15 @@ function GrowthTab() {
         <StatCard icon={HandHeart} label="Calon Donatur" value={formatCount(data?.calon_donatur)} loading={isLoading} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <EmptyChartCard title="Distribusi Profesi" />
-        <EmptyChartCard title="Minat Kontribusi ke GBB" />
-        <EmptyChartCard title="Tren Tema Diminati" />
-        <EmptyChartCard title="Bidang Keahlian Ditawarkan" />
+        <ChartBarKategori title="Distribusi Profesi" data={data?.distribusi_profesi ?? []} loading={isLoading} />
+        <ChartBarKategori title="Minat Kontribusi ke GBB" data={data?.minat_kontribusi_chart ?? []} loading={isLoading} />
+        <ChartBarKategori title="Tren Tema Diminati" data={data?.tren_tema ?? []} loading={isLoading} />
+        <ChartBarKategori title="Bidang Keahlian Ditawarkan" data={data?.bidang_keahlian ?? []} loading={isLoading} />
       </div>
       <div className="grid lg:grid-cols-3 gap-4">
-        <EmptyChartCard title="Universitas Asal" />
-        <EmptyChartCard title="Saluran Info" />
-        <EmptyChartCard title="Pengenalan GBB" />
+        <ChartBarKategori title="Universitas Asal" data={data?.universitas_asal ?? []} maxItems={6} loading={isLoading} />
+        <ChartBarKategori title="Saluran Info" data={data?.saluran_info ?? []} maxItems={6} loading={isLoading} />
+        <ChartBarKategori title="Pengenalan GBB" data={data?.pengenalan_gbb ?? []} maxItems={6} loading={isLoading} />
       </div>
     </div>
   );
@@ -143,11 +291,10 @@ export function DashboardPage() {
 
   // Tab Event & Analitik mengikuti filter periode global di sidebar
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
-  const canRefresh = tab !== "trend-donatur";
 
+  // Key sub-query = key tab (event | analitik | trend-donatur | growth)
   const handleRefresh = () => {
-    const sub = tab === "event" ? "event" : tab === "analitik" ? "analitik" : "growth";
-    queryClient.invalidateQueries({ queryKey: [DASHBOARD_KEY, sub] });
+    queryClient.invalidateQueries({ queryKey: [DASHBOARD_KEY, tab] });
   };
 
   return (
@@ -155,7 +302,7 @@ export function DashboardPage() {
       {/* Header */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={!canRefresh}>
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
           <RefreshCw className="size-4 mr-2" />
           Refresh
         </Button>

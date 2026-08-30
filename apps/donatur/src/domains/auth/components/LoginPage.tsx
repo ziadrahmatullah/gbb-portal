@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { Button, Input, Label, LoginShowcase } from "@gbb/ui";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { GoogleLoginButton } from "./GoogleLoginButton";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
+  const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
   const loading = useAuthStore((state) => state.loading);
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -24,6 +26,18 @@ export function LoginPage() {
       navigate("/beranda", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login gagal. Silakan coba lagi.");
+    }
+  };
+
+  // Email Google yang tidak terdaftar sebagai donatur ditolak backend —
+  // akun donatur dibuat admin, bukan lewat self-signup.
+  const handleGoogleCredential = async (idToken: string) => {
+    setError("");
+    try {
+      await loginWithGoogle(idToken);
+      navigate("/beranda", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login Google gagal. Silakan coba lagi.");
     }
   };
 
@@ -108,6 +122,19 @@ export function LoginPage() {
               {loading ? "Memproses…" : "Masuk"}
             </Button>
           </form>
+
+          {/* Login Google — alternatif, bukan pengganti email/password */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">atau</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <GoogleLoginButton onCredential={handleGoogleCredential} disabled={loading} />
+            <p className="text-center text-xs text-muted-foreground">
+              Gunakan akun Google dengan email yang terdaftar sebagai donatur GBB.
+            </p>
+          </div>
 
           <p className="text-center text-xs text-muted-foreground">
             Hak Cipta © {new Date().getFullYear()} Baik Berdampak

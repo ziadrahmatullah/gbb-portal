@@ -1,11 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  getMyDashboard,
-  getMyPenugasan,
-  getNotifikasi,
-  getPrestasi,
-  markNotifikasiRead,
-} from "../services";
+import { useQuery } from "@tanstack/react-query";
+import { getMyDashboard, getMyPenugasan, getPrestasi } from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const BERANDA_KEY = "beranda";
@@ -16,23 +10,6 @@ export function useMyDashboard(periodeId?: string) {
   return useQuery({
     queryKey: [BERANDA_KEY, "dashboard", periodeId ?? "latest"],
     queryFn: () => getMyDashboard(periodeId),
-  });
-}
-
-export function useNotifikasi(unreadOnly = true) {
-  return useQuery({
-    queryKey: [BERANDA_KEY, "notifikasi", unreadOnly],
-    queryFn: () => getNotifikasi(unreadOnly ? { is_read: "false" } : {}),
-  });
-}
-
-export function useMarkNotifikasiRead() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => markNotifikasiRead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [BERANDA_KEY, "notifikasi"] });
-    },
   });
 }
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell,
   Calendar,
   ChevronRight,
   ChevronsUpDown,
@@ -17,6 +16,7 @@ import { useUIStore } from "@/shared/store/useUIStore";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
+import { NotificationBell } from "@/domains/notifikasi";
 import { ChangePasswordDialog } from "@/domains/settings/components/ChangePasswordDialog";
 import {
   NAV_ITEMS,
@@ -410,16 +410,7 @@ export function AppLayout() {
           <HeaderClock />
           <Separator orientation="vertical" className="hidden !h-6 md:block" />
 
-          {/* Notifikasi (placeholder — modul Notifikasi belum dibangun) */}
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled
-            title="Notifikasi (segera hadir)"
-            className="text-muted-foreground"
-          >
-            <Bell />
-          </Button>
+          <NotificationBell />
 
           <Button
             variant="ghost"

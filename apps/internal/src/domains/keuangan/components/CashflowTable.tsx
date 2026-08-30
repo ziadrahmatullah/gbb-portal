@@ -103,14 +103,15 @@ function KlasifikasiCell({
   const donaturValue = row.is_anonymous ? ANON : row.donatur_id ? String(row.donatur_id) : "";
 
   return (
-    <div className="flex flex-col gap-1 min-w-44">
+    // Sejajar satu baris (bukan ditumpuk) agar tinggi row tabel tetap ramping
+    <div className="flex items-center gap-1.5">
       {/* Kategori (wajib untuk semua tipe agar status inputted) */}
       <Select
         value={parentId ? String(parentId) : ""}
         onValueChange={(v: string) => save({ kategori_id: Number(v) })}
         disabled={updateMutation.isPending}
       >
-        <SelectTrigger className="h-8 text-xs">
+        <SelectTrigger className="h-8 w-36 text-xs">
           <SelectValue placeholder="Kategori…" />
         </SelectTrigger>
         <SelectContent>
@@ -134,7 +135,7 @@ function KlasifikasiCell({
           }
           disabled={updateMutation.isPending}
         >
-          <SelectTrigger className="h-8 text-xs">
+          <SelectTrigger className="h-8 w-40 text-xs">
             <SelectValue placeholder="Nama donatur…" />
           </SelectTrigger>
           <SelectContent>
@@ -159,7 +160,7 @@ function KlasifikasiCell({
             }
             disabled={updateMutation.isPending || !parentId}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 w-40 text-xs">
               <SelectValue placeholder="Sub…" />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +175,7 @@ function KlasifikasiCell({
         )
       )}
       {row.match_source === "auto" && (
-        <span className="text-xs text-primary">✓ auto</span>
+        <span className="shrink-0 whitespace-nowrap text-xs text-primary">✓ auto</span>
       )}
     </div>
   );
@@ -268,7 +269,7 @@ export function CashflowTable({
             <TableHead className="w-28 text-right">Nominal</TableHead>
             <TableHead className="w-16">Tipe</TableHead>
             <TableHead className="w-24">Kat. BSI</TableHead>
-            <TableHead className="w-52">Klasifikasi</TableHead>
+            <TableHead className="min-w-80">Klasifikasi</TableHead>
             <TableHead className="w-28">Status</TableHead>
             {editable && <TableHead className="w-20 text-right">Aksi</TableHead>}
           </TableRow>

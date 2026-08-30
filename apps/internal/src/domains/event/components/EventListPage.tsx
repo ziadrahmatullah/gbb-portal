@@ -18,6 +18,7 @@ import {
   List,
   Mic,
   Plus,
+  Radio,
   Search,
   Youtube,
 } from "lucide-react";
@@ -324,11 +325,12 @@ export function EventListPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      {/* Stats — dari GET /internal/event/stats (bukan agregasi list lagi) */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
         <StatCard icon={Mic} label="Total Event" value={String(stats?.total ?? "—")} loading={statsLoading} />
-        <StatCard icon={CheckCircle2} label="Done" value={String(stats?.done ?? "—")} loading={statsLoading} />
-        <StatCard icon={Calendar} label="Published" value={String(stats?.published ?? "—")} loading={statsLoading} />
+        <StatCard icon={Radio} label="Berlangsung" value={String(stats?.berlangsung ?? "—")} loading={statsLoading} />
+        <StatCard icon={Calendar} label="Akan Datang" value={String(stats?.akan_datang ?? "—")} loading={statsLoading} />
+        <StatCard icon={CheckCircle2} label="Selesai" value={String(stats?.selesai ?? "—")} loading={statsLoading} />
         <StatCard icon={AlertTriangle} label="Belum Rekaman" value={String(belumRekaman.length)} loading={statsLoading} />
       </div>
 

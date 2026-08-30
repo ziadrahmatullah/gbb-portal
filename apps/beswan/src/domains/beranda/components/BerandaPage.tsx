@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertTriangle,
   BarChart3,
-  BellRing,
   CalendarX2,
-  Check,
   FileDown,
   GraduationCap,
   Mic,
@@ -19,8 +16,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Select,
   SelectContent,
   SelectItem,
@@ -36,13 +31,7 @@ import {
 } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
-import {
-  useMarkNotifikasiRead,
-  useMyDashboard,
-  useMyPenugasan,
-  useNotifikasi,
-  usePrestasi,
-} from "../hooks/useBeranda";
+import { useMyDashboard, useMyPenugasan, usePrestasi } from "../hooks/useBeranda";
 import { assetUrl, PRESTASI_KATEGORI } from "../services";
 import type { MyPenugasan } from "../services";
 import { ChartIPKSemester, ChartTrenBulanan } from "./BerandaCharts";
@@ -82,50 +71,6 @@ function TaskStatusBadge({ t }: { t: MyPenugasan }) {
   );
 }
 
-function NotifikasiPanel({ reminders }: { reminders: string[] }) {
-  const { data, isLoading } = useNotifikasi(true);
-  const markRead = useMarkNotifikasiRead();
-  const items = data?.items ?? [];
-
-  if (isLoading) return <Skeleton className="h-20 w-full rounded-xl" />;
-  if (items.length === 0 && reminders.length === 0) return null;
-
-  return (
-    <Card className="gap-2 py-4">
-      <CardHeader className="px-4">
-        <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
-          <BellRing className="size-4 text-primary" />
-          Notifikasi
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-4">
-        <ul className="space-y-1.5">
-          {/* Reminder dari dashboard — string bebas backend, render apa adanya */}
-          {reminders.map((r) => (
-            <li key={r} className="flex items-start gap-2 text-sm text-yellow-700 dark:text-yellow-400">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              {r}
-            </li>
-          ))}
-          {items.map((n) => (
-            <li key={n.id} className="flex items-start justify-between gap-2 text-sm">
-              <span className="flex-1">• {n.pesan}</span>
-              <button
-                title="Tandai dibaca"
-                onClick={() => markRead.mutate(n.id)}
-                disabled={markRead.isPending}
-                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-              >
-                <Check className="size-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function BerandaPage() {
   const profile = useAuthStore((s) => s.profile);
   const [periodeId, setPeriodeId] = useState<string | undefined>(undefined);
@@ -157,8 +102,6 @@ export function BerandaPage() {
           Hari ini adalah kesempatan baru untuk bertumbuh. Semangat!
         </p>
       </div>
-
-      <NotifikasiPanel reminders={dashboard?.reminders ?? []} />
 
       {/* ═══ Progress Saya ═══ */}
       <section className="space-y-4">

@@ -31,6 +31,24 @@
 └────────────┴─────────────────────────────────────────────────────────┘
 ```
 
+### Popover Notifikasi (lonceng 🔔 di top bar)
+
+Titik merah bila ada yang belum dibaca. Notifikasi ditulis BE saat beswan:
+mengumpulkan tugas, mendaftar event, atau mengajukan permintaan mentor
+(penerima: user internal aktif role admin & pcm — lihat FEpromt19 di gbb-backend).
+
+```
+                                    ┌─ Notifikasi ─ [✓✓ Tandai semua dibaca] ─┐
+                                    │ 📄 Ahmad mengumpulkan tugas "Essay…"  ✓  │
+                                    │    5 menit yang lalu                     │
+                                    │ 📅 Budi mendaftar event "Kelas PS"    ✓  │
+                                    │    1 jam yang lalu                       │
+                                    │ 🎓 Citra mengajukan permintaan mentor ✓  │
+                                    │    kemarin                               │
+                                    │ (kosong → "Tidak ada notifikasi baru")   │
+                                    └──────────────────────────────────────────┘
+```
+
 ---
 
 ## 1. Dashboard

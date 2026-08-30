@@ -8,8 +8,9 @@ import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { BerandaPage } from "@/domains/beranda";
 import { MentorPage } from "@/domains/mentor";
 import { DashboardGBBPage } from "@/domains/dashboard";
-import { DataBeswanPage } from "@/domains/beswan";
+import { BeswanDetailPage, DataBeswanPage } from "@/domains/beswan";
 import { LaporanPage } from "@/domains/laporan";
+import { ProfilePage } from "@/domains/profile";
 
 function App() {
   return (
@@ -25,7 +26,9 @@ function App() {
               <Route path="/daftar-mentor" element={<MentorPage />} />
               <Route path="/dashboard" element={<DashboardGBBPage />} />
               <Route path="/data-beswan" element={<DataBeswanPage />} />
+              <Route path="/data-beswan/:id" element={<BeswanDetailPage />} />
               <Route path="/laporan" element={<LaporanPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="*" element={<Navigate to="/beranda" replace />} />
             </Route>
           </Route>

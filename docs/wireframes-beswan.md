@@ -22,6 +22,26 @@
 └────────────┴─────────────────────────────────────────────────────────┘
 ```
 
+### Popover Notifikasi (lonceng 🔔 di top bar)
+
+Titik merah di lonceng bila ada notifikasi belum dibaca ATAU ada pengingat.
+
+```
+                                    ┌─ Notifikasi ─ [✓✓ Tandai semua dibaca] ─┐
+                                    │ Pengingat                                │
+                                    │ ⚠ Refleksi bulan September belum diisi!  │
+                                    │ ──────────────────────────────────────── │
+                                    │ 📝 Tugas "Refleksi CV" sudah dinilai  ✓  │
+                                    │    2 jam yang lalu                       │
+                                    │ 📅 Event baru: Kelas Public Speaking  ✓  │
+                                    │    kemarin                               │
+                                    │ (kosong → "Tidak ada notifikasi baru")   │
+                                    └──────────────────────────────────────────┘
+```
+- ✓ per item = tandai dibaca (item TETAP tampil, digaya redup; titik merah ikut update).
+- Klik notifikasi = tandai dibaca + buka halaman terkait (event/penugasan/mentor).
+- Pengingat (dari `/beswan/dashboard`) tidak punya status baca — selalu tampil selama masih berlaku.
+
 ---
 
 ## 1. Beranda
@@ -31,12 +51,8 @@
 │  👋 Selamat pagi, Ahmad! Hari ini adalah kesempatan baru       │
 │     untuk bertumbuh. Semangat!                                  │
 │                                                                 │
-│  ┌─── 🔔 Notifikasi ──────────────────────────────────────────┐│
-│  │ • Tugas baru: Essay Public Speaking (deadline 30 Sep)       ││
-│  │ • Tugas "Refleksi CV" sudah dinilai → Nilai: 85            ││
-│  │ • ⚠ Refleksi bulan September belum diisi!                  ││
-│  │ • ⚠ IPK semester ini belum diupdate — lengkapi di Profile  ││
-│  └─────────────────────────────────────────────────────────────┘│
+│  (Notifikasi TIDAK lagi di Beranda — pindah ke lonceng 🔔      │
+│   di top bar, lihat sketsa popover di bawah Global Layout)     │
 │                                                                 │
 │  ═══ Progress Saya ═══════════════════════════════════════════  │
 │                                                                 │
@@ -106,7 +122,7 @@
 └─────────────────────────────────────────────────────────────────┘
 ```
 > Jika submit lewat deadline → tetap diterima, ditandai **⏰ Terlambat**.
-> Reminder **H-1 deadline** muncul di notifikasi Beranda + email.
+> Reminder **H-1 deadline** muncul di bell notifikasi (top bar) + email.
 
 ---
 
