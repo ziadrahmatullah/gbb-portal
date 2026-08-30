@@ -14,7 +14,8 @@ import { BeswanListPage, BeswanDetailPage } from "@/domains/beswan";
 import { KurikulumPage, TopikDetailPage } from "@/domains/kurikulum";
 import { MentorListPage, MentorDetailPage } from "@/domains/mentor";
 import { EventListPage, EventDetailPage } from "@/domains/event";
-import { PenugasanPage } from "@/domains/penugasan";
+import { PenugasanPage, PenugasanDetailPage } from "@/domains/penugasan";
+import { RefleksiPage, RefleksiDetailPage } from "@/domains/refleksi";
 import { RekonsiliasiPage, OverviewPage } from "@/domains/keuangan";
 import { DonaturListPage, MonitoringPage } from "@/domains/donatur";
 import { LaporanPage } from "@/domains/laporan";
@@ -42,6 +43,9 @@ function App() {
               <Route path="event" element={<EventListPage />} />
               <Route path="event/:id" element={<EventDetailPage />} />
               <Route path="penugasan" element={<PenugasanPage />} />
+              <Route path="penugasan/:id" element={<PenugasanDetailPage />} />
+              <Route path="refleksi" element={<RefleksiPage />} />
+              <Route path="refleksi/:id" element={<RefleksiDetailPage />} />
 
               <Route path="keuangan">
                 <Route element={<RequireRole roles={["admin", "finance", "anc"]} />}>

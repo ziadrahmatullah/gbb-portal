@@ -6,8 +6,11 @@ import {
   getMentorDetail,
   getMentorList,
   getMentorStats,
+  listMentorRequests,
   updateMentor,
+  updateMentorRequest,
 } from "../services";
+import type { MentorRequestListParams, UpdateMentorRequestReq } from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const MENTOR_KEY = "mentor";
@@ -61,6 +64,33 @@ export function useUpdateMentor() {
     onSuccess: () => {
       toast.success("Data mentor berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: [MENTOR_KEY] });
+    },
+  });
+}
+
+export function useMentorRequestList(params: MentorRequestListParams = {}) {
+  return useQuery({
+    queryKey: [MENTOR_KEY, "requests", params],
+    queryFn: () => listMentorRequests(params),
+  });
+}
+
+// Error TIDAK di-toast di sini (interceptor sudah); dialog matching
+// menampilkan mutation.error.message inline.
+export function useUpdateMentorRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: UpdateMentorRequestReq }) =>
+      updateMentorRequest(id, body),
+    onSuccess: (_, { body }) => {
+      toast.success(
+        body.status === "done"
+          ? "Request mentor ditandai selesai"
+          : body.status === "pending"
+            ? "Request dikembalikan ke pending"
+            : "Mentor berhasil di-matching — beswan mendapat notifikasi"
+      );
+      queryClient.invalidateQueries({ queryKey: [MENTOR_KEY, "requests"] });
     },
   });
 }

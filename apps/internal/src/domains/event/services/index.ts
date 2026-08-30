@@ -24,6 +24,10 @@ export interface EventItem {
   deskripsi: string;
   kapasitas: number;
   jumlah_peserta: number;
+  // Daftar LENGKAP periode yang boleh mengikuti event (periode utama selalu ikut)
+  periode_ids: number[];
+  // Jumlah beswan yang join (relevan hanya untuk event berkapasitas > 0)
+  jumlah_join: number;
   mentors: EventMentorInfo[];
   youtube_url?: string | null;
   slide_url?: string | null;
@@ -43,6 +47,8 @@ export interface AssignMentorReq {
 
 export interface CreateEventReq {
   periode_id: number;
+  // Periode peserta lengkap; periode_id utama otomatis selalu disertakan backend
+  periode_ids?: number[];
   topik_id?: number; // kosongkan = event non-kurikulum
   nama_event: string;
   tipe: string;
@@ -69,6 +75,8 @@ export interface UpdateEventReq {
   // non-kurikulum); nilai lain divalidasi milik periode event (bila dikirim
   // bersama periode_id, validasinya terhadap periode BARU)
   topik_id?: number;
+  // Periode peserta: dikirim = ganti SELURUH daftar; tidak dikirim = tetap
+  periode_ids?: number[];
   nama_event?: string;
   tipe?: string;
   format?: string;
@@ -155,15 +163,30 @@ export async function deleteEvent(id: number) {
 }
 
 // Mirror AbsensiRes — status hadir tersimpan per beswan
+// GET absensi = roster LENGKAP otomatis (berkapasitas = hanya yang join;
+// terbuka = semua beswan seluruh periode_ids), urut alfabetis by nama;
+// hadir=false untuk yang belum pernah disimpan.
 export interface AbsensiItem {
   beswan_id: number;
-  nama: string;
+  nama_lengkap: string;
+  nim: string;
   hadir: boolean;
 }
 
 export async function getAbsensi(eventId: number) {
-  const res = await apiClient.get<AbsensiItem[]>(`/internal/event/${eventId}/absensi`);
-  return res.data ?? [];
+  // Kompat rollout: build backend lama masih mengirim field "nama" (tanpa
+  // nim). Normalisasi di sini supaya nama tetap tampil sampai backend baru
+  // ter-deploy; hapus shim ini setelah rilis backend dipastikan jalan.
+  type RawAbsensi = Partial<AbsensiItem> & { beswan_id: number; hadir: boolean; nama?: string };
+  const res = await apiClient.get<RawAbsensi[]>(`/internal/event/${eventId}/absensi`);
+  return (res.data ?? []).map(
+    (a): AbsensiItem => ({
+      beswan_id: a.beswan_id,
+      nama_lengkap: a.nama_lengkap ?? a.nama ?? "",
+      nim: a.nim ?? "",
+      hadir: a.hadir,
+    })
+  );
 }
 
 // Upsert per item — kirim SELURUH roster beswan periode setiap simpan

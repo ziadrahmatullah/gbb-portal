@@ -79,8 +79,10 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
+          {/* min-w-0 di sel + w-full di trigger: nama event panjang di-truncate,
+              tidak menabrak tepi dialog (default trigger w-fit + nowrap) */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label>Batch/Periode</Label>
               <Select
                 value={periodeId}
@@ -90,7 +92,7 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
                 }}
                 disabled={saving}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 overflow-hidden [&>span]:min-w-0 [&>span]:truncate">
                   <SelectValue placeholder="Pilih periode" />
                 </SelectTrigger>
                 <SelectContent>
@@ -102,10 +104,10 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid min-w-0 gap-2">
               <Label>Event sumber (opsional)</Label>
               <Select value={eventId} onValueChange={setEventId} disabled={saving || !periodeId}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 overflow-hidden [&>span]:min-w-0 [&>span]:truncate">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

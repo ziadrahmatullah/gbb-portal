@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   BarChart3,
@@ -305,9 +306,8 @@ export function BerandaPage() {
                       <TaskStatusBadge t={t} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* Detail & submit (wireframe 1a) menyusul di tahap Penugasan */}
-                      <Button variant="outline" size="sm" disabled title="Detail & submit tugas menyusul">
-                        Buka
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/panel/penugasan/${t.id}`}>Buka</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -317,8 +317,8 @@ export function BerandaPage() {
           </Table>
         </div>
         <p className="text-xs text-muted-foreground">
-          ⏳ belum · 📤 terkumpul · ⏰ terlambat · ✅ dinilai — detail &amp; submit tugas menyusul
-          di tahap berikutnya.
+          ⏳ belum · 📤 terkumpul · ⏰ terlambat · ✅ dinilai — buka tugas untuk melihat detail
+          &amp; mengumpulkan jawaban.
         </p>
       </section>
 

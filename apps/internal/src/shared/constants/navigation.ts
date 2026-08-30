@@ -7,6 +7,7 @@ import {
   GraduationCap,
   Mic,
   ClipboardList,
+  NotebookPen,
   Wallet,
   FileText,
   Settings,
@@ -34,6 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Mentor", path: "/panel/mentor", icon: GraduationCap },
   { label: "Event", path: "/panel/event", icon: Mic },
   { label: "Penugasan", path: "/panel/penugasan", icon: ClipboardList },
+  { label: "Refleksi Beswan", path: "/panel/refleksi", icon: NotebookPen },
   {
     label: "Keuangan",
     icon: Wallet,

@@ -40,6 +40,13 @@ export async function getPenugasanList(params: ListParams = {}) {
   return toPaged(res);
 }
 
+// GET /internal/penugasan/:id (rilis FEpromt14) — bentuk sama dengan item
+// list, termasuk terkumpul_count & total_beswan; 404 bila id tidak ada
+export async function getPenugasanById(id: number) {
+  const res = await apiClient.get<Penugasan>(`/internal/penugasan/${id}`);
+  return res.data ?? null;
+}
+
 // Stats wireframe (Total Tugas / Submitted / Belum Kumpul) diagregasi dari
 // terkumpul_count & total_beswan hasil list (dibatasi 100 tugas terbaru).
 export async function getPenugasanStats(periodeId?: string) {

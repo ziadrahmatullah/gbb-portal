@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import {
   Bell,
   Calendar,
+  ClipboardList,
   Clock,
   BookOpen,
   ChevronsUpDown,
@@ -55,6 +56,7 @@ import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 const NAV_ITEMS = [
   { label: "Beranda", path: "/panel", icon: Home, end: true },
   { label: "Event", path: "/panel/event", icon: Calendar },
+  { label: "Penugasan", path: "/panel/penugasan", icon: ClipboardList },
   { label: "Library", path: "/panel/library", icon: BookOpen },
   { label: "Mentor", path: "/panel/mentor", icon: GraduationCap },
   { label: "Refleksi", path: "/panel/refleksi", icon: NotebookPen },

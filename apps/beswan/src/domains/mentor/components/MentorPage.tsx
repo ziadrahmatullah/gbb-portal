@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
-import { Calendar, Info, Linkedin, Search, Send, Star, Users } from "lucide-react";
+import type { ChangeEvent } from "react";
+import {
+  Calendar,
+  Info,
+  LayoutGrid,
+  Linkedin,
+  List,
+  Search,
+  Users,
+} from "lucide-react";
 import {
   Alert,
   AlertDescription,
@@ -8,135 +16,25 @@ import {
   Button,
   Card,
   CardContent,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Skeleton,
-  Textarea,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  cn,
 } from "@gbb/ui";
-import { useMentorList, useRequestMentor } from "../hooks/useMentor";
+import { MentorRequestTab } from "./MentorRequestTab";
+import { RequestDialog } from "./RequestDialog";
+import { useMentorList } from "../hooks/useMentor";
 import type { Mentor } from "../services";
 
 const ALL_BIDANG = "all";
-
-function RequestDialog({ mentors, initialMentorId, onClose }: {
-  mentors: Mentor[];
-  initialMentorId?: number;
-  onClose: () => void;
-}) {
-  const mutation = useRequestMentor();
-  const [mode, setMode] = useState<"pilih" | "curhat">(initialMentorId ? "pilih" : "pilih");
-  const [mentorId, setMentorId] = useState(initialMentorId ? String(initialMentorId) : "");
-  const [curhat, setCurhat] = useState("");
-  const [validationError, setValidationError] = useState("");
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    // FE wajib validasi: salah satu mode harus terisi (backend menerima keduanya opsional)
-    if (mode === "pilih" && !mentorId) {
-      setValidationError("Pilih mentor terlebih dahulu");
-      return;
-    }
-    if (mode === "curhat" && !curhat.trim()) {
-      setValidationError("Ceritakan dulu kebutuhanmu agar tim GBB bisa memilihkan mentor");
-      return;
-    }
-    setValidationError("");
-    mutation.mutate(
-      mode === "pilih" ? { mentor_id: Number(mentorId) } : { curhat_text: curhat.trim() },
-      { onSuccess: onClose }
-    );
-  };
-
-  return (
-    <Dialog open onOpenChange={(o: boolean) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Request Sesi 1-on-1</DialogTitle>
-          <DialogDescription>
-            Tim GBB akan menghubungkanmu dengan mentor sesuai kebutuhanmu.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-2">
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors has-checked:border-primary">
-              <input
-                type="radio"
-                name="req-mode"
-                className="mt-1"
-                checked={mode === "pilih"}
-                onChange={() => setMode("pilih")}
-              />
-              <div className="flex-1 space-y-2">
-                <div className="text-sm font-medium">Saya sudah tahu mentor yang saya mau</div>
-                {mode === "pilih" && (
-                  <Select value={mentorId} onValueChange={setMentorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih mentor…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mentors.map((m) => (
-                        <SelectItem key={m.id} value={String(m.id)}>
-                          {m.nama} — {m.bidang_keahlian}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </label>
-            <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 transition-colors has-checked:border-primary">
-              <input
-                type="radio"
-                name="req-mode"
-                className="mt-1"
-                checked={mode === "curhat"}
-                onChange={() => setMode("curhat")}
-              />
-              <div className="flex-1 space-y-2">
-                <div className="text-sm font-medium">
-                  Saya butuh mentor, tapi belum tahu siapa — bantu pilihkan
-                </div>
-                {mode === "curhat" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="req-curhat" className="sr-only">Ceritakan kebutuhanmu</Label>
-                    <Textarea
-                      id="req-curhat"
-                      rows={4}
-                      value={curhat}
-                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCurhat(e.target.value)}
-                      placeholder="Ceritakan apa yang sedang kamu hadapi / ingin didiskusikan…"
-                    />
-                  </div>
-                )}
-              </div>
-            </label>
-          </div>
-          {validationError && <p className="text-sm text-destructive">{validationError}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>
-              Batal
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              <Send className="size-4" />
-              {mutation.isPending ? "Mengirim…" : "Kirim Request"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function MentorCard({ mentor, onRequest }: { mentor: Mentor; onRequest: () => void }) {
   return (
@@ -156,14 +54,6 @@ function MentorCard({ mentor, onRequest }: { mentor: Mentor; onRequest: () => vo
             <Calendar className="size-3.5" />
             {mentor.jumlah_event} event
           </span>
-          {mentor.avg_rating != null ? (
-            <span className="inline-flex items-center gap-1">
-              <Star className="size-3.5 fill-amber-400 text-amber-400" />
-              {mentor.avg_rating.toFixed(1)}
-            </span>
-          ) : (
-            <span className="text-xs">Belum ada rating</span>
-          )}
           {mentor.linkedin_url && (
             <a
               href={mentor.linkedin_url}
@@ -184,9 +74,48 @@ function MentorCard({ mentor, onRequest }: { mentor: Mentor; onRequest: () => vo
   );
 }
 
-export function MentorPage() {
+// Varian tampilan list: satu mentor per baris, tombol request di kanan
+function MentorRow({ mentor, onRequest }: { mentor: Mentor; onRequest: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="truncate font-medium">{mentor.nama}</span>
+          {mentor.is_internal && (
+            <Badge variant="outline" className="shrink-0 text-primary">🏠 Tim GBB</Badge>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+          <span>{mentor.bidang_keahlian}</span>
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="size-3" />
+            {mentor.jumlah_event} event
+          </span>
+          {mentor.linkedin_url && (
+            <a
+              href={mentor.linkedin_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              <Linkedin className="size-3" />
+              LinkedIn
+            </a>
+          )}
+        </div>
+      </div>
+      <Button size="sm" variant="outline" className="shrink-0" onClick={onRequest}>
+        Request 1-on-1
+      </Button>
+    </div>
+  );
+}
+
+function MentorListTab() {
   const [search, setSearch] = useState("");
   const [bidang, setBidang] = useState(ALL_BIDANG);
+  // Tampilan grid (kartu) atau list (baris) — ala Google Drive
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [requestFor, setRequestFor] = useState<{ open: boolean; mentorId?: number }>({ open: false });
 
   const { data, isLoading } = useMentorList();
@@ -206,14 +135,12 @@ export function MentorPage() {
 
   return (
     <div className="space-y-4">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Mentor</h1>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => setRequestFor({ open: true })}>
-            <Users className="size-4" />
-            Request 1-on-1
-          </Button>
-        </div>
+      {/* Tombol request (judul halaman ada di MentorPage ber-tab) */}
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => setRequestFor({ open: true })}>
+          <Users className="size-4" />
+          Request 1-on-1
+        </Button>
       </div>
 
       <Alert>
@@ -247,6 +174,29 @@ export function MentorPage() {
             ))}
           </SelectContent>
         </Select>
+        {/* Toggle tampilan grid / list — ala Google Drive */}
+        <div className="ms-auto flex items-center rounded-md border p-0.5">
+          <button
+            title="Tampilan grid"
+            onClick={() => setView("grid")}
+            className={cn(
+              "rounded-sm p-1.5 transition-colors",
+              view === "grid" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <LayoutGrid className="size-4" />
+          </button>
+          <button
+            title="Tampilan list"
+            onClick={() => setView("list")}
+            className={cn(
+              "rounded-sm p-1.5 transition-colors",
+              view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <List className="size-4" />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -260,10 +210,20 @@ export function MentorPage() {
           <Users className="size-10 text-muted-foreground/60" />
           <p className="text-sm text-muted-foreground">Tidak ada mentor ditemukan</p>
         </div>
-      ) : (
+      ) : view === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((m) => (
             <MentorCard
+              key={m.id}
+              mentor={m}
+              onRequest={() => setRequestFor({ open: true, mentorId: m.id })}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y rounded-md border bg-card">
+          {visible.map((m) => (
+            <MentorRow
               key={m.id}
               mentor={m}
               onRequest={() => setRequestFor({ open: true, mentorId: m.id })}
@@ -279,6 +239,43 @@ export function MentorPage() {
           onClose={() => setRequestFor({ open: false })}
         />
       )}
+    </div>
+  );
+}
+
+const MENTOR_TABS = [
+  { key: "daftar", label: "Daftar Mentor" },
+  { key: "request", label: "Request Mentor" },
+] as const;
+
+type MentorTabKey = (typeof MENTOR_TABS)[number]["key"];
+
+export function MentorPage() {
+  const [tab, setTab] = useState<MentorTabKey>("daftar");
+  return (
+    <div className="space-y-4">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Mentor</h1>
+      </div>
+
+      <Tabs value={tab} onValueChange={(v: string) => setTab(v as MentorTabKey)} className="space-y-4">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList>
+            {MENTOR_TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        <TabsContent value="daftar" className="space-y-4">
+          <MentorListTab />
+        </TabsContent>
+        <TabsContent value="request" className="space-y-4">
+          <MentorRequestTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

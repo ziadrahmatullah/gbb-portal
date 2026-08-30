@@ -3,9 +3,12 @@ import type { ChangeEvent, FormEvent } from "react";
 import {
   AlarmClock,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   FileDown,
   Hourglass,
   Pencil,
+  Search,
   Upload,
 } from "lucide-react";
 import { Badge, Card, Skeleton } from "@gbb/ui";
@@ -14,6 +17,13 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Textarea } from "@/shared/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -178,9 +188,19 @@ export function HasilDetailPanel({
   const { data, isLoading } = useHasilList(penugasan.id);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("semua");
   const [grading, setGrading] = useState<HasilPenugasan | null>(null);
+  // Search + pagination client-side — hasil per beswan sudah ter-load penuh
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const all = data?.items ?? [];
-  const items = filter === "semua" ? all : all.filter((h) => h.status !== "graded");
+  const byStatus = filter === "semua" ? all : all.filter((h) => h.status !== "graded");
+  const items = search
+    ? byStatus.filter((h) => h.nama_beswan.toLowerCase().includes(search.toLowerCase()))
+    : byStatus;
+  const totalPages = Math.max(1, Math.ceil(items.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const visible = items.slice((safePage - 1) * limit, safePage * limit);
 
   return (
     <Card className="gap-0 overflow-hidden py-0">
@@ -197,19 +217,38 @@ export function HasilDetailPanel({
             Terkumpul {penugasan.terkumpul_count}/{penugasan.total_beswan}
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          {FILTERS.map((f) => (
-            <label key={f.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="hasil-filter"
-                checked={filter === f.key}
-                onChange={() => setFilter(f.key)}
-                className="accent-primary"
-              />
-              {f.label}
-            </label>
-          ))}
+        {/* Search nama + filter status (dropdown, konsisten dengan filter lain) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Cari nama beswan…"
+              className="w-64 pl-9"
+            />
+          </div>
+          <Select
+            value={filter}
+            onValueChange={(v: (typeof FILTERS)[number]["key"]) => {
+              setFilter(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FILTERS.map((f) => (
+                <SelectItem key={f.key} value={f.key}>
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -219,6 +258,7 @@ export function HasilDetailPanel({
             <TableRow>
               <TableHead>Nama</TableHead>
               <TableHead className="w-36">Status</TableHead>
+              <TableHead className="w-40">Dikumpulkan</TableHead>
               <TableHead className="w-20">File</TableHead>
               <TableHead className="w-24">Nilai</TableHead>
               {canManage && <TableHead className="w-28 text-right">Aksi</TableHead>}
@@ -228,23 +268,26 @@ export function HasilDetailPanel({
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={canManage ? 5 : 4}>
+                  <TableCell colSpan={canManage ? 6 : 5}>
                     <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canManage ? 5 : 4} className="text-center text-sm text-muted-foreground py-6">
-                  Tidak ada data hasil
+                <TableCell colSpan={canManage ? 6 : 5} className="text-center text-sm text-muted-foreground py-6">
+                  {search ? "Tidak ada beswan cocok" : "Tidak ada data hasil"}
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((h) => (
+              visible.map((h) => (
                 <TableRow key={`${h.beswan_id}`}>
                   <TableCell className="font-medium">{h.nama_beswan}</TableCell>
                   <TableCell>
                     <HasilStatusBadge hasil={h} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {h.submitted_at ? formatDeadline(h.submitted_at) : "—"}
                   </TableCell>
                   <TableCell>
                     {h.file_url ? (
@@ -285,6 +328,52 @@ export function HasilDetailPanel({
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination */}
+        {items.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                Menampilkan {(safePage - 1) * limit + 1}–
+                {Math.min(safePage * limit, items.length)} dari {items.length}
+              </span>
+              <Select
+                value={String(limit)}
+                onValueChange={(v: string) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                Hal {safePage} / {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage(safePage + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {grading && (

@@ -4,13 +4,14 @@ import {
   createBeswan,
   getBeswanDetail,
   getBeswanList,
-  getBeswanRefleksi,
+  getBeswanPenugasan,
   getBeswanStats,
   updateBeswan,
   updateBeswanStatus,
 } from "../services";
 import type {
   BeswanListParams,
+  BeswanPenugasanParams,
   BeswanStatus,
   CreateBeswanReq,
   UpdateBeswanReq,
@@ -40,11 +41,11 @@ export function useBeswanDetail(id: number, periodeId?: string) {
   });
 }
 
-export function useBeswanRefleksi(beswanId: number, enabled: boolean) {
+export function useBeswanPenugasan(beswanId: number, params: BeswanPenugasanParams = {}) {
   return useQuery({
-    queryKey: [BESWAN_KEY, "refleksi", beswanId],
-    queryFn: () => getBeswanRefleksi(beswanId),
-    enabled,
+    queryKey: [BESWAN_KEY, "penugasan", beswanId, params],
+    queryFn: () => getBeswanPenugasan(beswanId, params),
+    enabled: Number.isFinite(beswanId),
   });
 }
 

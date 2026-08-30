@@ -1,6 +1,18 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { BookOpen, FileDown, Mic, PlayCircle, Search, Send, Sparkles, Tag, Upload } from "lucide-react";
+import {
+  BookOpen,
+  FileDown,
+  LayoutGrid,
+  List,
+  Mic,
+  PlayCircle,
+  Search,
+  Send,
+  Sparkles,
+  Tag,
+  Upload,
+} from "lucide-react";
 import {
   Badge,
   Button,
@@ -21,6 +33,7 @@ import {
   SelectValue,
   Skeleton,
   Textarea,
+  cn,
 } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { useLibraryList, useLibraryStats, useUsulTopik } from "../hooks/useLibrary";
@@ -139,10 +152,67 @@ function LibraryCard({ item }: { item: LibraryItem }) {
   );
 }
 
+// Varian tampilan list: satu materi per baris, link download/YouTube di kanan
+function LibraryRow({ item }: { item: LibraryItem }) {
+  const TipeIcon = item.tipe === "event_materi" ? Mic : Upload;
+  const tags = splitTags(item.tags);
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div className="shrink-0 rounded-lg bg-primary/10 p-2">
+        <TipeIcon className="size-4 text-primary" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate font-medium">{item.nama}</span>
+          {tags.map((t) => (
+            <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
+              #{t}
+            </Badge>
+          ))}
+        </div>
+        <div className="truncate text-xs text-muted-foreground">
+          {item.tipe === "event_materi" ? "Materi event" : "Upload PCM"}
+          {item.deskripsi ? ` · ${item.deskripsi}` : ""}
+        </div>
+        {item.ai_summary && (
+          <div className="mt-0.5 flex items-start gap-1.5 text-xs">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+            <span className="line-clamp-1 italic">“{item.ai_summary}”</span>
+          </div>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-3 text-sm">
+        <a
+          href={item.file_url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-primary hover:underline"
+        >
+          <FileDown className="size-4" />
+          Download
+        </a>
+        {item.youtube_url && (
+          <a
+            href={item.youtube_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-primary hover:underline"
+          >
+            <PlayCircle className="size-4" />
+            YouTube
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LibraryPage() {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState(ALL_TAG);
   const [usulOpen, setUsulOpen] = useState(false);
+  // Tampilan grid (kartu) atau list (baris) — ala Google Drive
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const { data: stats, isLoading: statsLoading } = useLibraryStats();
   const { data, isLoading } = useLibraryList({ search: search || undefined });
@@ -195,6 +265,29 @@ export function LibraryPage() {
             ))}
           </SelectContent>
         </Select>
+        {/* Toggle tampilan grid / list — ala Google Drive */}
+        <div className="ms-auto flex items-center rounded-md border p-0.5">
+          <button
+            title="Tampilan grid"
+            onClick={() => setView("grid")}
+            className={cn(
+              "rounded-sm p-1.5 transition-colors",
+              view === "grid" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <LayoutGrid className="size-4" />
+          </button>
+          <button
+            title="Tampilan list"
+            onClick={() => setView("list")}
+            className={cn(
+              "rounded-sm p-1.5 transition-colors",
+              view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <List className="size-4" />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -208,10 +301,16 @@ export function LibraryPage() {
           <BookOpen className="size-10 text-muted-foreground/60" />
           <p className="text-sm text-muted-foreground">Tidak ada materi ditemukan</p>
         </div>
-      ) : (
+      ) : view === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((item) => (
             <LibraryCard key={item.id} item={item} />
+          ))}
+        </div>
+      ) : (
+        <div className="divide-y rounded-md border bg-card">
+          {visible.map((item) => (
+            <LibraryRow key={item.id} item={item} />
           ))}
         </div>
       )}

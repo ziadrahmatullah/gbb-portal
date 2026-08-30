@@ -14,7 +14,15 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { SearchableSelect, Skeleton } from "@gbb/ui";
+import {
+  Badge,
+  SearchableSelect,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -45,15 +53,17 @@ import {
   useDeleteMentor,
   useMentorList,
   useMentorOptions,
+  useMentorRequestList,
   useMentorStats,
 } from "../hooks/useMentor";
 import { downloadMentorExcel } from "../services";
 import type { Mentor } from "../services";
 import { MentorFormDialog, UndipBadge } from "./MentorDialogs";
+import { MentorRequestsTab } from "./MentorRequestsTab";
 
 const ALL = "all";
 
-export function MentorListPage() {
+function MentorListTab() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [bidang, setBidang] = useState(ALL);
@@ -122,9 +132,8 @@ export function MentorListPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Database Mentor</h1>
+      {/* Tombol tambah (judul halaman ada di MentorListPage ber-tab) */}
+      <div className="flex justify-end">
         <Button size="sm" onClick={openCreate}>
           <Plus className="size-4 mr-2" />
           Tambah
@@ -206,7 +215,6 @@ export function MentorListPage() {
               <TableHead>Nama</TableHead>
               <TableHead>Bidang</TableHead>
               <TableHead className="w-24">Event</TableHead>
-              <TableHead className="w-16">Avg</TableHead>
               <TableHead className="w-24 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -214,14 +222,14 @@ export function MentorListPage() {
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={5}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                   Tidak ada mentor ditemukan
                 </TableCell>
               </TableRow>
@@ -243,15 +251,6 @@ export function MentorListPage() {
                   </TableCell>
                   <TableCell className="text-sm">{m.bidang_keahlian}</TableCell>
                   <TableCell className="text-sm">{m.jumlah_event} event</TableCell>
-                  <TableCell>
-                    {m.avg_rating != null ? (
-                      <span className="font-medium">★ {m.avg_rating.toFixed(1)}</span>
-                    ) : (
-                      <span className="text-muted-foreground" title="Belum ada rating">
-                        —
-                      </span>
-                    )}
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Link
@@ -366,6 +365,52 @@ export function MentorListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const MENTOR_TABS = [
+  { key: "daftar", label: "Daftar Mentor" },
+  { key: "request", label: "Request Mentor" },
+] as const;
+
+type MentorTabKey = (typeof MENTOR_TABS)[number]["key"];
+
+export function MentorListPage() {
+  const [tab, setTab] = useState<MentorTabKey>("daftar");
+  // Badge jumlah request pending di label tab (limit 1 — cuma butuh totalItems)
+  const { data: pending } = useMentorRequestList({ limit: 1, status: "pending" });
+  const pendingCount = pending?.totalItems ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold tracking-tight">Database Mentor</h1>
+      </div>
+
+      <Tabs value={tab} onValueChange={(v: string) => setTab(v as MentorTabKey)} className="space-y-4">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList>
+            {MENTOR_TABS.map((t) => (
+              <TabsTrigger key={t.key} value={t.key}>
+                {t.label}
+                {t.key === "request" && pendingCount > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 rounded-full px-1.5 text-xs">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        <TabsContent value="daftar" className="space-y-4">
+          <MentorListTab />
+        </TabsContent>
+        <TabsContent value="request" className="space-y-4">
+          <MentorRequestsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

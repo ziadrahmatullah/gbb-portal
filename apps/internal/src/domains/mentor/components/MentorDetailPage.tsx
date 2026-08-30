@@ -74,10 +74,6 @@ export function MentorDetailPage() {
             {detail.email && <div>Email: {detail.email}</div>}
             {detail.hp && <div>HP: {detail.hp}</div>}
             <div>Total event dibawakan: {detail.jumlah_event} (sepanjang masa)</div>
-            <div>
-              Rating rata-rata:{" "}
-              {detail.avg_rating != null ? `★ ${detail.avg_rating.toFixed(1)}` : "belum ada rating"}
-            </div>
             {cv && (
               <a
                 href={cv}
@@ -93,7 +89,7 @@ export function MentorDetailPage() {
         </CardContent>
       </Card>
 
-      {/* History event per mentor (avg_feedback null = belum ada feedback) */}
+      {/* History event per mentor */}
       <div className="space-y-2">
         <h2 className="text-sm font-semibold">History Event ({detail.event_history.length})</h2>
         {detail.event_history.length === 0 ? (
@@ -103,37 +99,14 @@ export function MentorDetailPage() {
         ) : (
           <div className="rounded-md border bg-card divide-y">
             {detail.event_history.map((h) => (
-              <div key={h.event_id} className="flex items-center justify-between gap-2 px-4 py-3 text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{h.nama_event}</div>
-                  <div className="text-xs text-muted-foreground capitalize">
-                    {formatTanggal(h.tanggal)} · {h.peran}
-                  </div>
+              <div key={h.event_id} className="px-4 py-3 text-sm">
+                <div className="font-medium truncate">{h.nama_event}</div>
+                <div className="text-xs text-muted-foreground capitalize">
+                  {formatTanggal(h.tanggal)} · {h.peran}
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {h.avg_feedback != null ? `★ ${h.avg_feedback.toFixed(1)}` : "—"}
-                </span>
               </div>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* Kutipan feedback terbaru (maks 10 dari backend) */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold">Feedback Terkumpul</h2>
-        {(detail.feedback_kutipan ?? []).length === 0 ? (
-          <p className="rounded-md border border-dashed py-6 text-center text-sm text-muted-foreground">
-            Belum ada feedback
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {(detail.feedback_kutipan ?? []).map((k, i) => (
-              <li key={i} className="rounded-lg bg-muted/50 px-3 py-2 text-sm italic">
-                “{k}”
-              </li>
-            ))}
-          </ul>
         )}
       </div>
 

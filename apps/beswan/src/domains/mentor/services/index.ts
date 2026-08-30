@@ -11,7 +11,6 @@ export interface Mentor {
   is_internal: boolean; // true = badge "🏠 Tim GBB"
   linkedin_url?: string | null;
   jumlah_event: number;
-  avg_rating?: number | null; // null = belum ada feedback → jangan render bintang
 }
 
 export async function getMentorList(params: ListParams = {}) {
@@ -24,8 +23,23 @@ export async function getMentorList(params: ListParams = {}) {
 }
 
 // Dua mode (radio wireframe), endpoint sama — FE wajib pastikan salah satu terisi.
-// Tidak ada endpoint bagi beswan melihat status request-nya (submit-only).
 export async function requestMentor(body: { mentor_id?: number; curhat_text?: string }) {
   const res = await apiClient.post("/beswan/mentor/request", body);
   return res.message;
+}
+
+// Request milik beswan sendiri — sudah terurut terbaru dulu dari backend
+export interface MyMentorRequest {
+  id: number;
+  curhat_text?: string | null;
+  status: string; // pending | matched | done
+  mentor_id?: number | null;
+  mentor_nama?: string | null;
+  created_at: string;
+  responded_at?: string | null;
+}
+
+export async function getMyMentorRequests() {
+  const res = await apiClient.get<MyMentorRequest[]>("/beswan/mentor/requests");
+  return res.data ?? [];
 }

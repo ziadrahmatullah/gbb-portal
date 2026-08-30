@@ -1,6 +1,7 @@
 import { apiClient, API_BASE_URL } from "@/shared/lib/apiClient";
 import { toPaged } from "@/shared/lib/apiTypes";
 import type { ListParams } from "@/shared/lib/apiTypes";
+import type { Penugasan } from "@/domains/penugasan/services";
 
 // Mirror gbb-backend dto/beswan_dto.go
 export interface BeswanListItem {
@@ -85,16 +86,6 @@ export interface CreateBeswanReq {
   email: string;
   hp: string;
   periode_id: number;
-}
-
-// Mirror dto/refleksi_dto.go — dipakai tab Refleksi di detail beswan
-export interface RefleksiItem {
-  id: number;
-  periode_id: number;
-  bulan: number;
-  tahun: number;
-  status: string;
-  submitted_at?: string | null;
 }
 
 // foto_url/cv_url dari backend berupa path relatif yang diserve statis
@@ -189,12 +180,33 @@ export async function updateBeswan(id: number, body: UpdateBeswanReq) {
   return res.data;
 }
 
-export async function getBeswanRefleksi(beswanId: number, params: ListParams = {}) {
-  const res = await apiClient.get<RefleksiItem[]>("/internal/refleksi", {
-    beswan_id: beswanId,
-    page: 1,
-    limit: 50,
-    ...params,
-  });
+// Tab Refleksi di detail beswan kini memakai domain refleksi
+// (RefleksiTable) — service refleksi lama di sini sudah dihapus.
+
+// ─── Tugas per beswan (tab Tugas di detail beswan) ────────────────────────
+
+// Bentuk sama dengan MyPenugasanRes portal beswan: Penugasan internal +
+// hasil milik beswan ybs (hasil_status absen = belum mengumpulkan)
+export interface BeswanPenugasanItem extends Penugasan {
+  hasil_status?: "submitted" | "graded" | null;
+  file_url?: string | null;
+  submitted_at?: string | null;
+  terlambat: boolean;
+  nilai?: number | null;
+  feedback?: string | null;
+}
+
+export type BeswanPenugasanParams = ListParams & {
+  periode_id?: string;
+  status?: "aktif" | "selesai";
+};
+
+// Terurut tugas terbaru dibuat; otomatis dibatasi periode enrollment beswan;
+// 404 bila beswan tidak ada
+export async function getBeswanPenugasan(beswanId: number, params: BeswanPenugasanParams = {}) {
+  const res = await apiClient.get<BeswanPenugasanItem[]>(
+    `/internal/beswan/${beswanId}/penugasan`,
+    { page: 1, limit: 10, ...params }
+  );
   return toPaged(res);
 }

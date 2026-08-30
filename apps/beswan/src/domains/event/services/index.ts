@@ -24,8 +24,16 @@ export interface EventItem {
   jam_mulai: string;
   jam_selesai: string;
   deskripsi: string;
-  kapasitas: number;
+  kapasitas: number; // 0 = event terbuka tanpa pendaftaran; >0 = harus join
   jumlah_peserta: number;
+  // Daftar periode yang boleh mengikuti event ini
+  periode_ids: number[];
+  // Jumlah beswan yang sudah join (kuota siapa cepat)
+  jumlah_join: number;
+  // Hanya ada di event berkapasitas: apakah beswan ini sudah join.
+  // Catatan: pada event berkapasitas yang BELUM di-join, backend
+  // menyembunyikan lokasi, youtube_url, dan slide_url.
+  is_joined?: boolean;
   mentors: EventMentorInfo[];
   youtube_url?: string | null;
   slide_url?: string | null;
@@ -59,4 +67,17 @@ export async function getBeswanEventList(params: BeswanEventListParams = {}) {
 export async function getBeswanEventDetail(id: number) {
   const res = await apiClient.get<EventItem>(`/beswan/event/${id}`);
   return res.data;
+}
+
+// Join/batal pendaftaran event berkapasitas (kuota siapa cepat). Error 400
+// backend berpesan siap-tampil (mis. "kuota event sudah penuh") — interceptor
+// menampilkannya via toast apa adanya.
+export async function joinEvent(id: number) {
+  const res = await apiClient.post(`/beswan/event/${id}/join`);
+  return res.message;
+}
+
+export async function leaveEvent(id: number) {
+  const res = await apiClient.delete(`/beswan/event/${id}/join`);
+  return res.message;
 }

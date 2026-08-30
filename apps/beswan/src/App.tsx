@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
 import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { BerandaPage } from "@/domains/beranda";
 import { EventPage, EventDetailPage } from "@/domains/event";
+import { PenugasanPage, PenugasanDetailPage } from "@/domains/penugasan";
 import { LibraryPage } from "@/domains/library";
 import { MentorPage } from "@/domains/mentor";
 import { RefleksiPage } from "@/domains/refleksi";
@@ -26,6 +27,8 @@ function App() {
               <Route index element={<BerandaPage />} />
               <Route path="event" element={<EventPage />} />
               <Route path="event/:id" element={<EventDetailPage />} />
+              <Route path="penugasan" element={<PenugasanPage />} />
+              <Route path="penugasan/:id" element={<PenugasanDetailPage />} />
               <Route path="library" element={<LibraryPage />} />
               <Route path="mentor" element={<MentorPage />} />
               <Route path="refleksi" element={<RefleksiPage />} />

@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Eye,
   FileDown,
   Hourglass,
   Pencil,
@@ -46,7 +48,6 @@ import { useEventList } from "@/domains/event/hooks/useEvent";
 import { useDeletePenugasan, usePenugasanList, usePenugasanStats } from "../hooks/usePenugasan";
 import type { Penugasan } from "../services";
 import { CreatePenugasanDialog, EditPenugasanDialog } from "./PenugasanFormDialogs";
-import { HasilDetailPanel } from "./HasilDetailPanel";
 
 const ALL = "all";
 
@@ -60,6 +61,7 @@ const formatDeadline = (iso: string) =>
   });
 
 export function PenugasanPage() {
+  const navigate = useNavigate();
   const role = useAuthStore((s) => s.role);
   // Backend enforce RequireRole("admin","pcm") untuk mutasi & nilai
   const canManage = role === "admin" || role === "pcm";
@@ -69,7 +71,6 @@ export function PenugasanPage() {
   const [eventFilter, setEventFilter] = useState(ALL);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Penugasan | null>(null);
   const [deleting, setDeleting] = useState<Penugasan | null>(null);
@@ -97,7 +98,6 @@ export function PenugasanPage() {
   const items = data?.items ?? [];
   const totalPages = data?.totalPages ?? 1;
   const totalItems = data?.totalItems ?? 0;
-  const selected = items.find((p) => p.id === selectedId) ?? null;
 
   return (
     <div className="space-y-4">
@@ -169,30 +169,32 @@ export function PenugasanPage() {
               <TableHead className="w-32">Event</TableHead>
               <TableHead className="w-36">Deadline</TableHead>
               <TableHead className="w-24">Kumpul</TableHead>
-              {canManage && <TableHead className="w-24 text-right">Aksi</TableHead>}
+              <TableHead className="w-28 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={canManage ? 6 : 5}>
+                  <TableCell colSpan={6}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={canManage ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                   Tidak ada penugasan ditemukan
                 </TableCell>
               </TableRow>
             ) : (
               items.map((p) => (
+                // Row klik-able ke halaman detail (hasil per beswan ada di sana);
+                // kontrol di dalam row wajib stopPropagation
                 <TableRow
                   key={p.id}
-                  onClick={() => setSelectedId(p.id === selectedId ? null : p.id)}
-                  className={cn("cursor-pointer", p.id === selectedId && "bg-accent/60")}
+                  onClick={() => navigate(`/panel/penugasan/${p.id}`)}
+                  className="cursor-pointer"
                 >
                   <TableCell className="font-mono text-xs">{p.kode_penugasan}</TableCell>
                   <TableCell>
@@ -228,32 +230,42 @@ export function PenugasanPage() {
                   <TableCell className="text-sm">
                     {p.terkumpul_count}/{p.total_beswan}
                   </TableCell>
-                  {canManage && (
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          title="Edit"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditing(p);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          title="Hapus"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleting(p);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  )}
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Link
+                        to={`/panel/penugasan/${p.id}`}
+                        title="Lihat hasil per beswan"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                      {canManage && (
+                        <>
+                          <button
+                            title="Edit"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(p);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            title="Hapus"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleting(p);
+                            }}
+                            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -301,15 +313,6 @@ export function PenugasanPage() {
         </div>
       )}
 
-      {/* DETAIL: hasil per beswan untuk tugas terpilih */}
-      {selected ? (
-        <HasilDetailPanel penugasan={selected} eventLabel={eventLabel(selected)} canManage={canManage} />
-      ) : (
-        <p className="text-sm text-muted-foreground text-center py-2">
-          Klik salah satu tugas untuk melihat hasil per beswan.
-        </p>
-      )}
-
       {/* Dialogs (mount kondisional = state selalu segar) */}
       {createOpen && <CreatePenugasanDialog onClose={() => setCreateOpen(false)} />}
       {editing && <EditPenugasanDialog penugasan={editing} onClose={() => setEditing(null)} />}
@@ -331,12 +334,7 @@ export function PenugasanPage() {
               disabled={deleteMutation.isPending}
               onClick={() =>
                 deleting &&
-                deleteMutation.mutate(deleting.id, {
-                  onSuccess: () => {
-                    if (selectedId === deleting.id) setSelectedId(null);
-                    setDeleting(null);
-                  },
-                })
+                deleteMutation.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
               }
             >
               {deleteMutation.isPending ? "Menghapus…" : "Ya, Hapus"}

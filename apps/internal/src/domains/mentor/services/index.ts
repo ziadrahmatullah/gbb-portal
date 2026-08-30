@@ -10,7 +10,6 @@ export interface Mentor {
   is_internal: boolean;
   linkedin_url?: string | null;
   jumlah_event: number; // total event sepanjang masa (backend tidak memfilter periode)
-  avg_rating?: number | null; // null = belum ada feedback ber-mentor_id
 }
 
 export interface MentorEventHistory {
@@ -18,7 +17,6 @@ export interface MentorEventHistory {
   nama_event: string;
   tanggal: string;
   peran: string; // speaker | moderator | fasilitator
-  avg_feedback?: number | null;
 }
 
 export interface MentorDetail extends Mentor {
@@ -26,7 +24,6 @@ export interface MentorDetail extends Mentor {
   hp?: string;
   cv_url?: string | null;
   event_history: MentorEventHistory[];
-  feedback_kutipan?: string[]; // maks 10 kutipan terbaru
 }
 
 export async function getMentorList(params: ListParams = {}) {
@@ -87,4 +84,45 @@ export async function updateMentor(id: number, form: FormData) {
 export async function deleteMentor(id: number) {
   const res = await apiClient.delete(`/internal/mentor/${id}`);
   return res.message;
+}
+
+// ─── Request Mentor (matching curhat beswan → mentor) ─────────────────────
+
+export interface MentorRequestRes {
+  id: number;
+  beswan_id: number;
+  beswan_nama: string;
+  mentor_id?: number | null;
+  mentor_nama?: string | null;
+  curhat_text?: string | null;
+  status: string; // pending | matched | done
+  created_at: string;
+  responded_at?: string | null;
+}
+
+export type MentorRequestListParams = ListParams & {
+  status?: "pending" | "matched" | "done";
+};
+
+export async function listMentorRequests(params: MentorRequestListParams = {}) {
+  const res = await apiClient.get<MentorRequestRes[]>("/internal/mentor/requests", {
+    page: 1,
+    limit: 20,
+    ...params,
+  });
+  return toPaged(res);
+}
+
+// PUT /internal/mentor/requests/:id (role admin/pcm). status "matched" wajib
+// disertai mentor bila request belum punya → 400 "tentukan mentor untuk
+// matching request ini". Saat matched/done backend mengirim notifikasi
+// in-app ke beswan otomatis.
+export interface UpdateMentorRequestReq {
+  status: "pending" | "matched" | "done";
+  mentor_id?: number;
+}
+
+export async function updateMentorRequest(id: number, body: UpdateMentorRequestReq) {
+  const res = await apiClient.put<MentorRequestRes>(`/internal/mentor/requests/${id}`, body);
+  return res.data;
 }

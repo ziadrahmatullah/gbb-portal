@@ -4,6 +4,7 @@ import {
   createPenugasan,
   deletePenugasan,
   getHasilList,
+  getPenugasanById,
   getPenugasanList,
   getPenugasanStats,
   nilaiHasil,
@@ -24,6 +25,14 @@ export function usePenugasanStats(periodeId?: string) {
   return useQuery({
     queryKey: [PENUGASAN_KEY, "stats", periodeId ?? "all"],
     queryFn: () => getPenugasanStats(periodeId),
+  });
+}
+
+export function usePenugasanDetail(id: number) {
+  return useQuery({
+    queryKey: [PENUGASAN_KEY, "detail", id],
+    queryFn: () => getPenugasanById(id),
+    enabled: Number.isFinite(id),
   });
 }
 

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, Card, CardContent, Skeleton } from "@gbb/ui";
 import { useBeswanEventDetail } from "../hooks/useEvent";
-import { EventStatusBadge, formatTanggal } from "./EventPage";
+import { EventStatusBadge, JoinButton, JoinInfo, formatTanggal } from "./EventPage";
 
 // Halaman detail event beswan — murni tampilan (read-only): tanpa edit,
 // ubah status, ataupun absensi.
@@ -70,6 +70,8 @@ export function EventDetailPage() {
               {event.tipe}
             </Badge>
           </div>
+          {/* Info kuota — tombol Join/Batal ada di bawah deskripsi */}
+          <JoinInfo event={event} />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="size-4" />
@@ -89,6 +91,15 @@ export function EventDetailPage() {
             )}
           </div>
           {event.deskripsi && <p className="whitespace-pre-wrap">{event.deskripsi}</p>}
+          {/* Event berkapasitas yang belum di-join: backend menyembunyikan
+              lokasi, youtube_url, dan slide_url */}
+          {event.kapasitas > 0 && !event.is_joined && (
+            <p className="text-xs italic text-muted-foreground">
+              Join untuk melihat lokasi &amp; materi
+            </p>
+          )}
+          {/* Tombol Join/Batal di bawah deskripsi, terpisah dari info kuota */}
+          <JoinButton event={event} />
           {(event.youtube_url || event.slide_url) && (
             <div className="flex flex-wrap items-center gap-4 pt-1">
               {event.youtube_url && (

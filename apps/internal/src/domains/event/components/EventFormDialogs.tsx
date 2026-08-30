@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
-import { Plus, X } from "lucide-react";
+import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import { ChevronDown, Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
@@ -25,12 +25,117 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { DateInput, SearchableSelect } from "@gbb/ui";
 import { useCreateEvent, useUpdateEvent } from "../hooks/useEvent";
 import type { AssignMentorReq, EventItem } from "../services";
 
 const NO_TOPIK = "none";
 const PERAN_OPTIONS = ["speaker", "moderator", "fasilitator"] as const;
+
+const KAPASITAS_HINT =
+  "0/kosong = event terbuka tanpa pendaftaran; >0 = beswan harus join, kuota siapa cepat";
+
+// Kotak pencarian di dalam DropdownMenuContent. stopPropagation di keydown
+// wajib: tanpa itu ketikan dicegat typeahead/navigasi menu Radix.
+function DropdownSearchInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="p-1 pb-1.5">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          autoFocus
+          value={value}
+          placeholder={placeholder}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+          onKeyDown={(e: KeyboardEvent) => e.stopPropagation()}
+          className="h-8 pl-8"
+        />
+      </div>
+    </div>
+  );
+}
+
+// Multi-select periode dengan URUTAN pilihan dipertahankan — elemen pertama
+// menjadi periode utama event (menentukan topik & selalu disertakan backend).
+// Dipakai form create DAN edit supaya cukup satu field periode.
+function PeriodeMultiSelect({
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: { id: number; nama: string }[];
+  disabled?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const visible = search
+    ? options.filter((p) => p.nama.toLowerCase().includes(search.toLowerCase()))
+    : options;
+  const first = options.find((p) => String(p.id) === value[0]);
+  const label =
+    value.length === 0
+      ? "Pilih periode"
+      : `${first?.nama ?? value[0]}${value.length > 1 ? ` +${value.length - 1}` : ""}`;
+  return (
+    // modal={false}: di dalam Dialog, dropdown modal membuat klik di luar menu
+    // dianggap klik di luar dialog → dialognya ikut tertutup
+    <DropdownMenu modal={false} onOpenChange={(o: boolean) => !o && setSearch("")}>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <Button type="button" variant="outline" className="w-full justify-between font-normal">
+          <span className={cn("truncate", value.length === 0 && "text-muted-foreground")}>
+            {label}
+          </span>
+          <ChevronDown className="size-4 shrink-0 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-56">
+        <DropdownSearchInput value={search} onChange={setSearch} placeholder="Cari periode…" />
+        <div className="max-h-60 overflow-auto">
+          {visible.length === 0 && (
+            <div className="py-3 text-center text-sm text-muted-foreground">
+              Periode tidak ditemukan
+            </div>
+          )}
+          {visible.map((p) => {
+            const id = String(p.id);
+            return (
+              <DropdownMenuCheckboxItem
+                key={p.id}
+                checked={value.includes(id)}
+                // preventDefault: menu jangan menutup tiap kali centang
+                onSelect={(e: Event) => e.preventDefault()}
+                onCheckedChange={(c: boolean) =>
+                  onChange(c ? [...value, id] : value.filter((v) => v !== id))
+                }
+              >
+                {p.nama}
+                {value[0] === id && (
+                  <span className="ml-1 text-xs text-muted-foreground">(utama)</span>
+                )}
+              </DropdownMenuCheckboxItem>
+            );
+          })}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 interface MentorRow {
   mentor_id: string;
@@ -43,8 +148,16 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
   const { data: mentorOptions } = useMentorOptions();
   const createMutation = useCreateEvent();
 
-  const [periodeId, setPeriodeId] = useState(globalPeriode ?? "");
+  // Satu field periode multi-select; urutan pilih dipertahankan, elemen
+  // PERTAMA = periode utama (periode_id di payload)
+  const [periodeIds, setPeriodeIds] = useState<string[]>(globalPeriode ? [globalPeriode] : []);
+  const periodeId = periodeIds[0] ?? "";
   const [topikId, setTopikId] = useState(NO_TOPIK);
+  const handlePeriodeChange = (v: string[]) => {
+    // Periode utama berganti → topik lama tidak valid lagi
+    if (v[0] !== periodeIds[0]) setTopikId(NO_TOPIK);
+    setPeriodeIds(v);
+  };
   const [form, setForm] = useState({
     nama_event: "",
     tipe: "talkshow",
@@ -81,6 +194,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
     createMutation.mutate(
       {
         periode_id: Number(periodeId),
+        periode_ids: periodeIds.map(Number),
         topik_id: topikId === NO_TOPIK ? undefined : Number(topikId),
         nama_event: form.nama_event,
         tipe: form.tipe,
@@ -113,21 +227,11 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Periode</Label>
-              <SearchableSelect
-                value={periodeId}
-                onChange={(v: string) => {
-                  setPeriodeId(v);
-                  setTopikId(NO_TOPIK);
-                }}
-                options={(periodeOptions?.items ?? []).map((p) => ({
-                  id: String(p.id),
-                  name: p.nama,
-                }))}
-                placeholder="Pilih periode"
-                searchPlaceholder="Cari periode…"
-                emptyMessage="Periode tidak ditemukan"
+              <PeriodeMultiSelect
+                value={periodeIds}
+                onChange={handlePeriodeChange}
+                options={periodeOptions?.items ?? []}
                 disabled={saving}
-                hideClear
               />
             </div>
             <div className="grid gap-2">
@@ -150,6 +254,11 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
               />
             </div>
           </div>
+          {/* Di luar sel grid supaya kedua kontrol di atas tetap sejajar */}
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Periode bisa dipilih lebih dari satu — pilihan pertama jadi periode utama (menentukan
+            topik).
+          </p>
           <div className="grid gap-2">
             <Label htmlFor="e-nama">Nama event</Label>
             <Input id="e-nama" value={form.nama_event} onChange={set("nama_event")} required disabled={saving} />
@@ -200,6 +309,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
               <Input id="e-kapasitas" type="number" min={0} value={form.kapasitas} onChange={set("kapasitas")} disabled={saving} />
             </div>
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">Kapasitas: {KAPASITAS_HINT}.</p>
           <div className="grid gap-2">
             <Label htmlFor="e-lokasi">Lokasi / Link</Label>
             <Input id="e-lokasi" value={form.lokasi} onChange={set("lokasi")} placeholder="mis. Zoom Meeting / Aula Kampus" disabled={saving} />
@@ -303,14 +413,22 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
     kapasitas: "",
   });
   const [mentors, setMentors] = useState<MentorRow[]>([]);
-  // Periode event; dikirim ke payload hanya bila berubah dari periode awal.
-  // Backend otomatis mengosongkan topik_id saat periode berubah.
-  const [periodeId, setPeriodeId] = useState("");
-  // Topik event; opsi mengikuti periode yang SEDANG dipilih di form ini
+  // Satu field periode multi-select (sama seperti create): urutan pilih
+  // dipertahankan, elemen PERTAMA = periode utama. periode_id/periode_ids
+  // dikirim ke payload hanya bila berubah dari nilai awal event.
+  const [periodeIds, setPeriodeIds] = useState<string[]>([]);
+  const periodeId = periodeIds[0] ?? "";
+  // Topik event; opsi mengikuti periode utama yang SEDANG dipilih di form ini
   const [topikId, setTopikId] = useState(NO_TOPIK);
   const { data: topikOptions } = useTopikList(
     periodeId ? { periode_id: periodeId, limit: 100 } : { limit: 0 }
   );
+  const handlePeriodeChange = (v: string[]) => {
+    // Periode utama berganti → topik lama tidak valid lagi
+    if (v[0] !== periodeIds[0]) setTopikId(NO_TOPIK);
+    setPeriodeIds(v);
+    updateMutation.reset();
+  };
   // Roster mentor cuma disertakan di payload PUT kalau memang disentuh user —
   // backend mengganti SELURUH roster begitu key "mentors" ada di body (lihat
   // catatan di UpdateEventReq), jadi edit lain (nama/tanggal/dst) tidak boleh
@@ -319,7 +437,10 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
   const [prevId, setPrevId] = useState<number | null>(null);
   if (event && event.id !== prevId) {
     setPrevId(event.id);
-    setPeriodeId(String(event.periode_id));
+    setPeriodeIds([
+      String(event.periode_id),
+      ...(event.periode_ids ?? []).filter((pid) => pid !== event.periode_id).map(String),
+    ]);
     setTopikId(event.topik_id ? String(event.topik_id) : NO_TOPIK);
     setForm({
       nama_event: event.nama_event,
@@ -361,6 +482,15 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
   // Nilai awal topik (NO_TOPIK = non-kurikulum); topik_id dikirim hanya bila berubah
   const initialTopik = event?.topik_id ? String(event.topik_id) : NO_TOPIK;
   const topikChanged = !!event && topikId !== initialTopik;
+  // periode_ids dikirim = ganti SELURUH daftar — kirim hanya bila daftar
+  // (atau periode utamanya) benar-benar berubah
+  const initialList = [
+    ...new Set([event?.periode_id ?? 0, ...(event?.periode_ids ?? [])]),
+  ]
+    .sort((a, b) => a - b)
+    .join(",");
+  const currentList = [...new Set(periodeIds.map(Number))].sort((a, b) => a - b).join(",");
+  const pesertaChanged = !!event && (periodeChanged || initialList !== currentList);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -375,6 +505,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
           // topik_id: 0 = lepas tautan; pindah periode tanpa topik baru pun
           // otomatis dilepas backend, jadi aman
           ...(topikChanged ? { topik_id: topikId === NO_TOPIK ? 0 : Number(topikId) } : {}),
+          ...(pesertaChanged ? { periode_ids: periodeIds.map(Number) } : {}),
           nama_event: form.nama_event,
           tipe: form.tipe,
           format: form.format,
@@ -409,23 +540,11 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Periode</Label>
-              <SearchableSelect
-                value={periodeId}
-                onChange={(v: string) => {
-                  setPeriodeId(v);
-                  // Topik terikat periode — reset lalu opsi dimuat ulang
-                  setTopikId(NO_TOPIK);
-                  updateMutation.reset();
-                }}
-                options={(periodeOptions?.items ?? []).map((p) => ({
-                  id: String(p.id),
-                  name: p.nama,
-                }))}
-                placeholder="Pilih periode"
-                searchPlaceholder="Cari periode…"
-                emptyMessage="Periode tidak ditemukan"
+              <PeriodeMultiSelect
+                value={periodeIds}
+                onChange={handlePeriodeChange}
+                options={periodeOptions?.items ?? []}
                 disabled={saving}
-                hideClear
               />
             </div>
             <div className="grid gap-2">
@@ -451,10 +570,15 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               />
             </div>
           </div>
+          {/* Di luar sel grid supaya kedua kontrol di atas tetap sejajar */}
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Periode bisa dipilih lebih dari satu — pilihan pertama jadi periode utama (menentukan
+            topik).
+          </p>
           {periodeChanged && (
             <p className="text-xs text-yellow-700 dark:text-yellow-400">
-              Memindah periode akan melepas tautan topik event ini — Anda bisa langsung memilih
-              topik baru dari periode tujuan di dropdown Topik.
+              Memindah periode utama akan melepas tautan topik event ini — Anda bisa langsung
+              memilih topik baru dari periode tujuan di dropdown Topik.
             </p>
           )}
           {/* Pesan 400/404 backend, mis. "topik bukan milik periode event ini" */}
@@ -511,6 +635,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               <Input id="ee-kapasitas" type="number" min={0} value={form.kapasitas} onChange={set("kapasitas")} disabled={saving} />
             </div>
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">Kapasitas: {KAPASITAS_HINT}.</p>
           <div className="grid gap-2">
             <Label htmlFor="ee-lokasi">Lokasi / Link</Label>
             <Input id="ee-lokasi" value={form.lokasi} onChange={set("lokasi")} disabled={saving} />
@@ -581,7 +706,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Batal
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || periodeIds.length === 0}>
               {saving ? "Menyimpan…" : "Simpan"}
             </Button>
           </DialogFooter>

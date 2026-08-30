@@ -1,12 +1,28 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Info, Pencil, Save } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Pencil,
+  Save,
+  Search as SearchIcon,
+} from "lucide-react";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Skeleton } from "@gbb/ui";
-import { useBeswanList } from "@/domains/beswan/hooks/useBeswan";
+import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import {
   Table,
   TableBody,
@@ -29,45 +45,102 @@ import { EditEventDialog } from "./EventFormDialogs";
 import { EventStatusBadge, EventStatusDropdown } from "./EventListPage";
 import { formatEventDate } from "../utils";
 
+// Daftar periode yang boleh mengikuti event ini (periode_ids), dengan
+// penanda periode utama
+function PeriodeInfo({ event }: { event: EventItem }) {
+  const { data: periodeOptions } = usePeriodeOptions();
+  const ids = event.periode_ids?.length ? event.periode_ids : [event.periode_id];
+  const namaById = new Map((periodeOptions?.items ?? []).map((p) => [p.id, p.nama]));
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-muted-foreground">Periode:</span>
+      {ids.map((pid) => (
+        <Badge key={pid} variant="outline" className="gap-1 font-normal">
+          {namaById.get(pid) ?? `#${pid}`}
+          {pid === event.periode_id && (
+            <span className="text-xs text-muted-foreground">· utama</span>
+          )}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+// Ringkasan hadir X/Y untuk kartu info detail. Memakai query yang sama dengan
+// AbsensiSection (key identik → react-query dedupe, tidak ada fetch ganda).
+function AbsensiSummary({ event }: { event: EventItem }) {
+  const { data: roster } = useEventAbsensi(event.id);
+  const total = roster?.length ?? 0;
+  const hadir = (roster ?? []).filter((a) => a.hadir).length;
+  return (
+    <span>
+      Absensi: {hadir}/{total} hadir
+    </span>
+  );
+}
+
 function AbsensiSection({ event }: { event: EventItem }) {
-  // Roster = seluruh beswan periode terkait event
-  const { data: roster, isLoading: rosterLoading } = useBeswanList({
-    periode_id: String(event.periode_id),
-    limit: 100,
-  });
-  // Prefill dari status hadir tersimpan (GET absensi)
-  const { data: saved, isLoading: savedLoading } = useEventAbsensi(event.id);
+  // GET absensi = roster LENGKAP otomatis dari backend (berkapasitas = hanya
+  // yang join; terbuka = semua beswan seluruh periode_ids) + status hadir
+  const { data: roster, isLoading } = useEventAbsensi(event.id);
   const saveMutation = useSaveAbsensi();
   const [checked, setChecked] = useState<Record<number, boolean>>({});
-  // Seed ulang saat data tersimpan termuat/berubah (adjust-during-render)
-  const [prevSaved, setPrevSaved] = useState<typeof saved>(undefined);
-  if (saved !== prevSaved) {
-    setPrevSaved(saved);
-    setChecked(Object.fromEntries(saved?.map((a) => [a.beswan_id, a.hadir]) ?? []));
+  // Seed ulang saat roster termuat/berubah (adjust-during-render)
+  const [prevRoster, setPrevRoster] = useState<typeof roster>(undefined);
+  if (roster !== prevRoster) {
+    setPrevRoster(roster);
+    setChecked(Object.fromEntries(roster?.map((a) => [a.beswan_id, a.hadir]) ?? []));
   }
 
-  const isLoading = rosterLoading || savedLoading;
-  const items = roster?.items ?? [];
+  const items = roster ?? [];
+  // Search + pagination client-side — roster sudah ter-load penuh di halaman
+  // ini; Simpan tetap mengirim SELURUH roster, bukan hanya halaman tampil
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const filtered = search
+    ? items.filter((b) =>
+        `${b.nama_lengkap} ${b.nim}`.toLowerCase().includes(search.toLowerCase())
+      )
+    : items;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * limit, safePage * limit);
+  const hadirCount = items.filter((b) => !!checked[b.beswan_id]).length;
   const toggle = (id: number) => setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const handleSave = () => {
     // Kirim SELURUH roster (upsert per item di backend, bukan replace-all)
     saveMutation.mutate({
       eventId: event.id,
-      absensi: items.map((b) => ({ beswan_id: b.id, hadir: !!checked[b.id] })),
+      absensi: items.map((b) => ({ beswan_id: b.beswan_id, hadir: !!checked[b.beswan_id] })),
     });
   };
 
   return (
     <Card className="gap-4">
       <CardHeader>
-        <CardTitle className="text-sm">Absensi Beswan</CardTitle>
+        <CardTitle className="text-sm">
+          Absensi Beswan ({hadirCount}/{items.length} hadir)
+        </CardTitle>
         <CardDescription className="flex items-center gap-1.5 text-xs">
           <Info className="h-3.5 w-3.5 shrink-0" />
           Status hadir tersimpan dimuat otomatis — ubah centang lalu Simpan.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="relative max-w-64">
+          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari nama/NIM…"
+            className="pl-9"
+          />
+        </div>
         <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
@@ -83,15 +156,23 @@ function AbsensiSection({ event }: { event: EventItem }) {
                   <Skeleton className="h-6 w-full" />
                 </TableCell>
               </TableRow>
-            ) : items.length === 0 ? (
+            ) : visible.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={2} className="text-center text-sm text-muted-foreground py-6">
-                  Tidak ada beswan di periode event ini
+                  {search
+                    ? "Tidak ada beswan cocok"
+                    : event.kapasitas > 0
+                      ? "Belum ada beswan yang join event ini"
+                      : "Tidak ada beswan di periode event ini"}
                 </TableCell>
               </TableRow>
             ) : (
-              items.map((b) => (
-                <TableRow key={b.id} onClick={() => toggle(b.id)} className="cursor-pointer">
+              visible.map((b) => (
+                <TableRow
+                  key={b.beswan_id}
+                  onClick={() => toggle(b.beswan_id)}
+                  className="cursor-pointer"
+                >
                   <TableCell>
                     <div className="font-medium">{b.nama_lengkap}</div>
                     <div className="text-xs text-muted-foreground font-mono">{b.nim}</div>
@@ -99,8 +180,8 @@ function AbsensiSection({ event }: { event: EventItem }) {
                   <TableCell className="text-center">
                     <input
                       type="checkbox"
-                      checked={!!checked[b.id]}
-                      onChange={() => toggle(b.id)}
+                      checked={!!checked[b.beswan_id]}
+                      onChange={() => toggle(b.beswan_id)}
                       onClick={(e) => e.stopPropagation()}
                       className="h-4 w-4 accent-primary cursor-pointer"
                     />
@@ -111,6 +192,58 @@ function AbsensiSection({ event }: { event: EventItem }) {
           </TableBody>
         </Table>
         </div>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                Menampilkan {(safePage - 1) * limit + 1}–
+                {Math.min(safePage * limit, filtered.length)} dari {filtered.length}
+              </span>
+              <Select
+                value={String(limit)}
+                onValueChange={(v: string) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                Hal {safePage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setPage(safePage - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage(safePage + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end">
           <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending || items.length === 0}>
             <Save className="h-4 w-4 mr-2" />
@@ -272,11 +405,16 @@ export function EventDetailPage() {
         <CardContent className="space-y-2 px-4 text-sm">
           {event.deskripsi && <p>{event.deskripsi}</p>}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
-            <span>
-              Peserta: {event.jumlah_peserta}
-              {event.kapasitas > 0 && ` / ${event.kapasitas}`}
-            </span>
+            {/* Info Peserta sengaja tidak ditampilkan — rancu dengan Join
+                (event berkapasitas) dan absensi; cukup Join + Absensi */}
+            {event.kapasitas > 0 && (
+              <span>
+                Join: {event.jumlah_join}/{event.kapasitas}
+              </span>
+            )}
+            <AbsensiSummary event={event} />
           </div>
+          <PeriodeInfo event={event} />
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-muted-foreground">Mentor:</span>
             {(event.mentors ?? []).length === 0 ? (
@@ -293,8 +431,8 @@ export function EventDetailPage() {
         </CardContent>
       </Card>
 
-      <AbsensiSection event={event} />
       <PascaEventSection key={`${event.youtube_url ?? ""}|${event.slide_url ?? ""}`} event={event} />
+      <AbsensiSection event={event} />
 
       <EditEventDialog event={editOpen ? event : null} onClose={() => setEditOpen(false)} />
     </div>

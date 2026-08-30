@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Construction, FileDown, Pencil } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import type { ChangeEvent, MouseEvent } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, FileDown, Pencil, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Badge,
@@ -13,6 +14,7 @@ import {
   TabsTrigger,
 } from "@gbb/ui";
 import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -28,17 +30,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { useBeswanDetail, useBeswanRefleksi } from "../hooks/useBeswan";
+import { RefleksiTable } from "@/domains/refleksi";
+import { useBeswanDetail, useBeswanPenugasan } from "../hooks/useBeswan";
 import { assetUrl } from "../services";
-import type { BeswanDetail, BeswanRapor } from "../services";
-import { BeswanAvatar, StatusBadge } from "./BeswanListPage";
+import type { BeswanDetail, BeswanPenugasanItem, BeswanRapor } from "../services";
+import { BeswanAvatar } from "./BeswanListPage";
 import { EditBeswanDialog } from "./BeswanFormDialogs";
 import { ChartIPK, ChartKehadiranNilai } from "./RaporCharts";
 
 const TABS = ["Rapor", "Absensi", "Tugas", "Refleksi"] as const;
 type Tab = (typeof TABS)[number];
 
-const BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 const formatTanggal = (iso: string) =>
   new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "2-digit" });
@@ -86,83 +88,336 @@ function RaporSummary({ rapor }: { rapor: BeswanRapor }) {
 
 function AbsensiTab({ rapor }: { rapor?: BeswanRapor | null }) {
   const absensi = rapor?.absensi ?? [];
+  // Data absensi sudah ter-load penuh dari rapor — search + pagination
+  // cukup client-side
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Ringkasan dihitung dari SELURUH daftar, bukan hasil saringan
+  const hadirCount = absensi.filter((a) => a.hadir).length;
+  const absenCount = absensi.length - hadirCount;
+
+  const filtered = search
+    ? absensi.filter((a) => a.nama_event.toLowerCase().includes(search.toLowerCase()))
+    : absensi;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const visible = filtered.slice((safePage - 1) * limit, safePage * limit);
+
   if (absensi.length === 0) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Belum ada data absensi untuk periode ini.</p>;
   }
-  return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Event</TableHead>
-            <TableHead>Tanggal</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {absensi.map((a) => (
-            <TableRow key={a.event_id}>
-              <TableCell className="font-medium">{a.nama_event}</TableCell>
-              <TableCell>{formatTanggal(a.tanggal)}</TableCell>
-              <TableCell>
-                <span className={cn("text-sm font-medium", a.hadir ? "text-primary" : "text-destructive")}>
-                  {a.hadir ? "✓ Hadir" : "✗ Absen"}
-                </span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
 
-function TugasTab() {
-  // Belum ada endpoint daftar tugas per beswan di backend
-  // (yang ada: GET /internal/penugasan/:id/hasil — per penugasan, bukan per beswan)
   return (
-    <div className="flex min-h-[30vh] items-center justify-center rounded-md border border-dashed">
-      <div className="text-center text-sm text-muted-foreground px-4">
-        <Construction className="mx-auto mb-2 size-6 opacity-50" />
-        Data belum tersedia dari backend — belum ada endpoint daftar tugas per beswan.
+    <div className="space-y-3">
+      {/* Search + ringkasan hadir/absen */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari nama event…"
+            className="w-64 pl-9"
+          />
+        </div>
+        <div className="ms-auto flex flex-wrap items-center gap-1.5 text-sm">
+          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+            Hadir {hadirCount}
+          </Badge>
+          <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
+            Absen {absenCount}
+          </Badge>
+          <span className="text-muted-foreground">dari {absensi.length} event</span>
+        </div>
+      </div>
+
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Event</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visible.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
+                  Tidak ada event cocok
+                </TableCell>
+              </TableRow>
+            ) : (
+              visible.map((a) => (
+                <TableRow key={a.event_id}>
+                  <TableCell className="font-medium">{a.nama_event}</TableCell>
+                  <TableCell>{formatTanggal(a.tanggal)}</TableCell>
+                  <TableCell>
+                    <span className={cn("text-sm font-medium", a.hadir ? "text-primary" : "text-destructive")}>
+                      {a.hadir ? "✓ Hadir" : "✗ Absen"}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                Menampilkan {(safePage - 1) * limit + 1}–
+                {Math.min(safePage * limit, filtered.length)} dari {filtered.length}
+              </span>
+              <Select
+                value={String(limit)}
+                onValueChange={(v: string) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                Hal {safePage} / {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage(safePage + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function RefleksiTab({ beswanId, active }: { beswanId: number; active: boolean }) {
-  const { data, isLoading } = useBeswanRefleksi(beswanId, active);
-  const items = data?.items ?? [];
-  if (isLoading) return <Skeleton className="h-24 w-full rounded-xl" />;
-  if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground py-8 text-center">Belum ada refleksi.</p>;
+const formatDeadline = (iso: string) =>
+  new Date(iso).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+// Badge status pengumpulan MILIK beswan ini (bukan status tugas aktif/selesai)
+function TugasHasilBadge({ p }: { p: BeswanPenugasanItem }) {
+  if (p.hasil_status === "graded") {
+    return (
+      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+        Dinilai · {p.nilai}/{p.nilai_maks}
+      </Badge>
+    );
   }
+  const terlambatBadge = (
+    <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
+      Terlambat
+    </Badge>
+  );
+  if (p.hasil_status === "submitted") {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1">
+        <Badge
+          variant="outline"
+          className="border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-400"
+        >
+          Terkumpul
+        </Badge>
+        {p.terlambat && terlambatBadge}
+      </span>
+    );
+  }
+  const lewatDeadline = new Date(p.deadline).getTime() < Date.now();
   return (
-    <div className="rounded-md border bg-card overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Bulan</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Disubmit</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">
-                {BULAN[r.bulan - 1]} {r.tahun}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={r.status} />
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {r.submitted_at ? formatTanggal(r.submitted_at) : "—"}
-              </TableCell>
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
+        Belum
+      </Badge>
+      {lewatDeadline && terlambatBadge}
+    </span>
+  );
+}
+
+function TugasTab({ beswanId, periodeId }: { beswanId: number; periodeId?: string }) {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  // Endpoint ini tidak punya param search — ambil sekali (limit 100, tugas
+  // per periode realistis kecil) lalu search + pagination client-side
+  const { data, isLoading } = useBeswanPenugasan(beswanId, {
+    limit: 100,
+    periode_id: periodeId || undefined,
+  });
+
+  const all = data?.items ?? [];
+  const filtered = search
+    ? all.filter((p) =>
+        `${p.judul} ${p.kode_penugasan}`.toLowerCase().includes(search.toLowerCase())
+      )
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const items = filtered.slice((safePage - 1) * limit, safePage * limit);
+
+  return (
+    <div className="space-y-3">
+      {/* Search judul/kode tugas */}
+      <div className="relative w-64">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Cari judul/kode tugas…"
+          className="pl-9"
+        />
+      </div>
+
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tugas</TableHead>
+              <TableHead className="w-40">Deadline</TableHead>
+              <TableHead className="w-40">Status</TableHead>
+              <TableHead className="w-24">File</TableHead>
+              <TableHead>Feedback</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={5}>
+                    <Skeleton className="h-6 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                  {search ? "Tidak ada tugas cocok" : "Tidak ada tugas untuk periode ini"}
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((p) => (
+                // Klik baris → detail penugasan internal (hasil semua beswan)
+                <TableRow
+                  key={p.id}
+                  onClick={() => navigate(`/panel/penugasan/${p.id}`)}
+                  className="cursor-pointer"
+                >
+                  <TableCell>
+                    <div className="font-medium">{p.judul}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{p.kode_penugasan}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">{formatDeadline(p.deadline)}</TableCell>
+                  <TableCell>
+                    <TugasHasilBadge p={p} />
+                  </TableCell>
+                  <TableCell>
+                    {p.file_url ? (
+                      <a
+                        href={p.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        <FileDown className="h-3.5 w-3.5" />
+                        Jawaban
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <p className="max-w-64 truncate text-sm text-muted-foreground" title={p.feedback ?? undefined}>
+                      {p.feedback || "—"}
+                    </p>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+
+        {/* Pagination */}
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <span>
+                Menampilkan {(safePage - 1) * limit + 1}–
+                {Math.min(safePage * limit, filtered.length)} dari {filtered.length}
+              </span>
+              <Select
+                value={String(limit)}
+                onValueChange={(v: string) => {
+                  setLimit(Number(v));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                Hal {safePage} / {totalPages}
+              </span>
+              <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage(safePage + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -268,7 +523,7 @@ export function BeswanDetailPage() {
         </div>
 
         {/* Pemilih periode untuk Rapor & Absensi (multi-batch) */}
-        {(tab === "Rapor" || tab === "Absensi") && detail.periodes.length > 0 && (
+        {(tab === "Rapor" || tab === "Absensi" || tab === "Tugas") && detail.periodes.length > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Periode:</span>
             <Select value={raporPeriodeId} onValueChange={(v: string) => setPeriodeId(v)}>
@@ -301,10 +556,13 @@ export function BeswanDetailPage() {
           <AbsensiTab rapor={detail.rapor} />
         </TabsContent>
         <TabsContent value="Tugas">
-          <TugasTab />
+          {/* periode mengikuti selector periode yang sama dengan Rapor/Absensi */}
+          <TugasTab beswanId={beswanId} periodeId={raporPeriodeId} />
         </TabsContent>
         <TabsContent value="Refleksi">
-          <RefleksiTab beswanId={beswanId} active={tab === "Refleksi"} />
+          {/* Tabel bersama dari domain refleksi — klik baris membuka detail
+              jawaban refleksi */}
+          <RefleksiTable beswanId={beswanId} />
         </TabsContent>
       </Tabs>
 

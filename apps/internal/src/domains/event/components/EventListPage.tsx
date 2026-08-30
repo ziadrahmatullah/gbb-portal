@@ -14,12 +14,14 @@ import {
   ChevronsUpDown,
   Eye,
   FileText,
+  LayoutGrid,
+  List,
   Mic,
   Plus,
   Search,
   Youtube,
 } from "lucide-react";
-import { Badge, Skeleton } from "@gbb/ui";
+import { Badge, Card, CardContent, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { StatCard } from "@/shared/components/StatCard";
@@ -197,6 +199,71 @@ export function MediaLinks({ event }: { event: EventItem }) {
   );
 }
 
+// Kartu untuk tampilan grid — memuat kontrol yang sama dengan baris tabel
+// (status dropdown/badge, media, ikon mata ke detail)
+function EventGridCard({
+  event: ev,
+  canSetStatus,
+  statusPending,
+  onStatusChange,
+}: {
+  event: EventItem;
+  canSetStatus: boolean;
+  statusPending: boolean;
+  onStatusChange: (status: EventStatus) => void;
+}) {
+  return (
+    <Card className="h-full gap-2 py-4">
+      <CardContent className="flex flex-1 flex-col gap-2 px-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-medium truncate" title={ev.nama_event}>
+              {ev.nama_event}
+            </div>
+            <div className="font-mono text-xs text-muted-foreground">{ev.kode_event}</div>
+          </div>
+          <Link
+            to={`/panel/event/${ev.id}`}
+            title="Lihat detail"
+            className="shrink-0 p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {formatEventDate(ev.tanggal)} ·{" "}
+          <span className="capitalize">
+            {ev.tipe} · {ev.format}
+          </span>
+          {ev.kapasitas > 0 && ` · Join ${ev.jumlah_join}/${ev.kapasitas}`}
+        </div>
+        <div className="text-sm text-muted-foreground truncate">
+          {(ev.mentors ?? []).length === 0 ? (
+            "Belum ada mentor"
+          ) : (
+            <span title={ev.mentors.map((m) => `${m.nama} (${m.peran})`).join(", ")}>
+              {ev.mentors[0].nama}
+              {ev.mentors.length > 1 && ` +${ev.mentors.length - 1}`}
+            </span>
+          )}
+        </div>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+          {canSetStatus ? (
+            <EventStatusDropdown
+              status={ev.status}
+              disabled={statusPending}
+              onChange={onStatusChange}
+            />
+          ) : (
+            <EventStatusBadge status={ev.status} />
+          )}
+          <MediaLinks event={ev} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function EventListPage() {
   const [search, setSearch] = useState("");
   const [tipe, setTipe] = useState(ALL);
@@ -206,6 +273,8 @@ export function EventListPage() {
   // null = sort tanggal nonaktif (jangan kirim sort_by/order — backend memakai
   // default urut terbaru-dibuat)
   const [sortTanggal, setSortTanggal] = useState<"asc" | "desc" | null>(null);
+  // Tampilan list (tabel) atau grid (kartu) — ala Google Drive
+  const [view, setView] = useState<"list" | "grid">("list");
   const [wizardOpen, setWizardOpen] = useState(false);
   // Daftar event tanpa rekaman default terlipat — jumlahnya bisa banyak
   const [belumRekamanOpen, setBelumRekamanOpen] = useState(false);
@@ -348,9 +417,78 @@ export function EventListPage() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+        {/* Mode grid tidak punya header tabel — kontrol sort tanggal pindah ke sini */}
+        {view === "grid" && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleSortTanggal}
+            className={cn(!sortTanggal && "text-muted-foreground")}
+          >
+            Tanggal
+            {sortTanggal === "asc" ? (
+              <ArrowUp className="size-3.5" />
+            ) : sortTanggal === "desc" ? (
+              <ArrowDown className="size-3.5" />
+            ) : (
+              <ChevronsUpDown className="size-3.5 opacity-60" />
+            )}
+          </Button>
+        )}
+        {/* Toggle tampilan list / grid — ala Google Drive */}
+        <div className="ms-auto flex items-center rounded-md border p-0.5">
+          <button
+            title="Tampilan list"
+            onClick={() => setView("list")}
+            className={cn(
+              "p-1.5 rounded-sm transition-colors",
+              view === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <List className="h-4 w-4" />
+          </button>
+          <button
+            title="Tampilan grid"
+            onClick={() => setView("grid")}
+            className={cn(
+              "p-1.5 rounded-sm transition-colors",
+              view === "grid" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Tabel */}
+      {/* Grid (kartu) */}
+      {view === "grid" &&
+        (isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-44 rounded-xl" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+            <Calendar className="size-10 text-muted-foreground/60" />
+            <p className="text-sm text-muted-foreground">Tidak ada event ditemukan</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {items.map((ev) => (
+              <EventGridCard
+                key={ev.id}
+                event={ev}
+                canSetStatus={canSetStatus}
+                statusPending={statusMutation.isPending}
+                onStatusChange={(status) => statusMutation.mutate({ id: ev.id, status })}
+              />
+            ))}
+          </div>
+        ))}
+
+      {/* Tabel (list) */}
+      {view === "list" && (
       <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
@@ -405,6 +543,13 @@ export function EventListPage() {
                     <div className="font-medium">{ev.nama_event}</div>
                     <div className="text-xs text-muted-foreground capitalize">
                       {ev.tipe} · {ev.format}
+                      {/* Event berkapasitas = beswan harus join (kuota siapa cepat) */}
+                      {ev.kapasitas > 0 && (
+                        <span className="normal-case">
+                          {" "}
+                          · Join {ev.jumlah_join}/{ev.kapasitas}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{formatEventDate(ev.tanggal)}</TableCell>
@@ -452,6 +597,7 @@ export function EventListPage() {
           </TableBody>
         </Table>
       </div>
+      )}
 
       {/* Pagination */}
       {totalItems > 0 && (
