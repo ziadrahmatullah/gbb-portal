@@ -9,6 +9,7 @@ import {
   ClipboardList,
   NotebookPen,
   Wallet,
+  HandCoins,
   FileText,
   Settings,
 } from "lucide-react";
@@ -52,15 +53,27 @@ export const NAV_ITEMS: NavItem[] = [
         path: "/panel/keuangan/overview",
         roles: ["admin", "finance", "anc", "viewer"],
       },
-      // Donatur & Monitoring §10/§11: admin+anc+finance+viewer; pcm tidak akses
+    ],
+  },
+  // Dipisah dari grup Keuangan (menyimpang dari urutan wireframes-internal.md)
+  // atas permintaan tim: Donatur berdiri sebagai menu sendiri. Kebijakan role
+  // §10/§11 tidak berubah — admin+anc+finance+viewer, pcm tidak akses.
+  //
+  // Path adik-beradik sengaja tidak saling jadi prefix (mis. /panel/donatur +
+  // /panel/donatur/monitoring), karena isItemActive() di sidebar memakai
+  // startsWith — induknya akan ikut menyala saat anaknya dibuka.
+  {
+    label: "Donatur",
+    icon: HandCoins,
+    children: [
       {
         label: "Db Donatur",
-        path: "/panel/keuangan/donatur",
+        path: "/panel/donatur/database",
         roles: ["admin", "anc", "finance", "viewer"],
       },
       {
         label: "Monitoring",
-        path: "/panel/keuangan/monitoring",
+        path: "/panel/donatur/monitoring",
         roles: ["admin", "anc", "finance", "viewer"],
       },
     ],
@@ -91,7 +104,7 @@ export interface Crumb {
 }
 
 // Longest-prefix match atas NAV_ITEMS + SETTINGS_NAV.
-// Grup tanpa path (Keuangan) ikut sebagai crumb non-link.
+// Grup tanpa path (Keuangan, Donatur) ikut sebagai crumb non-link.
 export function findBreadcrumb(pathname: string): Crumb[] {
   const matches: { crumbs: Crumb[]; len: number }[] = [];
 

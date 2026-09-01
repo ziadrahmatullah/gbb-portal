@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Home, Globe } from "lucide-react";
-import { Badge, SearchableSelect, Skeleton } from "@gbb/ui";
+import { Badge, FileDropzone, SearchableSelect, Skeleton } from "@gbb/ui";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -195,7 +195,7 @@ export function MentorFormDialog({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="m-cv">CV (opsional, PDF)</Label>
-              <Input id="m-cv" type="file" accept="application/pdf" onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0] ?? null)} disabled={saving} />
+              <FileDropzone id="m-cv" accept="application/pdf" value={cv} onChange={(f: File | null) => setCv(f)} disabled={saving} />
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Switch

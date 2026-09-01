@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import {
   AlertTriangle,
@@ -6,14 +6,20 @@ import {
   ChevronLeft,
   ChevronRight,
   KeyRound,
+  Loader2,
   Pencil,
   Plus,
   Search,
+  Square,
+  SquareCheck,
+  SquareX,
   Tag as TagIcon,
   Users,
 } from "lucide-react";
 import { Badge, Skeleton } from "@gbb/ui";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
+import { useColumnWindow } from "@/shared/hooks/useColumnWindow";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { StatCard } from "@/shared/components/StatCard";
@@ -34,12 +40,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { useCreateDonatur, useDonaturList, useDonaturStats } from "../hooks/useDonatur";
+import {
+  useAssignPeriode,
+  useCreateDonatur,
+  useDonaturList,
+  useDonaturStats,
+  useRemovePeriode,
+} from "../hooks/useDonatur";
 import { SKEMA_OPTIONS, skemaLabel, tagMeta } from "../services";
 import type { Donatur } from "../services";
 import { CreateDonaturDialog, EditDonaturDialog, ResetPasswordDialog, TagDialog } from "./DonaturDialogs";
 
 const ALL = "all";
+// Kolom periode tumbuh terus tiap semester — tampilkan sepotong saja lalu
+// geser dengan panah, supaya kolom identitas (nama/kode/skema) dan aksi tidak
+// terdorong keluar layar. Panah baru muncul kalau periodenya memang lebih
+// banyak dari window ini, jadi jangan set sebesar jumlah periode saat ini.
+const PERIODE_WINDOW = 4;
 
 function DonaturNameCell({ donatur }: { donatur: Donatur }) {
   const tags = donatur.tags ?? [];
@@ -61,13 +78,69 @@ function DonaturNameCell({ donatur }: { donatur: Donatur }) {
   );
 }
 
+// Sel matriks: sekali klik memutar status keikutsertaan.
+//   belum diassign → aktif → tidak aktif → belum diassign
+// "aktif"/"tidak aktif" adalah upsert baris donatur_periode (POST), sedangkan
+// kembali ke "belum diassign" menghapus barisnya (DELETE) — dua endpoint beda
+// yang memang sudah disediakan backend.
+function PeriodeCell({
+  status,
+  editable,
+  busy,
+  onClick,
+}: {
+  status?: string;
+  editable: boolean;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  const view =
+    status === "aktif"
+      ? { Icon: SquareCheck, cls: "text-primary", label: "Aktif", next: "set Tidak Aktif" }
+      : status === "tidak_aktif"
+        ? { Icon: SquareX, cls: "text-destructive", label: "Tidak aktif", next: "hapus assignment" }
+        : { Icon: Square, cls: "text-muted-foreground/40", label: "Belum diassign", next: "set Aktif" };
+  const Icon = busy ? Loader2 : view.Icon;
+
+  if (!editable) {
+    return (
+      <span title={view.label} className={cn("inline-flex", view.cls)}>
+        <Icon className="h-4 w-4" />
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      title={`${view.label} — klik untuk ${view.next}`}
+      aria-label={`${view.label}. Klik untuk ${view.next}`}
+      className={cn(
+        "inline-flex rounded p-1 transition-colors hover:bg-accent disabled:cursor-wait",
+        busy ? "text-muted-foreground" : view.cls
+      )}
+    >
+      <Icon className={cn("h-4 w-4", busy && "animate-spin")} />
+    </button>
+  );
+}
+
 export function DonaturListPage() {
   const role = useAuthStore((s) => s.role);
   const canMutate = role === "admin" || role === "anc";
 
   const globalPeriode = usePeriodeFilter((s) => s.periodeId) ?? undefined;
   const { data: periodeData } = usePeriodeOptions();
-  const periodeColumns = periodeData?.items ?? [];
+  // Urutkan sendiri secara kronologis — daftar dari backend tidak dijamin urut,
+  // dan window default menempel ke periode terbaru (paling sering dipakai)
+  const periodeColumns = useMemo(
+    () =>
+      [...(periodeData?.items ?? [])].sort((a, b) => a.start_date.localeCompare(b.start_date)),
+    [periodeData]
+  );
+  const win = useColumnWindow(periodeColumns.length, PERIODE_WINDOW);
+  const visiblePeriodes = win.slice(periodeColumns);
 
   const [search, setSearch] = useState("");
   const [skema, setSkema] = useState(ALL);
@@ -89,6 +162,10 @@ export function DonaturListPage() {
     search: search || undefined,
   });
   const createMutation = useCreateDonatur();
+  const assignMutation = useAssignPeriode();
+  const removeMutation = useRemovePeriode();
+  // Satu sel yang sedang diproses — dipakai untuk spinner per-sel
+  const [busyCell, setBusyCell] = useState<string | null>(null);
 
   const raw = data?.items ?? [];
   // Filter belum-klasifikasi (skema belum_bersedia) & belum-set-password di FE
@@ -102,6 +179,42 @@ export function DonaturListPage() {
 
   const periodeStatus = (d: Donatur, periodeId: number) =>
     (d.periodes ?? []).find((p) => p.periode_id === periodeId)?.status;
+
+  // Nama + Kode + Skema + Akun, plus kolom periode, panah, dan Aksi
+  const colCount =
+    4 + visiblePeriodes.length + (win.showArrows ? 2 : 0) + (canMutate ? 1 : 0);
+
+  const cyclePeriode = (d: Donatur, periodeId: number) => {
+    const st = periodeStatus(d, periodeId);
+    const key = `${d.id}-${periodeId}`;
+    setBusyCell(key);
+    const settled = { onSettled: () => setBusyCell(null) };
+    if (!st) {
+      // Assign pertama kali: bawa skema & nominal default donatur sebagai
+      // nilai awal periode ini
+      assignMutation.mutate(
+        {
+          id: d.id,
+          body: {
+            periode_id: periodeId,
+            status: "aktif",
+            skema: d.skema || undefined,
+            nominal: d.nominal_default ?? undefined,
+          },
+        },
+        settled
+      );
+    } else if (st === "aktif") {
+      // Nominal/skema sengaja tidak dikirim — backend mempertahankan nilai
+      // yang sudah ada kalau field-nya absen
+      assignMutation.mutate(
+        { id: d.id, body: { periode_id: periodeId, status: "tidak_aktif" } },
+        settled
+      );
+    } else {
+      removeMutation.mutate({ id: d.id, periodeId }, settled);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -181,6 +294,12 @@ export function DonaturListPage() {
       </div>
 
       {/* Tabel dengan matriks periode */}
+      {win.showArrows && (
+        <div className="flex justify-end text-xs text-muted-foreground">
+          Periode {win.offset + 1}–{win.offset + visiblePeriodes.length} dari{" "}
+          {periodeColumns.length} — geser dengan panah di kepala tabel
+        </div>
+      )}
       <div className="overflow-x-auto rounded-md border bg-card">
         <Table>
           <TableHeader>
@@ -188,11 +307,39 @@ export function DonaturListPage() {
               <TableHead>Nama</TableHead>
               <TableHead className="w-28">Kode</TableHead>
               <TableHead className="w-40">Skema</TableHead>
-              {periodeColumns.map((p) => (
+              {win.showArrows && (
+                <TableHead className="w-8 px-0 text-center">
+                  <button
+                    type="button"
+                    onClick={win.prev}
+                    disabled={!win.canPrev}
+                    title="Periode sebelumnya"
+                    aria-label="Geser ke periode sebelumnya"
+                    className="rounded p-1 transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </TableHead>
+              )}
+              {visiblePeriodes.map((p) => (
                 <TableHead key={p.id} className="w-16 text-center" title={p.nama}>
                   {p.nama.replace(/^GBB\s*/, "").slice(0, 8)}
                 </TableHead>
               ))}
+              {win.showArrows && (
+                <TableHead className="w-8 px-0 text-center">
+                  <button
+                    type="button"
+                    onClick={win.next}
+                    disabled={!win.canNext}
+                    title="Periode berikutnya"
+                    aria-label="Geser ke periode berikutnya"
+                    className="rounded p-1 transition-colors hover:bg-accent disabled:opacity-30 disabled:hover:bg-transparent"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </TableHead>
+              )}
               <TableHead className="w-28">Akun</TableHead>
               {canMutate && <TableHead className="w-20 text-right">Aksi</TableHead>}
             </TableRow>
@@ -201,14 +348,14 @@ export function DonaturListPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={5 + periodeColumns.length + (canMutate ? 1 : 0)}>
+                  <TableCell colSpan={colCount}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5 + periodeColumns.length + (canMutate ? 1 : 0)} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={colCount} className="text-center text-sm text-muted-foreground py-8">
                   Tidak ada donatur ditemukan
                 </TableCell>
               </TableRow>
@@ -231,20 +378,18 @@ export function DonaturListPage() {
                       skemaLabel(d.skema)
                     )}
                   </TableCell>
-                  {periodeColumns.map((p) => {
-                    const st = periodeStatus(d, p.id);
-                    return (
-                      <TableCell key={p.id} className="text-center">
-                        {st === "aktif" ? (
-                          <span className="text-primary" title="Aktif">☑</span>
-                        ) : st === "tidak_aktif" ? (
-                          <span className="text-muted-foreground" title="Tidak aktif">☒</span>
-                        ) : (
-                          <span className="text-muted-foreground/40" title="Belum diassign">☐</span>
-                        )}
-                      </TableCell>
-                    );
-                  })}
+                  {win.showArrows && <TableCell className="px-0" />}
+                  {visiblePeriodes.map((p) => (
+                    <TableCell key={p.id} className="text-center">
+                      <PeriodeCell
+                        status={periodeStatus(d, p.id)}
+                        editable={canMutate}
+                        busy={busyCell === `${d.id}-${p.id}`}
+                        onClick={() => cyclePeriode(d, p.id)}
+                      />
+                    </TableCell>
+                  ))}
+                  {win.showArrows && <TableCell className="px-0" />}
                   <TableCell>
                     {canMutate ? (
                       <Button variant="outline" size="sm" className="h-7" onClick={() => setResettingPassword(d)}>

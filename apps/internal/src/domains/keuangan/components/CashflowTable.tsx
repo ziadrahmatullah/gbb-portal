@@ -14,13 +14,6 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,12 +22,17 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { useUpdateCashflow } from "../hooks/useKeuangan";
-import type { Cashflow, CashflowKategori } from "../services";
+import { DONATUR_ANON, DONATUR_NONE, DonaturCombobox } from "./DonaturCombobox";
+import type { Cashflow, CashflowDraft, CashflowKategori, UpdateCashflowReq } from "../services";
 import type { DonaturOption } from "@/domains/donatur/services";
 import { formatNominal } from "../utils";
 
-const NONE = "none";
-const ANON = "anon";
+// Tabel dipakai dua mode: baris tersimpan (punya id, edit langsung PUT) dan
+// baris draft hasil preview upload (punya row_key, edit hanya di state lokal
+// sampai user klik Simpan). `"id" in row` jadi diskriminan union-nya.
+export type CashflowRow = Cashflow | CashflowDraft;
+
+const rowKeyOf = (row: CashflowRow) => ("id" in row ? `id-${row.id}` : row.row_key);
 
 export function StatusKlasifikasiBadge({ status }: { status: string }) {
   return (
@@ -51,21 +49,25 @@ export function StatusKlasifikasiBadge({ status }: { status: string }) {
   );
 }
 
-// Sel klasifikasi inline — setiap perubahan langsung PUT (auto-save, backend
-// menghitung ulang status). Auto-match dari upload ditandai badge ✓auto;
-// badge hilang begitu diedit manual (backend me-reset match_source).
+// Sel klasifikasi inline. Mode tersimpan: setiap perubahan langsung PUT
+// (auto-save, backend menghitung ulang status). Mode draft (`onDraftChange`
+// terisi): perubahan hanya diteruskan ke state pemanggil, tidak ada request.
+// Auto-match dari upload ditandai badge ✓auto; badge hilang begitu diedit
+// manual (backend — dan applyKlasifikasiPatch — me-reset match_source).
 function KlasifikasiCell({
   row,
   kategoris,
   donaturs,
   editable,
   onRowUpdated,
+  onDraftChange,
 }: {
-  row: Cashflow;
+  row: CashflowRow;
   kategoris: CashflowKategori[];
   donaturs: DonaturOption[];
   editable: boolean;
   onRowUpdated?: (row: Cashflow) => void;
+  onDraftChange?: (row: CashflowRow, patch: UpdateCashflowReq) => void;
 }) {
   const updateMutation = useUpdateCashflow();
 
@@ -75,104 +77,74 @@ function KlasifikasiCell({
   const parentId = stored?.parent_id ?? row.kategori_id ?? null;
   const subId = stored?.parent_id ? stored.id : row.sub_kategori_id ?? null;
 
-  const parents = kategoris.filter(
-    (k) => !k.parent_id && k.aktif && (k.tipe === row.tipe || k.tipe === "both")
-  );
-  const subs = kategoris.filter((k) => k.parent_id === parentId && k.aktif);
+  // Kategori mengikuti hasil pembacaan file (auto-match) dan tidak bisa diubah
+  // dari tabel — nama diambil dari master kategori supaya tetap akurat meski
+  // kategori_nama di baris menunjuk sub.
+  const parentNama = (parentId ? byId.get(parentId)?.nama : undefined) ?? row.kategori_nama ?? "";
+  const subNama = (subId ? byId.get(subId)?.nama : undefined) ?? row.sub_kategori_nama ?? "";
 
-  const save = (body: Parameters<typeof updateMutation.mutate>[0]["body"]) =>
+  const save = (body: UpdateCashflowReq) => {
+    if (onDraftChange || !("id" in row)) {
+      onDraftChange?.(row, body);
+      return;
+    }
     updateMutation.mutate(
       { id: row.id, body },
       { onSuccess: (updated) => updated && onRowUpdated?.(updated) }
     );
+  };
+
+  const busy = updateMutation.isPending && !onDraftChange;
+
+  const kategoriTeks = (
+    <div className="min-w-0">
+      <div className="truncate text-sm">{parentNama || "—"}</div>
+      {subNama && <div className="truncate text-xs text-muted-foreground">{subNama}</div>}
+    </div>
+  );
 
   if (!editable) {
     return (
       <div className="text-sm">
         {row.tipe === "cash_in" ? (
-          <span>{row.is_anonymous ? "Anonymous" : row.donatur_nama || "—"}</span>
+          <span>{row.is_anonymous ? "Anonim" : row.donatur_nama || "—"}</span>
         ) : null}
         <div className="text-xs text-muted-foreground">
-          {row.kategori_nama || "—"}
-          {row.sub_kategori_nama ? ` › ${row.sub_kategori_nama}` : ""}
+          {parentNama || "—"}
+          {subNama ? ` › ${subNama}` : ""}
         </div>
       </div>
     );
   }
 
-  const donaturValue = row.is_anonymous ? ANON : row.donatur_id ? String(row.donatur_id) : "";
+  const donaturValue = row.is_anonymous
+    ? DONATUR_ANON
+    : row.donatur_id
+      ? String(row.donatur_id)
+      : "";
 
   return (
     // Sejajar satu baris (bukan ditumpuk) agar tinggi row tabel tetap ramping
-    <div className="flex items-center gap-1.5">
-      {/* Kategori (wajib untuk semua tipe agar status inputted) */}
-      <Select
-        value={parentId ? String(parentId) : ""}
-        onValueChange={(v: string) => save({ kategori_id: Number(v) })}
-        disabled={updateMutation.isPending}
-      >
-        <SelectTrigger className="h-8 w-36 text-xs">
-          <SelectValue placeholder="Kategori…" />
-        </SelectTrigger>
-        <SelectContent>
-          {parents.map((k) => (
-            <SelectItem key={k.id} value={String(k.id)}>
-              {k.nama}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {row.tipe === "cash_in" ? (
-        <Select
+    <div className="flex items-center gap-2">
+      {/* Kategori: read-only, murni hasil bacaan file */}
+      <div className="w-32 shrink-0">{kategoriTeks}</div>
+      {row.tipe === "cash_in" && (
+        <DonaturCombobox
+          className="min-w-0 flex-1"
           value={donaturValue}
-          onValueChange={(v: string) =>
-            v === NONE
+          donaturs={donaturs}
+          disabled={busy}
+          // Cash In wajib punya donatur atau ditandai anonim agar status inputted
+          invalid={!row.donatur_id && !row.is_anonymous}
+          onChange={(v: string) =>
+            v === DONATUR_NONE
               ? // clear_donatur = kosongkan relasi donatur (nil = tidak diubah)
                 save({ clear_donatur: true, is_anonymous: false })
-              : v === ANON
+              : v === DONATUR_ANON
                 ? save({ is_anonymous: true })
                 : save({ donatur_id: Number(v), is_anonymous: false })
           }
-          disabled={updateMutation.isPending}
-        >
-          <SelectTrigger className="h-8 w-40 text-xs">
-            <SelectValue placeholder="Nama donatur…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>— (tanpa donatur)</SelectItem>
-            <SelectItem value={ANON}>Anonymous</SelectItem>
-            {donaturs.map((d) => (
-              <SelectItem key={d.id} value={String(d.id)}>
-                {d.nama}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        subs.length > 0 && (
-          <Select
-            value={subId ? String(subId) : ""}
-            onValueChange={(v: string) =>
-              v === NONE
-                ? // clear_sub_kategori = kosongkan sub (kategori induk tetap)
-                  parentId && save({ kategori_id: parentId, clear_sub_kategori: true })
-                : parentId && save({ kategori_id: parentId, sub_kategori_id: Number(v) })
-            }
-            disabled={updateMutation.isPending || !parentId}
-          >
-            <SelectTrigger className="h-8 w-40 text-xs">
-              <SelectValue placeholder="Sub…" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>— (tanpa sub)</SelectItem>
-              {subs.map((k) => (
-                <SelectItem key={k.id} value={String(k.id)}>
-                  {k.nama}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )
+        />
       )}
       {row.match_source === "auto" && (
         <span className="shrink-0 whitespace-nowrap text-xs text-primary">✓ auto</span>
@@ -185,10 +157,12 @@ function CatatanDialog({
   row,
   onClose,
   onRowUpdated,
+  onDraftChange,
 }: {
-  row: Cashflow;
+  row: CashflowRow;
   onClose: () => void;
   onRowUpdated?: (row: Cashflow) => void;
+  onDraftChange?: (row: CashflowRow, patch: UpdateCashflowReq) => void;
 }) {
   const updateMutation = useUpdateCashflow();
   const [catatan, setCatatan] = useState(row.catatan ?? "");
@@ -212,7 +186,12 @@ function CatatanDialog({
             Batal
           </Button>
           <Button
-            onClick={() =>
+            onClick={() => {
+              if (onDraftChange || !("id" in row)) {
+                onDraftChange?.(row, { catatan });
+                onClose();
+                return;
+              }
               updateMutation.mutate(
                 { id: row.id, body: { catatan } },
                 {
@@ -221,8 +200,8 @@ function CatatanDialog({
                     onClose();
                   },
                 }
-              )
-            }
+              );
+            }}
             disabled={updateMutation.isPending}
           >
             {updateMutation.isPending ? "Menyimpan…" : "Simpan"}
@@ -240,20 +219,27 @@ export function CashflowTable({
   editable,
   loading,
   onRowUpdated,
+  onDraftChange,
   onDelete,
   hiddenIds,
+  invalidRowKeys,
 }: {
-  rows: Cashflow[];
+  rows: CashflowRow[];
   kategoris: CashflowKategori[];
   donaturs: DonaturOption[];
   editable: boolean;
   loading?: boolean;
   onRowUpdated?: (row: Cashflow) => void;
-  onDelete?: (row: Cashflow) => void;
+  onDraftChange?: (row: CashflowRow, patch: UpdateCashflowReq) => void;
+  onDelete?: (row: CashflowRow) => void;
   hiddenIds?: Set<number>;
+  // row_key baris yang ditolak backend saat commit — disorot merah
+  invalidRowKeys?: Set<string>;
 }) {
-  const [noteRow, setNoteRow] = useState<Cashflow | null>(null);
-  const visible = hiddenIds ? rows.filter((r) => !hiddenIds.has(r.id)) : rows;
+  const [noteRow, setNoteRow] = useState<CashflowRow | null>(null);
+  const visible = hiddenIds
+    ? rows.filter((r) => !("id" in r) || !hiddenIds.has(r.id))
+    : rows;
   const colSpan = editable ? 11 : 10;
 
   return (
@@ -290,9 +276,18 @@ export function CashflowTable({
               </TableCell>
             </TableRow>
           ) : (
-            visible.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-mono text-xs">{row.id}</TableCell>
+            visible.map((row, i) => (
+              <TableRow
+                key={rowKeyOf(row)}
+                className={cn(
+                  !("id" in row) &&
+                    invalidRowKeys?.has(row.row_key) &&
+                    "bg-destructive/5 hover:bg-destructive/10"
+                )}
+              >
+                <TableCell className="font-mono text-xs">
+                  {"id" in row ? row.id : i + 1}
+                </TableCell>
                 <TableCell className="text-sm">{row.sheet}</TableCell>
                 <TableCell className="text-sm whitespace-nowrap">{row.tanggal}</TableCell>
                 <TableCell className="font-mono text-xs">{row.bulan}</TableCell>
@@ -327,6 +322,7 @@ export function CashflowTable({
                     donaturs={donaturs}
                     editable={editable}
                     onRowUpdated={onRowUpdated}
+                    onDraftChange={onDraftChange}
                   />
                 </TableCell>
                 <TableCell>
@@ -360,7 +356,12 @@ export function CashflowTable({
         </TableBody>
       </Table>
       {noteRow && (
-        <CatatanDialog row={noteRow} onClose={() => setNoteRow(null)} onRowUpdated={onRowUpdated} />
+        <CatatanDialog
+          row={noteRow}
+          onClose={() => setNoteRow(null)}
+          onRowUpdated={onRowUpdated}
+          onDraftChange={onDraftChange}
+        />
       )}
     </div>
   );

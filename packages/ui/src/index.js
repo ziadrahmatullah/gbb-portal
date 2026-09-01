@@ -10,6 +10,7 @@ export * from "./components/collapsible.jsx";
 export * from "./components/date-input.jsx";
 export * from "./components/dialog.jsx";
 export * from "./components/dropdown-menu.jsx";
+export * from "./components/file-dropzone.jsx";
 export * from "./components/ImageUpload.jsx";
 export * from "./components/input.jsx";
 export * from "./components/label.jsx";

@@ -18,6 +18,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FileDropzone,
   Input,
   Label,
   Select,
@@ -137,11 +138,11 @@ function IPKDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="ipk-transkrip">Transkrip (PDF)</Label>
-            <Input
+            <FileDropzone
               id="ipk-transkrip"
-              type="file"
               accept="application/pdf"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setTranskrip(e.target.files?.[0])}
+              value={transkrip}
+              onChange={(f: File | null) => setTranskrip(f ?? undefined)}
             />
             {existing?.transkip_url && !transkrip && (
               <p className="text-xs text-muted-foreground">
@@ -256,20 +257,20 @@ export function ProfilePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="pf-foto">Foto Profil</Label>
-                <Input
+                <FileDropzone
                   id="pf-foto"
-                  type="file"
                   accept="image/jpeg,image/png"
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setFoto(e.target.files?.[0])}
+                  value={foto}
+                  onChange={(f: File | null) => setFoto(f ?? undefined)}
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="pf-cv">CV (PDF)</Label>
-                <Input
+                <FileDropzone
                   id="pf-cv"
-                  type="file"
                   accept="application/pdf"
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
+                  value={cv}
+                  onChange={(f: File | null) => setCv(f ?? undefined)}
                 />
                 {profile?.cv_url && (
                   <a

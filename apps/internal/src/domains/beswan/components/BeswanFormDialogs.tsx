@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { FileDropzone } from "@gbb/ui";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -199,11 +200,11 @@ export function EditBeswanDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="be-foto">Foto (opsional, gambar)</Label>
-            <Input id="be-foto" type="file" accept="image/*" onChange={(e: ChangeEvent<HTMLInputElement>) => setFoto(e.target.files?.[0] ?? null)} disabled={updateMutation.isPending} />
+            <FileDropzone id="be-foto" accept="image/*" value={foto} onChange={(f: File | null) => setFoto(f)} disabled={updateMutation.isPending} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="be-cv">CV (opsional, PDF)</Label>
-            <Input id="be-cv" type="file" accept="application/pdf" onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0] ?? null)} disabled={updateMutation.isPending} />
+            <FileDropzone id="be-cv" accept="application/pdf" value={cv} onChange={(f: File | null) => setCv(f)} disabled={updateMutation.isPending} />
           </div>
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={updateMutation.isPending}>

@@ -89,6 +89,21 @@ declare module "@gbb/ui" {
 
   export function useIsMobile(): boolean;
 
+  export interface FileDropzoneProps {
+    id?: string;
+    value?: File | File[] | null;
+    onChange: ((file: File | null) => void) | ((files: File[]) => void);
+    accept?: string;
+    multiple?: boolean;
+    disabled?: boolean;
+    maxSizeMb?: number;
+    hint?: string;
+    onReject?: (message: string) => void;
+    className?: string;
+    zoneClassName?: string;
+  }
+  export const FileDropzone: ComponentType<FileDropzoneProps>;
+
   export const Alert: UIComponent2;
   export const AlertTitle: UIComponent2;
   export const AlertDescription: UIComponent2;

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  commitCashflow,
   createKategori,
   deleteCashflow,
   getCashflowList,
@@ -8,10 +9,10 @@ import {
   getOverview,
   getOverviewBreakdown,
   updateCashflow,
+  previewCashflow,
   updateKategori,
-  uploadCashflow,
 } from "../services";
-import type { UpdateCashflowReq } from "../services";
+import type { CommitCashflowRow, UpdateCashflowReq } from "../services";
 import { getDonaturList } from "@/domains/donatur/services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
@@ -26,17 +27,36 @@ export function useCashflowList(params: ListParams = {}) {
   });
 }
 
-export function useUploadCashflow() {
-  const queryClient = useQueryClient();
+// Dry-run — tidak menyentuh DB, jadi tidak ada query yang perlu di-invalidate
+export function usePreviewCashflow() {
   return useMutation({
-    mutationFn: (file: File) => uploadCashflow(file),
+    mutationFn: ({ file, sumber }: { file: File; sumber: string }) =>
+      previewCashflow(file, sumber),
     onSuccess: (data) => {
       const s = data?.summary;
       toast.success(
         s
-          ? `Upload selesai: ${s.inserted_count} baris tersimpan, ${s.duplicate_count} duplikat dilewati`
-          : "Upload selesai"
+          ? `${s.new_count} baris siap diklasifikasi, ${s.duplicate_count} duplikat dilewati`
+          : "File berhasil dibaca"
       );
+    },
+  });
+}
+
+// Commit — titik satu-satunya di mana baris mutasi benar-benar masuk DB.
+// inserted_count < requested BUKAN kegagalan: selisihnya baris duplikat yang
+// dilewati backend, jadi dilaporkan sebagai info di deskripsi toast sukses.
+export function useCommitCashflow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: CommitCashflowRow[]) => commitCashflow(rows),
+    onSuccess: (data) => {
+      const s = data?.summary;
+      toast.success(s ? `${s.inserted_count} baris tersimpan` : "Data tersimpan", {
+        description: s?.skipped_count
+          ? `${s.skipped_count} baris dilewati karena sudah ada di database.`
+          : undefined,
+      });
       queryClient.invalidateQueries({ queryKey: [KEUANGAN_KEY] });
     },
   });

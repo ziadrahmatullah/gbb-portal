@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { FileDropzone } from "@gbb/ui";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -109,12 +110,11 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="l-file">File (wajib — PDF/DOCX/PPTX/XLS)</Label>
-            <Input
+            <FileDropzone
               id="l-file"
-              type="file"
               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
-              required
+              value={file}
+              onChange={(f: File | null) => setFile(f)}
               disabled={saving}
             />
           </div>

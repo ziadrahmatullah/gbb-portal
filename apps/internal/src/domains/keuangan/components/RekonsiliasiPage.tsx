@@ -18,7 +18,7 @@ import {
   useDonaturOptions,
   useKategoriList,
 } from "../hooks/useKeuangan";
-import type { Cashflow } from "../services";
+import type { CashflowRow } from "./CashflowTable";
 import { CashflowTable } from "./CashflowTable";
 import { UploadWizard } from "./UploadWizard";
 import { KategoriManagerDialog } from "./KategoriManager";
@@ -70,7 +70,8 @@ export function RekonsiliasiPage() {
       return next;
     });
 
-  const handleDelete = (row: Cashflow) => {
+  const handleDelete = (row: CashflowRow) => {
+    if (!("id" in row)) return; // halaman ini hanya menampilkan baris tersimpan
     setHiddenIds((prev) => new Set(prev).add(row.id));
     const timer = setTimeout(() => {
       pendingTimers.current.delete(row.id);

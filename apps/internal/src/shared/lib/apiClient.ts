@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosError, AxiosInstance, AxiosResponse } from "axios";
 import { toast } from "sonner";
-import { getErrorMessage } from "./apiTypes";
+import { ApiError, getErrorMessage } from "./apiTypes";
 import type { ApiEnvelope } from "./apiTypes";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6099";
@@ -51,19 +51,20 @@ axiosInstance.interceptors.response.use(
         redirectingToLogin = true;
         window.location.href = "/";
       }
-      return Promise.reject(new Error("Sesi berakhir. Silakan login kembali."));
+      return Promise.reject(new ApiError("Sesi berakhir. Silakan login kembali.", status));
     }
 
     if (!isAuthRequest && status === 403) {
       // Role tidak punya akses ke endpoint ini — event normal, user tetap login
       toast.error("Tidak memiliki akses");
-      return Promise.reject(new Error(msg));
+      return Promise.reject(new ApiError(msg, status, data?.data));
     }
 
     if (!isAuthRequest) {
       toast.error(msg);
     }
-    return Promise.reject(new Error(msg));
+    // data?.data = payload yang ikut dikirim bersama error (lihat ApiError)
+    return Promise.reject(new ApiError(msg, status, data?.data));
   }
 );
 

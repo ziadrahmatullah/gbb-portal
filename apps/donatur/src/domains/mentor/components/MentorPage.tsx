@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { GraduationCap, Send } from "lucide-react";
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@gbb/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle, FileDropzone, Input, Label } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { useDaftarMentor, useMentorStats } from "../hooks/useMentor";
 
@@ -84,12 +84,11 @@ export function MentorPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="mn-cv">Upload CV (.pdf) *</Label>
-                <Input
+                <FileDropzone
                   id="mn-cv"
-                  type="file"
                   accept="application/pdf"
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setCv(e.target.files?.[0])}
-                  required
+                  value={cv}
+                  onChange={(f: File | null) => setCv(f ?? undefined)}
                   disabled={daftar.isPending}
                 />
               </div>

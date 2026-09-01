@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { CheckCircle2, FileText, Paperclip, Save, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Card, CardContent, Input, Label, Textarea } from "@gbb/ui";
+import { Button, Card, CardContent, FileDropzone, Input, Label, Textarea } from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import { parseJSONString } from "../services";
 import type { Kondisi, OpsiPilihan, Pertanyaan, RefleksiRes } from "../services";
@@ -80,18 +80,7 @@ function FileUploadField({
   onPickFiles: (files: File[]) => void;
   onRemovePending: (idx: number) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const maxMb = opsi.max_mb ?? 5;
-
-  const handlePick = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    const tooBig = files.filter((f) => f.size > maxMb * 1024 * 1024);
-    if (tooBig.length) {
-      toast.error(`File melebihi ${maxMb} MB: ${tooBig.map((f) => f.name).join(", ")}`);
-    }
-    onPickFiles(files.filter((f) => f.size <= maxMb * 1024 * 1024));
-    e.target.value = "";
-  };
 
   return (
     <div className="space-y-2">
@@ -124,22 +113,19 @@ function FileUploadField({
           ))}
         </ul>
       )}
-      <input
-        ref={inputRef}
+      {/* value sengaja tidak diisi: daftar file pending dirender di atas,
+          jadi onChange cukup mengirim file yang baru dipilih untuk di-append */}
+      <FileDropzone
         id={`file-${q.id}`}
-        type="file"
-        className="hidden"
         accept={(opsi.accept ?? []).join(",")}
         multiple={opsi.multiple ?? false}
-        onChange={handlePick}
+        maxSizeMb={maxMb}
+        onChange={(files: File | File[] | null) =>
+          onPickFiles(Array.isArray(files) ? files : files ? [files] : [])
+        }
+        onReject={(msg: string) => toast.error(msg)}
+        hint={`Maks ${maxMb} MB per file${opsi.accept?.length ? ` · ${opsi.accept.join(", ")}` : ""}`}
       />
-      <Button type="button" size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
-        <Paperclip className="size-4" />
-        Pilih File
-      </Button>
-      <p className="text-xs text-muted-foreground">
-        Maks {maxMb} MB per file{opsi.accept?.length ? ` · ${opsi.accept.join(", ")}` : ""}
-      </p>
     </div>
   );
 }

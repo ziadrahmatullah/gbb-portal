@@ -55,9 +55,20 @@ function App() {
                 <Route element={<RequireRole roles={["admin", "finance", "anc", "viewer"]} />}>
                   <Route path="overview" element={<OverviewPage />} />
                 </Route>
-                {/* Donatur: view admin+anc+finance+viewer, mutasi admin+anc; pcm tidak akses */}
+                {/* Donatur pindah ke menu sendiri — path lama tetap hidup
+                    sebagai redirect supaya bookmark/tautan lama tidak mati */}
+                <Route path="donatur" element={<Navigate to="/panel/donatur/database" replace />} />
+                <Route
+                  path="monitoring"
+                  element={<Navigate to="/panel/donatur/monitoring" replace />}
+                />
+              </Route>
+
+              {/* Donatur: view admin+anc+finance+viewer, mutasi admin+anc; pcm tidak akses */}
+              <Route path="donatur">
+                <Route index element={<Navigate to="/panel/donatur/database" replace />} />
                 <Route element={<RequireRole roles={["admin", "anc", "finance", "viewer"]} />}>
-                  <Route path="donatur" element={<DonaturListPage />} />
+                  <Route path="database" element={<DonaturListPage />} />
                   <Route path="monitoring" element={<MonitoringPage />} />
                 </Route>
               </Route>

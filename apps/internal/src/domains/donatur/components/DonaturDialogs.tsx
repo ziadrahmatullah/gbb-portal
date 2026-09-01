@@ -45,7 +45,7 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
   // Baris yang barusan dihapus disembunyikan optimistic — prop `donatur` cuma
   // snapshot saat dialog dibuka, invalidate query tidak me-refresh prop ini.
   const [removedPeriodeIds, setRemovedPeriodeIds] = useState<Set<number>>(new Set());
-  const [catatan, setCatatan] = useState("");
+  const [catatan, setCatatan] = useState(donatur.catatan ?? "");
   const [isChecked, setIsChecked] = useState(donatur.is_checked);
   // Profil kini bisa dikoreksi manual (UpdateDonaturReq backend menerima field profil)
   const [profil, setProfil] = useState({
@@ -97,7 +97,9 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
       {
         id: donatur.id,
         body: {
-          catatan: catatan || undefined,
+          // Dikirim apa adanya, bukan `|| undefined` — sekarang catatan bisa
+          // dibaca balik, jadi mengosongkan textarea harus benar-benar menghapusnya
+          catatan,
           is_checked: isChecked,
           // String kosong = tidak diubah backend, aman dikirim apa adanya
           nama: profil.nama,

@@ -24,6 +24,9 @@ export interface Donatur {
   has_password: boolean;
   tags?: string[];
   periodes?: DonaturPeriodeInfo[];
+  // Ikut dikembalikan di semua response DonaturRes (list, detail, create, update)
+  catatan: string | null;
+  warna: string | null;
 }
 
 export interface DonaturStats {
@@ -50,6 +53,10 @@ export interface DonaturMonitoring {
   periode_akhir_aktif: boolean;
   bulanan: MonitoringBulan[]; // kosong kalau tanpa filter periode
   total: number;
+  // Tanpa omitempty di backend — key selalu ada, null kalau belum diisi.
+  // catatan kosong tersimpan sebagai "" (bukan null), beda dari warna.
+  catatan: string | null;
+  warna: string | null; // slug ROW_COLORS; null = ikut warna tag otomatis
 }
 
 // Minimal untuk dropdown/lookup lintas modul (dipakai klasifikasi cashflow)
@@ -81,6 +88,43 @@ export const DONATUR_TAGS = [
 ] as const;
 
 export const tagMeta = (v: string) => DONATUR_TAGS.find((t) => t.value === v);
+
+// Tag yang boleh diatur manual dari dialog Catatan & Tag di Monitoring.
+// Sisanya (sudah_konfirmasi, donatur_setia, dst) ditandai dari tempat lain.
+export const MANUAL_TAGS = ["perlu_followup", "sulit_dihubungi", "sementara_berhenti"] as const;
+
+// Warna baris monitoring. Disimpan sebagai slug, bukan hex, supaya tema
+// gelap/terang tetap FE yang menentukan renderingnya.
+export const ROW_COLORS = [
+  { value: "merah", label: "Merah", cls: "bg-red-500/10 hover:bg-red-500/15" },
+  { value: "kuning", label: "Kuning", cls: "bg-yellow-500/10 hover:bg-yellow-500/15" },
+  { value: "hijau", label: "Hijau", cls: "bg-emerald-500/10 hover:bg-emerald-500/15" },
+  { value: "biru", label: "Biru", cls: "bg-sky-500/10 hover:bg-sky-500/15" },
+  { value: "ungu", label: "Ungu", cls: "bg-violet-500/10 hover:bg-violet-500/15" },
+  { value: "abu", label: "Abu", cls: "bg-muted/60 hover:bg-muted" },
+] as const;
+
+// Warna otomatis dari tag, dipakai kalau `warna` manual kosong
+const TAG_ROW_COLOR: Record<string, string> = {
+  perlu_followup: "merah",
+  sulit_dihubungi: "kuning",
+  sementara_berhenti: "abu",
+  donatur_setia: "ungu",
+};
+
+// Manual menang; kalau kosong, ikut tag pertama (urutan DONATUR_TAGS) yang punya warna
+export function rowColorClass(warna: string | null | undefined, tags: string[] = []) {
+  const slug =
+    warna ||
+    DONATUR_TAGS.map((t) => t.value).find((v) => tags.includes(v) && TAG_ROW_COLOR[v]) ;
+  const resolved = slug ? (TAG_ROW_COLOR[slug] ?? slug) : undefined;
+  return ROW_COLORS.find((c) => c.value === resolved)?.cls;
+}
+
+// Konteks pesan_template yang men-drive dua tombol kirim di Monitoring.
+// Konvensi isi data, bukan enum backend — kalau belum ada, FE jatuh ke
+// template donatur aktif mana pun.
+export const WA_KONTEKS = { tgl25: "tgl_25", tgl7: "tgl_7" } as const;
 
 // ─── List / stats / detail ───────────────────────────────────────────────
 
@@ -122,6 +166,10 @@ export interface UpdateDonaturReq {
   organisasi?: string;
   skema?: string;
   nominal_default?: number;
+  // Hanya untuk warna, "" berarti KOSONGKAN (disimpan NULL → ikut warna tag).
+  // Untuk catatan, "" tersimpan apa adanya sebagai string kosong.
+  // Nilai selain slug ROW_COLORS ditolak backend dengan 400.
+  warna?: string;
 }
 
 export async function updateDonatur(id: number, body: UpdateDonaturReq) {

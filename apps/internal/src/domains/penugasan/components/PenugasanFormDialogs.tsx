@@ -1,4 +1,4 @@
-import { DateInput } from "@gbb/ui";
+import { DateInput, FileDropzone } from "@gbb/ui";
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Button } from "@/shared/components/ui/button";
@@ -131,7 +131,7 @@ export function CreatePenugasanDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="p-lampiran">Lampiran soal (opsional, PDF/DOCX/PPTX)</Label>
-            <Input id="p-lampiran" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={(e: ChangeEvent<HTMLInputElement>) => setLampiran(e.target.files?.[0] ?? null)} disabled={saving} />
+            <FileDropzone id="p-lampiran" accept=".pdf,.doc,.docx,.ppt,.pptx" value={lampiran} onChange={(f: File | null) => setLampiran(f)} disabled={saving} />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">
@@ -210,7 +210,7 @@ export function EditPenugasanDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="pe-lampiran">Ganti lampiran (opsional)</Label>
-            <Input id="pe-lampiran" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx" onChange={(e: ChangeEvent<HTMLInputElement>) => setLampiran(e.target.files?.[0] ?? null)} disabled={saving} />
+            <FileDropzone id="pe-lampiran" accept=".pdf,.doc,.docx,.ppt,.pptx" value={lampiran} onChange={(f: File | null) => setLampiran(f)} disabled={saving} />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="grid gap-2">

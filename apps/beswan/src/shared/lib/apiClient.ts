@@ -1,20 +1,16 @@
 import axios from "axios";
 import type { AxiosError, AxiosInstance } from "axios";
 import { toast } from "sonner";
-import { getErrorMessage } from "./apiTypes";
+import { ApiError, getErrorMessage } from "./apiTypes";
 import type { ApiEnvelope } from "./apiTypes";
+
+// Sebelumnya ApiError dideklarasikan di file ini — tetap diekspor ulang
+// supaya jalur import lama tidak putus
+export { ApiError };
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6099";
 
 // Error ber-status untuk caller yang perlu membedakan kode HTTP
-export class ApiError extends Error {
-  status?: number;
-  constructor(message: string, status?: number) {
-    super(message);
-    this.status = status;
-  }
-}
-
 // Kunci BERBEDA dari Portal Internal — token/portal JWT terpisah (Auth("beswan")),
 // supaya login di kedua portal pada browser yang sama tidak saling menimpa.
 const TOKEN_KEY = "beswan_auth_token";
@@ -59,19 +55,19 @@ axiosInstance.interceptors.response.use(
         redirectingToLogin = true;
         window.location.href = "/";
       }
-      return Promise.reject(new Error("Sesi berakhir. Silakan login kembali."));
+      return Promise.reject(new ApiError("Sesi berakhir. Silakan login kembali.", status));
     }
 
     if (!isAuthRequest && status === 403) {
       // Portal mismatch / kepemilikan ditolak — jangan paksa logout
       toast.error("Tidak memiliki akses");
-      return Promise.reject(new Error(msg));
+      return Promise.reject(new ApiError(msg, status, data?.data));
     }
 
     if (!isAuthRequest) {
       toast.error(msg);
     }
-    return Promise.reject(new ApiError(msg, status));
+    return Promise.reject(new ApiError(msg, status, data?.data));
   }
 );
 

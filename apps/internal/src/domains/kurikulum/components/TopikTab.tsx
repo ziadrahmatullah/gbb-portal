@@ -11,7 +11,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { Badge, Skeleton } from "@gbb/ui";
+import { Badge, FileDropzone, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { hasAnyRole } from "@/shared/constants/roles";
@@ -298,11 +298,11 @@ function TopikFormDialog({
             {/* TOR di-upload ke storage backend (field multipart "tor");
                 kosong = TOR yang ada tidak berubah */}
             <Label htmlFor="t-tor">TOR (Terms of Reference)</Label>
-            <Input
+            <FileDropzone
               id="t-tor"
-              type="file"
               accept=".pdf,.doc,.docx"
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setTor(e.target.files?.[0] ?? null)}
+              value={tor}
+              onChange={(f: File | null) => setTor(f)}
               disabled={saving}
             />
             {editing?.tor_url && (

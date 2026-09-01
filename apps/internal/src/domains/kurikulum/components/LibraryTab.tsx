@@ -14,7 +14,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { Badge, Card, CardContent, SearchableSelect, Skeleton } from "@gbb/ui";
+import { Badge, Card, CardContent, FileDropzone, SearchableSelect, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/shared/components/StatCard";
 import { Button } from "@/shared/components/ui/button";
@@ -118,7 +118,13 @@ function UploadLibraryDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
           <div className="grid gap-2">
             <Label htmlFor="l-file">File (wajib — pdf/doc/xls/ppt)</Label>
-            <Input id="l-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)} required disabled={createMutation.isPending} />
+            <FileDropzone
+              id="l-file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              value={file}
+              onChange={(f: File | null) => setFile(f)}
+              disabled={createMutation.isPending}
+            />
           </div>
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={createMutation.isPending}>

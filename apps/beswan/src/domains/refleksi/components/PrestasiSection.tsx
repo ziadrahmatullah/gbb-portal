@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FileDropzone,
   Input,
   Label,
   Select,
@@ -140,15 +141,13 @@ function PrestasiDialog({ existing, onClose }: { existing: Prestasi | null; onCl
           </div>
           <div className="grid gap-2">
             <Label htmlFor="pr-files">{existing ? "Tambah File" : "File (sertifikat/foto)"}</Label>
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-start gap-2">
+              <FileDropzone
                 id="pr-files"
-                type="file"
                 multiple
                 accept="image/jpeg,image/png,application/pdf"
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setNewFiles(Array.from(e.target.files ?? []))
-                }
+                value={newFiles}
+                onChange={(files: File[]) => setNewFiles(files)}
                 disabled={busy}
                 className="flex-1"
               />

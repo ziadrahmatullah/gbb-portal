@@ -1,8 +1,8 @@
 import { useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, CalendarClock, ClipboardList, FileDown, Upload } from "lucide-react";
-import { Badge, Button, Card, CardContent, Input, Label, Skeleton, cn } from "@gbb/ui";
+import { Badge, Button, Card, CardContent, FileDropzone, Label, Skeleton, cn } from "@gbb/ui";
 import { useKumpulPenugasan, useMyPenugasanDetail } from "../hooks/usePenugasan";
 import { HasilBadge, TugasStatusBadge, formatDeadline, isOverdue } from "./PenugasanPage";
 
@@ -175,11 +175,11 @@ export function PenugasanDetailPage() {
           <form onSubmit={handleSubmit} className="grid gap-3">
             <div className="grid gap-2">
               <Label htmlFor="pg-file">File jawaban (.pdf, .doc, .docx, .zip)</Label>
-              <Input
+              <FileDropzone
                 id="pg-file"
-                type="file"
                 accept=".pdf,.doc,.docx,.zip"
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setFile(e.target.files?.[0] ?? null)}
+                value={file}
+                onChange={(f: File | null) => setFile(f)}
                 disabled={kumpulMutation.isPending}
               />
             </div>

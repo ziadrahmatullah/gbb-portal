@@ -11,6 +11,24 @@ export interface ApiEnvelope<T = unknown> {
   total_item?: number;
 }
 
+// Sebagian endpoint mengirim payload BERSAMA error, bukan cuma pesan — mis.
+// POST /internal/cashflow/batch membalas 400 dengan
+// { error: "3 baris belum diklasifikasi", data: { invalid_row_keys: [...] } }.
+// Error bawaan JS cuma membawa string, jadi status + envelope.data ditempelkan
+// di sini supaya caller yang butuh bisa membacanya. Caller lain tetap
+// memperlakukannya sebagai Error biasa.
+export class ApiError extends Error {
+  readonly status?: number;
+  readonly data?: unknown;
+
+  constructor(message: string, status?: number, data?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 // Ekstraksi pesan error dari envelope. Backend TIDAK konsisten (dikonfirmasi dari
 // source): middleware auth (middleware/auth.go) menaruh string di `error`, sedangkan
 // error validasi/lainnya (middleware/error_middleware.go) menaruh string[].
