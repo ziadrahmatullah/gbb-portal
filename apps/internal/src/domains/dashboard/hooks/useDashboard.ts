@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { EventTipeFilter } from "../services";
 import {
   getDashboardEvent,
   getDashboardAnalitik,
@@ -8,10 +9,10 @@ import {
 
 export const DASHBOARD_KEY = "dashboard";
 
-export function useDashboardEvent(periodeId?: string) {
+export function useDashboardEvent(periodeId?: string, tipe?: EventTipeFilter) {
   return useQuery({
-    queryKey: [DASHBOARD_KEY, "event", periodeId ?? "all"],
-    queryFn: () => getDashboardEvent(periodeId),
+    queryKey: [DASHBOARD_KEY, "event", periodeId ?? "all", tipe ?? "all"],
+    queryFn: () => getDashboardEvent(periodeId, tipe),
   });
 }
 

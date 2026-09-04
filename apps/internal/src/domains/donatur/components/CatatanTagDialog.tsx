@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChangeEvent } from "react";
 import { Save } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@gbb/ui";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
@@ -63,6 +64,7 @@ export function CatatanTagDialog({
         // "" = kosongkan warna, backend menyimpannya sebagai NULL
         body: { catatan, warna: warna === NO_COLOR ? "" : warna },
       });
+      toast.success("Catatan & tag tersimpan");
       onClose();
     } catch {
       // Pesannya sudah di-toast interceptor; dialog sengaja dibiarkan terbuka

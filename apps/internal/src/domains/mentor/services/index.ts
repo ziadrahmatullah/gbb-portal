@@ -57,6 +57,9 @@ export interface MentorStats {
   total: number;
   undip: number;
   non_undip: number;
+  // Antrean pendaftaran mentor berstatus menunggu (FEpromt25 §2) — untuk banner
+  // & badge tab; dititipkan di sini supaya tidak ada request tambahan.
+  pendaftaran_menunggu?: number;
 }
 
 export async function getMentorStats() {
@@ -124,5 +127,62 @@ export interface UpdateMentorRequestReq {
 
 export async function updateMentorRequest(id: number, body: UpdateMentorRequestReq) {
   const res = await apiClient.put<MentorRequestRes>(`/internal/mentor/requests/${id}`, body);
+  return res.data;
+}
+
+// ─── Pendaftaran Mentor (self-signup donatur/beswan → verifikasi internal) ──
+// Kontrak dari balasan BE atas FEpromt25 §2. Tabel TERPISAH dari `mentors`:
+// pendaftar tidak muncul di direktori mentor sampai dipromosikan (terdaftar).
+
+export type PendaftaranStatus = "menunggu" | "perlu_info" | "terdaftar" | "ditolak";
+
+export interface MentorPendaftaran {
+  id: number;
+  pendaftar_tipe: string; // donatur | beswan | unknown (backfill)
+  pendaftar_id: number;
+  nama: string;
+  email: string;
+  hp: string;
+  bidang_keahlian: string;
+  cv_url?: string | null;
+  linkedin_url?: string | null;
+  is_internal: boolean; // deklarasi alumni UNDIP dari pendaftar
+  status: PendaftaranStatus;
+  catatan?: string | null;
+  mentor_id?: number | null; // terisi = sudah dipromosikan ke tabel mentors
+  verified_by?: number | null;
+  verified_by_nama?: string | null;
+  verified_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MentorPendaftaranListParams = ListParams & { status?: PendaftaranStatus };
+
+// Sort server-side: menunggu dulu, lalu created_at DESC — jangan sort ulang.
+export async function listMentorPendaftaran(params: MentorPendaftaranListParams = {}) {
+  const res = await apiClient.get<MentorPendaftaran[]>("/internal/mentor/pendaftaran", {
+    page: 1,
+    limit: 20,
+    ...params,
+  });
+  return toPaged(res);
+}
+
+// PUT /internal/mentor/pendaftaran/:id (admin, pcm)
+//   terdaftar  → promosi ke tabel mentors (idempoten), boleh koreksi
+//                bidang_keahlian / is_internal di body yang sama
+//   perlu_info → catatan WAJIB (400 kalau kosong)
+//   ditolak    → catatan opsional
+// Baris yang sudah dipromosikan (mentor_id terisi) tidak bisa diubah lagi → 400.
+export interface UpdateMentorPendaftaranReq {
+  status: Exclude<PendaftaranStatus, "menunggu">;
+  catatan?: string;
+  bidang_keahlian?: string;
+  is_internal?: boolean;
+}
+
+export async function updateMentorPendaftaran(id: number, body: UpdateMentorPendaftaranReq) {
+  const res = await apiClient.put<MentorPendaftaran>(`/internal/mentor/pendaftaran/${id}`, body);
   return res.data;
 }

@@ -8,6 +8,8 @@ declare module "@gbb/ui" {
   type UIComponent = ComponentType<Record<string, unknown>>;
 
   export function cn(...inputs: unknown[]): string;
+  export function normalizeWa(hp?: string | null): string;
+  export function waLink(hp: string, text?: string): string;
 
   export const Button: UIComponent;
   export const buttonVariants: (options?: Record<string, unknown>) => string;

@@ -57,7 +57,10 @@ export function getNotifikasiTarget(n: Notifikasi): string | null {
     case "hasil":
       return "/panel/penugasan";
     case "mentor_request":
-      return "/panel/mentor";
+      return "/panel/mentor?tab=request";
+    // Self-signup mentor dari portal donatur (FEpromt25 §2) — antrean verifikasi
+    case "mentor_pendaftaran":
+      return "/panel/mentor?tab=pendaftaran";
     case "laporan":
       return "/panel/laporan";
     default:

@@ -11,6 +11,10 @@ export interface MyProfile {
   foto_url?: string | null;
   status?: string;
   batch?: string;
+  // FEpromt25 §3 — beswan melengkapi sendiri; semester diturunkan BE dari tahun_masuk
+  jurusan?: string;
+  tahun_masuk?: number;
+  semester?: number;
 }
 
 export async function getMyProfile() {
@@ -20,13 +24,32 @@ export async function getMyProfile() {
 
 // PUT multipart — hp wajib; foto (image) & cv (document) opsional.
 // Field kosong TIDAK menghapus nilai lama (Go partial-update).
-export async function updateMyProfile(input: { hp: string; foto?: File; cv?: File }) {
+export async function updateMyProfile(input: {
+  hp: string;
+  jurusan?: string;
+  tahun_masuk?: number; // 0 = kosongkan
+  foto?: File;
+  cv?: File;
+}) {
   const fd = new FormData();
   fd.append("hp", input.hp);
+  if (input.jurusan !== undefined) fd.append("jurusan", input.jurusan);
+  if (input.tahun_masuk !== undefined) fd.append("tahun_masuk", String(input.tahun_masuk));
   if (input.foto) fd.append("foto", input.foto);
   if (input.cv) fd.append("cv", input.cv);
   const res = await apiClient.put<MyProfile>("/beswan/profile", fd);
   return res.data;
+}
+
+// PUT /beswan/account/change-password — endpoint sudah lama ada di backend
+// (router.go), UI-nya baru dibuat atas masukan tim (fitur pendukung login:
+// ubah password). Konfirmasi password hanya divalidasi di FE.
+export async function changeMyPassword(oldPassword: string, newPassword: string) {
+  const res = await apiClient.put("/beswan/account/change-password", {
+    old_password: oldPassword,
+    new_password: newPassword,
+  });
+  return res.message;
 }
 
 // Mirror BeswanIPKRes — PERHATIAN: JSON key transkrip memang typo "transkip_url"

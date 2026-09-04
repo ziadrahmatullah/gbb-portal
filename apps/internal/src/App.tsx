@@ -5,8 +5,11 @@ import { queryClient } from "@/shared/lib/queryClient";
 // Import direct by file (bukan lewat barrel @/shared/components) supaya
 // Layout.jsx lama + seluruh import tree-nya tidak ikut ke bundle.
 import { LoginPage } from "@/domains/auth/components/LoginPage";
+import { ForgotPasswordPage } from "@/domains/auth/components/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/domains/auth/components/ResetPasswordPage";
 import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
 import { RequireRole } from "@/shared/components/RequireRole";
+import { RequireMenu } from "@/shared/components/RequireMenu";
 import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { DashboardPage } from "@/domains/dashboard";
 import { PeriodePage } from "@/domains/periode";
@@ -19,6 +22,7 @@ import { RefleksiPage, RefleksiDetailPage } from "@/domains/refleksi";
 import { RekonsiliasiPage, OverviewPage } from "@/domains/keuangan";
 import { DonaturListPage, MonitoringPage } from "@/domains/donatur";
 import { LaporanPage } from "@/domains/laporan";
+import { HighlightPage } from "@/domains/highlight";
 import { SettingsPage } from "@/domains/settings";
 
 function App() {
@@ -29,30 +33,50 @@ function App() {
         <Routes>
           {/* Login at root */}
           <Route path="/" element={<LoginPage />} />
+          {/* Lupa password (FEpromt25 §8): tautan email BE menuju /reset-password?token=… */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/panel" element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="periode" element={<PeriodePage />} />
-              <Route path="beswan" element={<BeswanListPage />} />
-              <Route path="beswan/:id" element={<BeswanDetailPage />} />
-              <Route path="kurikulum" element={<KurikulumPage />} />
-              <Route path="kurikulum/topik/:id" element={<TopikDetailPage />} />
-              <Route path="mentor" element={<MentorListPage />} />
-              <Route path="mentor/:id" element={<MentorDetailPage />} />
-              <Route path="event" element={<EventListPage />} />
-              <Route path="event/:id" element={<EventDetailPage />} />
-              <Route path="penugasan" element={<PenugasanPage />} />
-              <Route path="penugasan/:id" element={<PenugasanDetailPage />} />
-              <Route path="refleksi" element={<RefleksiPage />} />
-              <Route path="refleksi/:id" element={<RefleksiDetailPage />} />
+              <Route element={<RequireMenu menu="dashboard" />}>
+                <Route index element={<DashboardPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="periode" />}>
+                <Route path="periode" element={<PeriodePage />} />
+              </Route>
+              <Route element={<RequireMenu menu="beswan" />}>
+                <Route path="beswan" element={<BeswanListPage />} />
+                <Route path="beswan/:id" element={<BeswanDetailPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="program_kurikulum" />}>
+                <Route path="kurikulum" element={<KurikulumPage />} />
+                <Route path="kurikulum/topik/:id" element={<TopikDetailPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="program_mentor" />}>
+                <Route path="mentor" element={<MentorListPage />} />
+                <Route path="mentor/:id" element={<MentorDetailPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="program_event" />}>
+                <Route path="event" element={<EventListPage />} />
+                <Route path="event/:id" element={<EventDetailPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="program_penugasan" />}>
+                <Route path="penugasan" element={<PenugasanPage />} />
+                <Route path="penugasan/:id" element={<PenugasanDetailPage />} />
+              </Route>
+              <Route element={<RequireMenu menu="program_refleksi" />}>
+                <Route path="refleksi" element={<RefleksiPage />} />
+                <Route path="refleksi/:id" element={<RefleksiDetailPage />} />
+              </Route>
 
+              {/* Hak LIHAT menu dari matriks role×menu (Settings › Hak Akses Menu);
+                  default = aturan lama. Hak EDIT tetap per role di tiap halaman. */}
               <Route path="keuangan">
-                <Route element={<RequireRole roles={["admin", "finance", "anc"]} />}>
+                <Route element={<RequireMenu menu="keuangan_rekonsiliasi" />}>
                   <Route path="rekonsiliasi" element={<RekonsiliasiPage />} />
                 </Route>
-                {/* Viewer boleh lihat Overview meski tak boleh Rekonsiliasi; pcm tidak keduanya */}
-                <Route element={<RequireRole roles={["admin", "finance", "anc", "viewer"]} />}>
+                <Route element={<RequireMenu menu="keuangan_overview" />}>
                   <Route path="overview" element={<OverviewPage />} />
                 </Route>
                 {/* Donatur pindah ke menu sendiri — path lama tetap hidup
@@ -64,16 +88,23 @@ function App() {
                 />
               </Route>
 
-              {/* Donatur: view admin+anc+finance+viewer, mutasi admin+anc; pcm tidak akses */}
               <Route path="donatur">
                 <Route index element={<Navigate to="/panel/donatur/database" replace />} />
-                <Route element={<RequireRole roles={["admin", "anc", "finance", "viewer"]} />}>
+                <Route element={<RequireMenu menu="donatur_database" />}>
                   <Route path="database" element={<DonaturListPage />} />
+                </Route>
+                <Route element={<RequireMenu menu="donatur_monitoring" />}>
                   <Route path="monitoring" element={<MonitoringPage />} />
                 </Route>
               </Route>
 
-              <Route path="laporan" element={<LaporanPage />} />
+              <Route element={<RequireMenu menu="laporan" />}>
+                <Route path="laporan" element={<LaporanPage />} />
+              </Route>
+
+              <Route element={<RequireMenu menu="highlight" />}>
+                <Route path="highlight" element={<HighlightPage />} />
+              </Route>
 
               <Route element={<RequireRole roles={["admin"]} />}>
                 <Route path="settings" element={<SettingsPage />} />

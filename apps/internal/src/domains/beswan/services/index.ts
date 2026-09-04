@@ -14,6 +14,11 @@ export interface BeswanListItem {
   foto_url?: string | null;
   status?: string; // "aktif" | "alumni"
   batch?: string;
+  // FEpromt25 §3 — "" / 0 / 0 kalau belum diisi → tampilkan "—".
+  // `semester` DITURUNKAN BE dari tahun_masuk (cutoff ganjil = Agustus), tidak disimpan.
+  jurusan?: string;
+  tahun_masuk?: number;
+  semester?: number;
 }
 
 export interface BeswanStats {
@@ -74,6 +79,9 @@ export interface BeswanDetail {
   hp: string;
   cv_url?: string | null;
   foto_url?: string | null;
+  jurusan?: string;
+  tahun_masuk?: number;
+  semester?: number;
   periodes: BeswanPeriodeOption[];
   rapor?: BeswanRapor | null;
   chart_ipk: BeswanChartIPK[];
@@ -86,6 +94,11 @@ export interface CreateBeswanReq {
   email: string;
   hp: string;
   periode_id: number;
+  jurusan?: string;
+  tahun_masuk?: number; // 2000..tahun depan; 0/absen = belum diisi
+  // FEpromt26: opsional. Kosong = beswan membuat password sendiri lewat tautan
+  // di email selamat datang (7 hari). Default lama "beswan123" sudah DIHAPUS BE.
+  password?: string;
 }
 
 // foto_url/cv_url dari backend berupa path relatif yang diserve statis
@@ -155,6 +168,9 @@ export interface UpdateBeswanReq {
   nama_lengkap?: string;
   email?: string;
   hp?: string;
+  jurusan?: string;
+  // undefined = tidak diubah; 0 = dikosongkan (semantik BE)
+  tahun_masuk?: number;
   foto?: File;
   cv?: File;
 }
@@ -174,6 +190,8 @@ export async function updateBeswan(id: number, body: UpdateBeswanReq) {
   if (body.nama_lengkap) form.append("nama_lengkap", body.nama_lengkap);
   if (body.email) form.append("email", body.email);
   if (body.hp) form.append("hp", body.hp);
+  if (body.jurusan !== undefined) form.append("jurusan", body.jurusan);
+  if (body.tahun_masuk !== undefined) form.append("tahun_masuk", String(body.tahun_masuk));
   if (body.foto) form.append("foto", body.foto);
   if (body.cv) form.append("cv", body.cv);
   const res = await apiClient.put<BeswanListItem>(`/internal/beswan/${id}`, form);

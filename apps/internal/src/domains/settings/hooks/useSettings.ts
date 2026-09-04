@@ -9,13 +9,18 @@ import {
   deletePesanTemplate,
   deleteUser,
   getAIConfigList,
+  getRoleMenu,
   getUserList,
   resetUserPassword,
   setActiveAIConfig,
   updateAIConfig,
   updatePesanTemplate,
+  updateRoleMenu,
   updateUser,
 } from "../services";
+import type { Role } from "@/shared/constants/roles";
+import type { MenuKey } from "@/shared/constants/menu";
+import { MENU_ACCESS_KEY } from "@/shared/hooks/useMenuAccess";
 import type {
   CreateAIConfigReq,
   CreateUserReq,
@@ -185,6 +190,31 @@ export function useSetActiveAIConfig() {
     onSuccess: () => {
       toast.success("Provider aktif diperbarui");
       queryClient.invalidateQueries({ queryKey: [SETTINGS_KEY, "ai-config"] });
+    },
+  });
+}
+
+// ─── Hak Akses Menu ───────────────────────────────────────────────────────
+
+export function useRoleMenu(enabled = true) {
+  return useQuery({
+    queryKey: [SETTINGS_KEY, "role-menu"],
+    queryFn: () => getRoleMenu(),
+    enabled,
+  });
+}
+
+export function useUpdateRoleMenu() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ role, menuKeys }: { role: Role; menuKeys: MenuKey[] }) =>
+      updateRoleMenu(role, menuKeys),
+    onSuccess: (_, { role }) => {
+      toast.success(`Hak akses menu role ${role} tersimpan`);
+      queryClient.invalidateQueries({ queryKey: [SETTINGS_KEY, "role-menu"] });
+      // Sidebar user lain memuat ulang saat fokus tab; user yang sedang login
+      // (admin) tidak terpengaruh karena admin selalu semua.
+      queryClient.invalidateQueries({ queryKey: [MENU_ACCESS_KEY] });
     },
   });
 }

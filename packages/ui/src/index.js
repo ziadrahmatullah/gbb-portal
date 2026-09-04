@@ -1,4 +1,5 @@
 export { cn } from "./lib/utils.js";
+export { normalizeWa, waLink } from "./lib/wa.js";
 export { useIsMobile } from "./hooks/use-mobile.js";
 
 export * from "./components/alert.jsx";

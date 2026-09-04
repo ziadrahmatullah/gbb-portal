@@ -3,6 +3,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { queryClient } from "@/shared/lib/queryClient";
 import { LoginPage } from "@/domains/auth/components/LoginPage";
+import { ForgotPasswordPage } from "@/domains/auth/components/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/domains/auth/components/ResetPasswordPage";
 import { ProtectedRoute } from "@/shared/components/ProtectedRoute";
 import { AppLayout } from "@/shared/components/layout/AppLayout";
 import { BerandaPage } from "@/domains/beranda";
@@ -21,6 +23,9 @@ function App() {
         <Routes>
           {/* Login at root */}
           <Route path="/" element={<LoginPage />} />
+          {/* Lupa password (FEpromt25 §8): tautan email BE menuju /reset-password?token=… */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route path="/panel" element={<AppLayout />}>

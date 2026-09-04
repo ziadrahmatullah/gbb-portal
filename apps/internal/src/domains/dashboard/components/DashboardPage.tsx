@@ -13,7 +13,15 @@ import {
 } from "lucide-react";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
 import { Button } from "@/shared/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
+import type { EventTipeFilter } from "../services";
 import {
   Table,
   TableBody,
@@ -64,13 +72,44 @@ const formatIPK = (v?: number) => (v == null ? "—" : v.toFixed(2));
 
 const formatCount = (v?: number) => (v == null ? "—" : String(v));
 
+const ALL_TIPE = "all";
+const EVENT_TIPE_LABEL: Record<EventTipeFilter, string> = {
+  talkshow: "Talkshow",
+  growth: "GROWTH",
+  other: "Lainnya",
+};
+
 function EventTab({ periodeId }: { periodeId?: string }) {
-  const { data, isLoading } = useDashboardEvent(periodeId);
+  // Filter jenis event (masukan tim program). Daftar jenisnya masih enum tetap
+  // BE — master data yang bisa ditambah sendiri sengaja ditunda (FEpromt25 §6).
+  const [tipe, setTipe] = useState<string>(ALL_TIPE);
+  const tipeFilter = tipe === ALL_TIPE ? undefined : (tipe as EventTipeFilter);
+  const { data, isLoading } = useDashboardEvent(periodeId, tipeFilter);
   const kehadiran = data?.kehadiran;
   const penugasan = data?.penugasan;
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={tipe} onValueChange={setTipe}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_TIPE}>Semua Jenis Event</SelectItem>
+            {(Object.keys(EVENT_TIPE_LABEL) as EventTipeFilter[]).map((k) => (
+              <SelectItem key={k} value={k}>
+                {EVENT_TIPE_LABEL[k]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {tipeFilter && (
+          <span className="text-xs text-muted-foreground">
+            Beswan Aktif, Donasi Bulan Ini, dan Penugasan tidak ikut filter jenis event.
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={BarChart3} label="Total Event" value={formatCount(data?.total_event)} loading={isLoading} />
         <StatCard icon={CheckCircle2} label="Event Selesai" value={formatCount(data?.event_selesai)} loading={isLoading} />
@@ -79,9 +118,15 @@ function EventTab({ periodeId }: { periodeId?: string }) {
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
         <ChartBarSeri
-          className="lg:col-span-2"
           title="Event per Bulan"
           rows={data?.event_per_bulan ?? []}
+          name="Event"
+          loading={isLoading}
+        />
+        {/* 3 entri tetap dari BE (Talkshow/GROWTH/Lainnya), zero-filled — jangan sort */}
+        <ChartBarSeri
+          title="Event per Jenis"
+          rows={data?.event_per_tipe ?? []}
           name="Event"
           loading={isLoading}
         />
@@ -164,6 +209,20 @@ function AnalitikTab({ periodeId }: { periodeId?: string }) {
           }))}
           name="Avg Nilai"
           yMax={100}
+          loading={isLoading}
+        />
+        {/* Profil beswan (masukan tim program): angka bisa dibaca per jurusan &
+            per tingkat. Bucket "Belum diisi" selalu terakhir dari BE. */}
+        <ChartBarSeri
+          title="Distribusi Jurusan"
+          rows={data?.distribusi_jurusan ?? []}
+          name="Beswan"
+          loading={isLoading}
+        />
+        <ChartBarSeri
+          title="Distribusi Semester"
+          rows={data?.distribusi_semester ?? []}
+          name="Beswan"
           loading={isLoading}
         />
       </div>

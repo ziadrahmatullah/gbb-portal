@@ -171,6 +171,8 @@ export function ProfilePage() {
   const update = useUpdateProfile();
 
   const [hp, setHp] = useState<string | null>(null); // null = belum diedit, pakai nilai server
+  const [jurusan, setJurusan] = useState<string | null>(null);
+  const [tahunMasuk, setTahunMasuk] = useState<string | null>(null);
   const [foto, setFoto] = useState<File | undefined>();
   const [cv, setCv] = useState<File | undefined>();
   const [ipkDialog, setIpkDialog] = useState<{
@@ -188,15 +190,27 @@ export function ProfilePage() {
   );
 
   const hpValue = hp ?? profile?.hp ?? "";
-  const dirty = hp !== null || foto !== undefined || cv !== undefined;
+  const jurusanValue = jurusan ?? profile?.jurusan ?? "";
+  const tahunValue = tahunMasuk ?? (profile?.tahun_masuk ? String(profile.tahun_masuk) : "");
+  const dirty =
+    hp !== null || jurusan !== null || tahunMasuk !== null || foto !== undefined || cv !== undefined;
 
   const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     update.mutate(
-      { hp: hpValue, foto, cv },
+      {
+        hp: hpValue,
+        // Kirim hanya yang disentuh; tahun kosong → 0 = dikosongkan di BE
+        jurusan: jurusan ?? undefined,
+        tahun_masuk: tahunMasuk !== null ? (tahunMasuk ? Number(tahunMasuk) : 0) : undefined,
+        foto,
+        cv,
+      },
       {
         onSuccess: () => {
           setHp(null);
+          setJurusan(null);
+          setTahunMasuk(null);
           setFoto(undefined);
           setCv(undefined);
         },
@@ -253,6 +267,39 @@ export function ProfilePage() {
             <p className="text-xs text-muted-foreground">
               Nama, NIM, dan email hanya bisa diubah oleh Tim Program GBB.
             </p>
+
+            {/* Profil akademik — dipakai Tim Program untuk membaca analitik per
+                jurusan & tingkat. Isi tahun masuk; semester dihitung otomatis. */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="pf-jurusan">Jurusan / Program Studi</Label>
+                <Input
+                  id="pf-jurusan"
+                  value={jurusanValue}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setJurusan(e.target.value)}
+                  placeholder="mis. Teknik Informatika"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pf-tahun">
+                  Tahun Masuk Kuliah
+                  {profile?.semester ? (
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      (sekarang semester {profile.semester})
+                    </span>
+                  ) : null}
+                </Label>
+                <Input
+                  id="pf-tahun"
+                  type="number"
+                  min={2000}
+                  max={new Date().getFullYear() + 1}
+                  value={tahunValue}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setTahunMasuk(e.target.value)}
+                  placeholder="2022"
+                />
+              </div>
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">

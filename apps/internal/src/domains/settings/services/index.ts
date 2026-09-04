@@ -19,7 +19,7 @@ export interface User {
 export interface CreateUserReq {
   nama: string;
   email: string;
-  password: string; // min 8
+  password?: string; // min 8 bila diisi; kosong = user set sendiri via email welcome (FEpromt26)
   role: Role;
   divisi?: string;
 }
@@ -156,4 +156,28 @@ export async function deleteAIConfig(id: number) {
 export async function setActiveAIConfig(id: number) {
   const res = await apiClient.put(`/internal/settings/ai-config/${id}/aktif`);
   return res.message;
+}
+
+// ─── Hak Akses Menu (matriks role × menu, FEpromt27) ─────────────────────
+// admin tidak ada di respons: selalu semua & tidak bisa diubah. Kunci
+// "settings" tidak pernah bisa diberikan ke non-admin (BE mengabaikannya).
+
+import type { MenuKey } from "@/shared/constants/menu";
+
+export type RoleMenuMatrix = Partial<Record<Role, MenuKey[]>>;
+
+export async function getRoleMenu() {
+  const res = await apiClient.get<RoleMenuMatrix>("/internal/settings/role-menu");
+  return res.data ?? {};
+}
+
+// REPLACE seluruh set menu sebuah role (satu transaksi di BE). :role=admin → 400,
+// kunci tak dikenal → 400 (set lama tidak berubah), "settings" diabaikan diam-diam.
+// Response { role, menu_keys: set final } — bukan array telanjang.
+export async function updateRoleMenu(role: Role, menuKeys: MenuKey[]) {
+  const res = await apiClient.put<{ role: Role; menu_keys: MenuKey[] }>(
+    `/internal/settings/role-menu/${role}`,
+    { menu_keys: menuKeys }
+  );
+  return res.data?.menu_keys ?? menuKeys;
 }

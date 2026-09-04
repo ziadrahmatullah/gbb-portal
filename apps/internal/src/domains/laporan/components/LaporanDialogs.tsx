@@ -22,7 +22,7 @@ import {
 } from "@/shared/components/ui/select";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { useCreateLaporan, useUpdateLaporan } from "../hooks/useLaporan";
-import { LAPORAN_TIPE_OPTIONS } from "../services";
+import { LAPORAN_ACCEPT, LAPORAN_TIPE_LABEL, LAPORAN_TIPE_OPTIONS } from "../services";
 import type { Laporan, LaporanTipe } from "../services";
 
 const NO_PERIODE = "none";
@@ -44,8 +44,8 @@ function TipeSelect({
       </SelectTrigger>
       <SelectContent>
         {LAPORAN_TIPE_OPTIONS.map((t) => (
-          <SelectItem key={t} value={t} className="capitalize">
-            {t}
+          <SelectItem key={t} value={t}>
+            {LAPORAN_TIPE_LABEL[t]}
           </SelectItem>
         ))}
       </SelectContent>
@@ -80,8 +80,10 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
     <Dialog open onOpenChange={(o: boolean) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Laporan</DialogTitle>
-          <DialogDescription>Unggah dokumen laporan/booklet baru.</DialogDescription>
+          <DialogTitle>Upload Laporan / Publikasi</DialogTitle>
+          <DialogDescription>
+            Unggah dokumen laporan/booklet, atau poster/infografis publikasi GBB (Recap, dll).
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
@@ -109,10 +111,11 @@ export function UploadLaporanDialog({ onClose }: { onClose: () => void }) {
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="l-file">File (wajib — PDF/DOCX/PPTX/XLS)</Label>
+            <Label htmlFor="l-file">File (wajib — PDF/DOCX/PPTX/XLS, atau PNG/JPG untuk infografis)</Label>
             <FileDropzone
               id="l-file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              accept={LAPORAN_ACCEPT}
+              maxSizeMb={5}
               value={file}
               onChange={(f: File | null) => setFile(f)}
               disabled={saving}

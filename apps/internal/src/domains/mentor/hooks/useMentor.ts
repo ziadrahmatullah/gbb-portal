@@ -6,11 +6,18 @@ import {
   getMentorDetail,
   getMentorList,
   getMentorStats,
+  listMentorPendaftaran,
   listMentorRequests,
   updateMentor,
+  updateMentorPendaftaran,
   updateMentorRequest,
 } from "../services";
-import type { MentorRequestListParams, UpdateMentorRequestReq } from "../services";
+import type {
+  MentorPendaftaranListParams,
+  MentorRequestListParams,
+  UpdateMentorPendaftaranReq,
+  UpdateMentorRequestReq,
+} from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const MENTOR_KEY = "mentor";
@@ -101,6 +108,36 @@ export function useDeleteMentor() {
     mutationFn: (id: number) => deleteMentor(id),
     onSuccess: () => {
       toast.success("Mentor berhasil dihapus");
+      queryClient.invalidateQueries({ queryKey: [MENTOR_KEY] });
+    },
+  });
+}
+
+// ─── Pendaftaran Mentor ───────────────────────────────────────────────────
+
+export function useMentorPendaftaranList(params: MentorPendaftaranListParams = {}) {
+  return useQuery({
+    queryKey: [MENTOR_KEY, "pendaftaran", params],
+    queryFn: () => listMentorPendaftaran(params),
+  });
+}
+
+// Error tidak di-toast di sini (interceptor sudah); dialog verifikasi
+// menampilkan mutation.error.message inline (mis. catatan wajib untuk perlu_info).
+export function useUpdateMentorPendaftaran() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: UpdateMentorPendaftaranReq }) =>
+      updateMentorPendaftaran(id, body),
+    onSuccess: (_, { body }) => {
+      toast.success(
+        body.status === "terdaftar"
+          ? "Pendaftar dipromosikan jadi mentor — kini tampil di Database Mentor"
+          : body.status === "perlu_info"
+            ? "Status diubah: perlu info tambahan — pendaftar melihat catatanmu"
+            : "Pendaftaran ditolak"
+      );
+      // Promosi menambah baris di direktori mentor & stats → invalidate seluruh domain
       queryClient.invalidateQueries({ queryKey: [MENTOR_KEY] });
     },
   });

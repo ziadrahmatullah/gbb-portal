@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
 import { Button, Input, Label, LoginShowcase } from "@gbb/ui";
 import { Loader2, Eye, EyeOff } from "lucide-react";
@@ -115,6 +115,15 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex justify-end -mt-1">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Lupa password?
+              </Link>
             </div>
 
             <Button type="submit" variant="secondary" className="w-full" disabled={loading}>

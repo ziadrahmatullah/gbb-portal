@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
+import { OptionalPasswordField } from "@/shared/components/OptionalPasswordField";
 import { useCreateBeswan, useUpdateBeswan } from "../hooks/useBeswan";
 import type { BeswanListItem } from "../services";
 
@@ -32,8 +33,10 @@ export function CreateBeswanDialog({
 }) {
   const { data: periodeOptions } = usePeriodeOptions();
   const createMutation = useCreateBeswan();
-  const [form, setForm] = useState({ nama_lengkap: "", nim: "", email: "", hp: "" });
+  const [form, setForm] = useState({ nama_lengkap: "", nim: "", email: "", hp: "", jurusan: "", tahun_masuk: "" });
   const [periodeId, setPeriodeId] = useState("");
+  const [manualPassword, setManualPassword] = useState(false);
+  const [password, setPassword] = useState("");
 
   const set = (key: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -42,10 +45,21 @@ export function CreateBeswanDialog({
     e.preventDefault();
     if (!periodeId) return;
     createMutation.mutate(
-      { ...form, periode_id: Number(periodeId) },
+      {
+        nama_lengkap: form.nama_lengkap,
+        nim: form.nim,
+        email: form.email,
+        hp: form.hp,
+        periode_id: Number(periodeId),
+        jurusan: form.jurusan || undefined,
+        tahun_masuk: form.tahun_masuk ? Number(form.tahun_masuk) : undefined,
+        password: manualPassword && password ? password : undefined,
+      },
       {
         onSuccess: () => {
-          setForm({ nama_lengkap: "", nim: "", email: "", hp: "" });
+          setForm({ nama_lengkap: "", nim: "", email: "", hp: "", jurusan: "", tahun_masuk: "" });
+          setManualPassword(false);
+          setPassword("");
           setPeriodeId("");
           onClose();
         },
@@ -58,7 +72,10 @@ export function CreateBeswanDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Tambah Beswan</DialogTitle>
-          <DialogDescription>Daftarkan penerima beasiswa baru ke sebuah periode.</DialogDescription>
+          <DialogDescription>
+            Daftarkan penerima beasiswa baru ke sebuah periode. Beswan menerima email untuk
+            membuat password login-nya sendiri.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
@@ -77,6 +94,19 @@ export function CreateBeswanDialog({
             <Label htmlFor="b-hp">HP</Label>
             <Input id="b-hp" value={form.hp} onChange={set("hp")} required disabled={createMutation.isPending} />
           </div>
+          {/* Profil akademik (masukan tim: analitik per jurusan & tingkat). Simpan
+              TAHUN MASUK, semester diturunkan BE — angka semester yang disimpan
+              mentah akan basi tiap 6 bulan. */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="b-jurusan">Jurusan</Label>
+              <Input id="b-jurusan" value={form.jurusan} onChange={set("jurusan")} placeholder="Teknik Informatika" disabled={createMutation.isPending} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="b-tahun">Tahun masuk kuliah</Label>
+              <Input id="b-tahun" type="number" min={2000} max={new Date().getFullYear() + 1} value={form.tahun_masuk} onChange={set("tahun_masuk")} placeholder="2022" disabled={createMutation.isPending} />
+            </div>
+          </div>
           <div className="grid gap-2">
             <Label>Periode</Label>
             <Select value={periodeId} onValueChange={setPeriodeId} disabled={createMutation.isPending}>
@@ -92,6 +122,15 @@ export function CreateBeswanDialog({
               </SelectContent>
             </Select>
           </div>
+          <OptionalPasswordField
+            id="b-password"
+            manual={manualPassword}
+            onManualChange={setManualPassword}
+            value={password}
+            onChange={setPassword}
+            disabled={createMutation.isPending}
+            subjek="beswan"
+          />
           <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={createMutation.isPending}>
               Batal
@@ -110,7 +149,7 @@ export function EditBeswanDialog({
   beswan,
   onClose,
 }: {
-  beswan: Pick<BeswanListItem, "id" | "nama_lengkap" | "email" | "hp"> | null;
+  beswan: Pick<BeswanListItem, "id" | "nama_lengkap" | "email" | "hp" | "jurusan" | "tahun_masuk"> | null;
   onClose: () => void;
 }) {
   const updateMutation = useUpdateBeswan();
@@ -118,6 +157,8 @@ export function EditBeswanDialog({
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
   const [hp, setHp] = useState("");
+  const [jurusan, setJurusan] = useState("");
+  const [tahunMasuk, setTahunMasuk] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
   const [cv, setCv] = useState<File | null>(null);
   // Prefill saat beswan berubah (adjust-during-render, bukan effect)
@@ -128,6 +169,8 @@ export function EditBeswanDialog({
     setEmail(beswan.email);
     setEmailError("");
     setHp(beswan.hp);
+    setJurusan(beswan.jurusan ?? "");
+    setTahunMasuk(beswan.tahun_masuk ? String(beswan.tahun_masuk) : "");
     setFoto(null);
     setCv(null);
   }
@@ -145,6 +188,14 @@ export function EditBeswanDialog({
           nama_lengkap: nama || undefined,
           hp: hp || undefined,
           email: email && email !== beswan.email ? email : undefined,
+          // Kirim hanya bila berubah; tahun kosong → 0 = dikosongkan di BE
+          jurusan: jurusan !== (beswan.jurusan ?? "") ? jurusan : undefined,
+          tahun_masuk:
+            (tahunMasuk ? Number(tahunMasuk) : 0) !== (beswan.tahun_masuk ?? 0)
+              ? tahunMasuk
+                ? Number(tahunMasuk)
+                : 0
+              : undefined,
           foto: foto ?? undefined,
           cv: cv ?? undefined,
         },
@@ -197,6 +248,16 @@ export function EditBeswanDialog({
           <div className="grid gap-2">
             <Label htmlFor="be-hp">HP</Label>
             <Input id="be-hp" value={hp} onChange={(e: ChangeEvent<HTMLInputElement>) => setHp(e.target.value)} required disabled={updateMutation.isPending} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="be-jurusan">Jurusan</Label>
+              <Input id="be-jurusan" value={jurusan} onChange={(e: ChangeEvent<HTMLInputElement>) => setJurusan(e.target.value)} placeholder="Teknik Informatika" disabled={updateMutation.isPending} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="be-tahun">Tahun masuk kuliah</Label>
+              <Input id="be-tahun" type="number" min={2000} max={new Date().getFullYear() + 1} value={tahunMasuk} onChange={(e: ChangeEvent<HTMLInputElement>) => setTahunMasuk(e.target.value)} placeholder="2022" disabled={updateMutation.isPending} />
+            </div>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="be-foto">Foto (opsional, gambar)</Label>

@@ -39,7 +39,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { useDeleteLaporan, useLaporanList } from "../hooks/useLaporan";
-import { LAPORAN_TIPE_OPTIONS } from "../services";
+import { LAPORAN_TIPE_LABEL, LAPORAN_TIPE_OPTIONS, isImageFile } from "../services";
 import type { Laporan } from "../services";
 import { EditLaporanDialog, UploadLaporanDialog } from "./LaporanDialogs";
 
@@ -84,8 +84,10 @@ export function LaporanPage() {
       {/* Header */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Laporan &amp; Booklet</h1>
-          <p className="text-muted-foreground">Arsip laporan dan booklet program.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Laporan &amp; Publikasi GBB</h1>
+          <p className="text-muted-foreground">
+            Arsip laporan, booklet, dan publikasi (infografis/recap) program.
+          </p>
         </div>
         {canMutate && (
           <div className="flex items-center gap-2">
@@ -118,8 +120,8 @@ export function LaporanPage() {
           <SelectContent>
             <SelectItem value={ALL}>Semua Tipe</SelectItem>
             {LAPORAN_TIPE_OPTIONS.map((t) => (
-              <SelectItem key={t} value={t} className="capitalize">
-                {t}
+              <SelectItem key={t} value={t}>
+                {LAPORAN_TIPE_LABEL[t]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -183,8 +185,19 @@ export function LaporanPage() {
               items.map((l, idx) => (
                 <TableRow key={l.id}>
                   <TableCell className="font-mono text-xs">{(page - 1) * limit + idx + 1}</TableCell>
-                  <TableCell className="font-medium">{l.judul}</TableCell>
-                  <TableCell className="text-sm capitalize">{l.tipe}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {isImageFile(l.file_url) && (
+                        <img
+                          src={l.file_url}
+                          alt=""
+                          className="h-8 w-8 shrink-0 rounded object-cover border"
+                        />
+                      )}
+                      {l.judul}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{LAPORAN_TIPE_LABEL[l.tipe] ?? l.tipe}</TableCell>
                   <TableCell className="text-sm">{l.periode_id ? periodeMap.get(l.periode_id) ?? `#${l.periode_id}` : "—"}</TableCell>
                   <TableCell>
                     <Badge

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
+import { useMenuAccess } from "@/shared/hooks/useMenuAccess";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
 import { NotificationBell } from "@/domains/notifikasi";
@@ -21,7 +22,7 @@ import { ChangePasswordDialog } from "@/domains/settings/components/ChangePasswo
 import {
   NAV_ITEMS,
   SETTINGS_NAV,
-  filterNavByRole,
+  filterNavByMenu,
   findBreadcrumb,
 } from "@/shared/constants/navigation";
 import type { NavItem } from "@/shared/constants/navigation";
@@ -195,10 +196,11 @@ function NavCollapsible({ item }: { item: NavItem }) {
 }
 
 function AppSidebar() {
-  const role = useAuthStore((s) => s.role);
   const { setOpenMobile } = useSidebar();
-  const navItems = filterNavByRole(NAV_ITEMS, role);
-  const settingsItems = filterNavByRole([SETTINGS_NAV], role);
+  // Menu yang tampil = himpunan kunci dari matriks role×menu (default = aturan lama)
+  const { allowed } = useMenuAccess();
+  const navItems = filterNavByMenu(NAV_ITEMS, allowed);
+  const settingsItems = filterNavByMenu([SETTINGS_NAV], allowed);
 
   return (
     <Sidebar collapsible="icon">

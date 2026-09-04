@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ChangeEvent, MouseEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Search,
+  ShieldAlert,
   Trash2,
 } from "lucide-react";
 import {
@@ -60,6 +61,7 @@ import { downloadMentorExcel } from "../services";
 import type { Mentor } from "../services";
 import { MentorFormDialog, UndipBadge } from "./MentorDialogs";
 import { MentorRequestsTab } from "./MentorRequestsTab";
+import { MentorPendaftaranTab } from "./MentorPendaftaranTab";
 
 const ALL = "all";
 
@@ -369,24 +371,64 @@ function MentorListTab() {
   );
 }
 
+// "Pendaftaran Mentor Baru" (self-signup donatur → verifikasi) sengaja jadi
+// TAB TERPISAH, bukan filter di Daftar Mentor: dua antrean "pending" bernama
+// mirip (Request Mentor = beswan minta dicarikan mentor) akan tertukar kalau
+// digabung di satu tabel.
 const MENTOR_TABS = [
   { key: "daftar", label: "Daftar Mentor" },
+  { key: "pendaftaran", label: "Pendaftaran Mentor Baru" },
   { key: "request", label: "Request Mentor" },
 ] as const;
 
 type MentorTabKey = (typeof MENTOR_TABS)[number]["key"];
 
+const isTabKey = (v: string | null): v is MentorTabKey =>
+  MENTOR_TABS.some((t) => t.key === v);
+
 export function MentorListPage() {
-  const [tab, setTab] = useState<MentorTabKey>("daftar");
+  // Tab dari query string (?tab=request) supaya notifikasi bell & tautan bisa
+  // deep-link langsung ke tab yang benar; state tidak hilang saat refresh.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const tab: MentorTabKey = isTabKey(rawTab) ? rawTab : "daftar";
+  const setTab = (next: MentorTabKey) =>
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next === "daftar") p.delete("tab");
+        else p.set("tab", next);
+        return p;
+      },
+      { replace: true }
+    );
   // Badge jumlah request pending di label tab (limit 1 — cuma butuh totalItems)
   const { data: pending } = useMentorRequestList({ limit: 1, status: "pending" });
   const pendingCount = pending?.totalItems ?? 0;
+  // Antrean verifikasi pendaftar baru — dari stats yang sudah dipanggil tab Daftar
+  const { data: stats } = useMentorStats();
+  const menungguCount = stats?.pendaftaran_menunggu ?? 0;
 
   return (
     <div className="space-y-4">
       <div className="mb-2">
         <h1 className="text-2xl font-bold tracking-tight">Database Mentor</h1>
       </div>
+
+      {/* Banner di ATAS tabs supaya terlihat dari tab mana pun; klik → pindah tab */}
+      {menungguCount > 0 && tab !== "pendaftaran" && (
+        <button
+          type="button"
+          onClick={() => setTab("pendaftaran")}
+          className="flex w-full items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-sm text-amber-900 transition-colors hover:bg-amber-500/15 dark:text-amber-200"
+        >
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{menungguCount}</strong> pendaftaran mentor baru menunggu verifikasi kamu —
+            klik untuk membuka.
+          </span>
+        </button>
+      )}
 
       <Tabs value={tab} onValueChange={(v: string) => setTab(v as MentorTabKey)} className="space-y-4">
         <div className="w-full overflow-x-auto pb-2">
@@ -399,6 +441,11 @@ export function MentorListPage() {
                     {pendingCount}
                   </Badge>
                 )}
+                {t.key === "pendaftaran" && menungguCount > 0 && (
+                  <Badge className="ml-1.5 h-5 min-w-5 rounded-full bg-amber-500 px-1.5 text-xs text-white">
+                    {menungguCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -406,6 +453,9 @@ export function MentorListPage() {
 
         <TabsContent value="daftar" className="space-y-4">
           <MentorListTab />
+        </TabsContent>
+        <TabsContent value="pendaftaran" className="space-y-4">
+          <MentorPendaftaranTab />
         </TabsContent>
         <TabsContent value="request" className="space-y-4">
           <MentorRequestsTab />

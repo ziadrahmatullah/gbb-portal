@@ -57,6 +57,25 @@ export interface DonaturMonitoring {
   // catatan kosong tersimpan sebagai "" (bukan null), beda dari warna.
   catatan: string | null;
   warna: string | null; // slug ROW_COLORS; null = ikut warna tag otomatis
+  // FEpromt25 §7 — tanda "sudah dikirim WA" per (bulan, konteks), dibagi seluruh
+  // staf AnC. Selalu array ([] kalau kosong), tidak tergantung filter periode.
+  pesan_terkirim?: PesanTerkirim[];
+}
+
+export interface PesanTerkirim {
+  bulan: string; // "2026-09"
+  konteks: string; // "tgl_7" | "tgl_25" | konteks template lain
+  sent_at: string;
+}
+
+// POST /internal/donatur/:id/pesan-log (admin, anc) → upsert; klik ulang oleh
+// orang lain memperbarui sent_by/sent_at pada baris yang sama.
+export async function logPesanTerkirim(id: number, body: { bulan: string; konteks: string }) {
+  const res = await apiClient.post<PesanTerkirim & { id: number; sent_by_nama: string }>(
+    `/internal/donatur/${id}/pesan-log`,
+    body
+  );
+  return res.data;
 }
 
 // Minimal untuk dropdown/lookup lintas modul (dipakai klasifikasi cashflow)
@@ -142,10 +161,12 @@ export async function getDonaturStats() {
   return res.data;
 }
 
+// FEpromt26: password opsional — kosong = donatur menyetel sendiri lewat tautan
+// email selamat datang; has_password=false sampai itu dilakukan.
 export async function createDonatur(body: {
   nama: string;
   email: string;
-  password: string;
+  password?: string;
   hp?: string;
   organisasi?: string;
   nominal_default?: number;

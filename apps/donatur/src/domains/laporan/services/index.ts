@@ -3,7 +3,11 @@ import { toPaged } from "@/shared/lib/apiTypes";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 // Enum tertutup (binding oneof di backend, seed sudah dimigrasi)
-export const LAPORAN_TIPE_OPTIONS = ["booklet", "keuangan", "internal"] as const;
+export const LAPORAN_TIPE_OPTIONS = ["booklet", "keuangan", "publikasi", "internal"] as const;
+
+export function isImageFile(url?: string | null) {
+  return /\.(png|jpe?g)(\?|$)/i.test(url ?? "");
+}
 export type LaporanTipe = (typeof LAPORAN_TIPE_OPTIONS)[number];
 
 // Mirror gbb-backend dto/laporan_dto.go LaporanRes

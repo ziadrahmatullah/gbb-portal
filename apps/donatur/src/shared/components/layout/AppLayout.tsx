@@ -1,19 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import {
-  Calendar,
-  ChevronsUpDown,
-  Clock,
-  FileText,
-  GraduationCap,
-  Home,
-  LayoutDashboard,
-  LogOut,
-  Moon,
-  Sun,
-  User,
-  Users,
-} from "lucide-react";
+import { Calendar, ChevronsUpDown, Clock, Lock, LogOut, Moon, Sun } from "lucide-react";
 import {
   Avatar,
   AvatarFallback,
@@ -48,15 +35,9 @@ import {
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { ErrorBoundary } from "@/shared/components/ErrorBoundary";
-
-const NAV_ITEMS = [
-  { label: "Beranda", path: "/beranda", icon: Home },
-  { label: "Daftar Mentor!", path: "/daftar-mentor", icon: GraduationCap },
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Data Beswan", path: "/data-beswan", icon: Users },
-  { label: "Laporan", path: "/laporan", icon: FileText },
-  { label: "Profile", path: "/profile", icon: User },
-];
+import { FloatingAdminChat } from "@/shared/components/FloatingAdminChat";
+import { NAV_ITEMS } from "@/shared/constants/navigation";
+import { useDonaturStatus } from "@/shared/hooks/useDonaturStatus";
 
 function initials(name: string | null | undefined): string {
   return (
@@ -72,6 +53,9 @@ function initials(name: string | null | undefined): string {
 function AppSidebar() {
   const location = useLocation();
   const { setOpenMobile } = useSidebar();
+  // Dipanggil di sini juga (bukan hanya di RequireAktif) supaya cache status
+  // sudah hangat sebelum rute terjaga di-mount — skeleton-nya tidak berkedip.
+  const { locked } = useDonaturStatus();
 
   return (
     <Sidebar collapsible="icon">
@@ -99,20 +83,27 @@ function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarMenu>
-            {NAV_ITEMS.map((item) => (
-              <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={location.pathname.startsWith(item.path)}
-                  tooltip={item.label}
-                >
-                  <NavLink to={item.path} onClick={() => setOpenMobile(false)}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              // Menu terkunci tetap dirender & tetap bisa diklik (mendarat di
+              // panel ajakan) — hanya diberi gembok dan diredupkan.
+              const isLocked = locked && !!item.requiresAktif;
+              return (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location.pathname.startsWith(item.path)}
+                    tooltip={isLocked ? `${item.label} — terbuka setelah patungan bulan ini` : item.label}
+                    className={isLocked ? "text-sidebar-foreground/60" : undefined}
+                  >
+                    <NavLink to={item.path} onClick={() => setOpenMobile(false)}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                      {isLocked && <Lock className="ms-auto size-3.5 opacity-70" />}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -235,12 +226,15 @@ export function AppLayout() {
         </header>
 
         {/* ===== Page content ===== */}
-        <main className="px-4 py-6 md:px-6">
+        <main className="px-4 py-6 pb-24 md:px-6">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
         </main>
       </SidebarInset>
+
+      {/* Persisten di semua halaman — jalur langsung ke WA Admin GBB */}
+      <FloatingAdminChat />
 
       {/* Logout dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

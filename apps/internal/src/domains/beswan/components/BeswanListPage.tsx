@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge, Skeleton } from "@gbb/ui";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
+import { PeriodeFilterSelect } from "@/shared/components/PeriodeFilterSelect";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -241,6 +242,7 @@ export function BeswanListPage() {
             className="pl-9 w-64"
           />
         </div>
+        <PeriodeFilterSelect onChange={() => setPage(1)} />
         <Select
           value={status}
           onValueChange={(v: StatusFilter) => {
@@ -292,6 +294,7 @@ export function BeswanListPage() {
                 </Button>
               </TableHead>
               <TableHead>NIM</TableHead>
+              <TableHead>Jurusan · Smt</TableHead>
               <TableHead>Batch</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-24 text-right">Aksi</TableHead>
@@ -301,14 +304,14 @@ export function BeswanListPage() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Skeleton className="h-8 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
                   Tidak ada beswan ditemukan
                 </TableCell>
               </TableRow>
@@ -344,6 +347,16 @@ export function BeswanListPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{b.nim}</TableCell>
+                  <TableCell className="text-sm">
+                    {b.jurusan || b.semester ? (
+                      <>
+                        {b.jurusan || "—"}
+                        {b.semester ? <span className="text-muted-foreground"> · Smt {b.semester}</span> : null}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm">{b.batch ?? "—"}</TableCell>
                   <TableCell>
                     {b.status ? (

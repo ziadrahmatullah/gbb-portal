@@ -25,7 +25,12 @@ export interface DashboardEventData {
   kehadiran: { hadir: number; tidak_hadir: number; persen_hadir: number };
   // pending = ekspektasi pengumpulan (penugasan x beswan periode) yang belum masuk
   penugasan: { submitted: number; graded: number; pending: number };
+  // FEpromt25 §6 — selalu 3 entri (Talkshow, GROWTH, Lainnya), zero-filled,
+  // urutan tetap, supaya chart stabil saat difilter tipe.
+  event_per_tipe?: ChartCount[];
 }
+
+export type EventTipeFilter = "talkshow" | "growth" | "other";
 
 export interface TrenKehadiranBulan {
   bulan: string;
@@ -68,6 +73,10 @@ export interface DashboardAnalitikData {
   // 4 bucket tetap: "< 2.50", "2.50 - 2.99", "3.00 - 3.49", "3.50 - 4.00"
   distribusi_ipk: ChartCount[];
   nilai_tugas_per_batch: NilaiTugasBatch[];
+  // FEpromt25 §3 — bucket "Belum diisi" SELALU paling akhir; jurusan urut jumlah
+  // desc, semester menaik. Jangan sort ulang.
+  distribusi_jurusan?: ChartCount[];
+  distribusi_semester?: ChartCount[];
   // Tanpa pagination (skala beswan masih kecil)
   progress_beswan: ProgressBeswan[];
 }
@@ -96,11 +105,13 @@ export interface DashboardTrendDonaturData {
 }
 
 // periodeId kosong/undefined = semua periode (backend pakai DefaultQuery "")
-export async function getDashboardEvent(periodeId?: string) {
-  const res = await apiClient.get<DashboardEventData>(
-    "/internal/dashboard/event",
-    periodeId ? { periode_id: periodeId } : undefined
-  );
+// tipe= menyaring total_event, event_selesai, event_per_bulan, kehadiran,
+// event_per_tipe; beswan_aktif / donasi_bulan_ini / penugasan tidak ikut.
+export async function getDashboardEvent(periodeId?: string, tipe?: EventTipeFilter) {
+  const res = await apiClient.get<DashboardEventData>("/internal/dashboard/event", {
+    ...(periodeId ? { periode_id: periodeId } : {}),
+    ...(tipe ? { tipe } : {}),
+  });
   return res.data;
 }
 

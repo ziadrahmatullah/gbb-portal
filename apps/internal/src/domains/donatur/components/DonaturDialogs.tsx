@@ -1,8 +1,11 @@
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Check, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
+import { OptionalPasswordField } from "@/shared/components/OptionalPasswordField";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -37,7 +40,9 @@ import type { Donatur } from "../services";
 // ─── Edit: catatan + is_checked + matriks keikutsertaan periode ──────────
 
 export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onClose: () => void }) {
-  const { data: periodeData } = usePeriodeOptions();
+  // Cache-nya biasanya sudah hangat (DonaturListPage memanggil hook yang sama),
+  // jadi `isLoading` di sini hanya terjadi saat cache benar-benar kosong.
+  const { data: periodeData, isLoading: periodeLoading } = usePeriodeOptions();
   const updateMutation = useUpdateDonatur();
   const assignMutation = useAssignPeriode();
   const removePeriodeMutation = useRemovePeriode();
@@ -59,18 +64,31 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
 
   const setP = (k: keyof typeof profil) => (e: ChangeEvent<HTMLInputElement>) =>
     setProfil((prev) => ({ ...prev, [k]: e.target.value }));
-  // Status keikutsertaan disimpan lokal (seed dari prop) supaya switch langsung
-  // mencerminkan perubahan — prop `donatur` cuma snapshot saat dialog dibuka.
+  // Status keikutsertaan disimpan lokal (seed dari prop). Switch HANYA mengubah
+  // state ini; request-nya dikirim sekali saat "Simpan Perubahan" — dulu tiap
+  // toggle langsung POST dan seluruh grup switch di-disable selama request
+  // berjalan, sehingga admin mengira hanya satu periode yang bisa diaktifkan.
   const [periodeStatus, setPeriodeStatus] = useState<Record<number, string>>(() =>
     Object.fromEntries((donatur.periodes ?? []).map((p) => [p.periode_id, p.status]))
   );
+  // Periode yang statusnya berubah dari snapshot awal → dikirim saat simpan.
+  const [dirtyPeriodeIds, setDirtyPeriodeIds] = useState<Set<number>>(new Set());
 
   const periodes = periodeData?.items ?? [];
   const infoByPeriode = new Map((donatur.periodes ?? []).map((p) => [p.periode_id, p]));
 
   const togglePeriode = (periodeId: number, aktif: boolean) => {
     const status = aktif ? "aktif" : "tidak_aktif";
-    setPeriodeStatus((prev) => ({ ...prev, [periodeId]: status })); // optimistic
+    setPeriodeStatus((prev) => ({ ...prev, [periodeId]: status }));
+    setDirtyPeriodeIds((prev) => {
+      const next = new Set(prev);
+      // Kembali ke status awal = tidak perlu dikirim; kalau baris tadinya
+      // belum ada (info undefined) dan sekarang nonaktif, juga tidak perlu.
+      const initial = infoByPeriode.get(periodeId)?.status ?? "tidak_aktif";
+      if (status === initial && !removedPeriodeIds.has(periodeId)) next.delete(periodeId);
+      else next.add(periodeId);
+      return next;
+    });
     // Toggle setelah dihapus = assign ulang (upsert) → baris kembali ada, tombol
     // Hapus boleh muncul lagi.
     setRemovedPeriodeIds((prev) => {
@@ -79,39 +97,52 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
       next.delete(periodeId);
       return next;
     });
-    const existing = infoByPeriode.get(periodeId);
-    assignMutation.mutate({
-      id: donatur.id,
-      body: {
-        periode_id: periodeId,
-        status,
-        nominal: existing?.nominal ?? donatur.nominal_default ?? undefined,
-        skema: existing?.skema ?? donatur.skema,
-      },
-    });
   };
 
-  const handleSaveProfile = (e: FormEvent<HTMLFormElement>) => {
+  const saving = updateMutation.isPending || assignMutation.isPending;
+
+  const handleSaveProfile = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    updateMutation.mutate(
-      {
-        id: donatur.id,
-        body: {
-          // Dikirim apa adanya, bukan `|| undefined` — sekarang catatan bisa
-          // dibaca balik, jadi mengosongkan textarea harus benar-benar menghapusnya
-          catatan,
-          is_checked: isChecked,
-          // String kosong = tidak diubah backend, aman dikirim apa adanya
-          nama: profil.nama,
-          email: profil.email,
-          hp: profil.hp,
-          organisasi: profil.organisasi,
-          skema,
-          nominal_default: profil.nominal_default ? Number(profil.nominal_default) : undefined,
-        },
-      },
-      { onSuccess: onClose }
-    );
+    try {
+      // Profil + semua periode yang berubah dikirim paralel dalam satu klik.
+      // Kalau satu gagal, dialog tetap terbuka (isian tidak hilang) dan
+      // pesannya sudah di-toast interceptor.
+      await Promise.all([
+        updateMutation.mutateAsync({
+          id: donatur.id,
+          body: {
+            // Dikirim apa adanya, bukan `|| undefined` — sekarang catatan bisa
+            // dibaca balik, jadi mengosongkan textarea harus benar-benar menghapusnya
+            catatan,
+            is_checked: isChecked,
+            // String kosong = tidak diubah backend, aman dikirim apa adanya
+            nama: profil.nama,
+            email: profil.email,
+            hp: profil.hp,
+            organisasi: profil.organisasi,
+            skema,
+            nominal_default: profil.nominal_default ? Number(profil.nominal_default) : undefined,
+          },
+        }),
+        ...[...dirtyPeriodeIds].map((periodeId) => {
+          const existing = infoByPeriode.get(periodeId);
+          return assignMutation.mutateAsync({
+            id: donatur.id,
+            body: {
+              periode_id: periodeId,
+              status: periodeStatus[periodeId] === "aktif" ? "aktif" : "tidak_aktif",
+              nominal: existing?.nominal ?? donatur.nominal_default ?? undefined,
+              skema: existing?.skema ?? donatur.skema,
+            },
+          });
+        }),
+      ]);
+      const n = dirtyPeriodeIds.size;
+      toast.success(n ? `Donatur & ${n} periode tersimpan` : "Donatur berhasil diperbarui");
+      onClose();
+    } catch {
+      // lihat komentar di atas
+    }
   };
 
   return (
@@ -127,50 +158,80 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
 
         {/* Matriks keikutsertaan periode */}
         <div className="space-y-2">
-          <Label>Keikutsertaan per periode</Label>
+          <div className="flex items-center justify-between">
+            <Label>Keikutsertaan per periode</Label>
+            <span className="text-xs text-muted-foreground">
+              Donatur boleh aktif di lebih dari satu periode
+            </span>
+          </div>
           <div className="rounded-lg border divide-y">
-            {periodes.map((p) => {
-              const info = infoByPeriode.get(p.id);
-              const aktif = periodeStatus[p.id] === "aktif";
-              const hasAssignment = !!info && !removedPeriodeIds.has(p.id);
-              return (
-                <div key={p.id} className="flex items-center justify-between px-3 py-2">
-                  <div className="text-sm">
-                    <div className="font-medium">{p.nama}</div>
-                    {info && !removedPeriodeIds.has(p.id) && (
-                      <div className="text-xs text-muted-foreground">
-                        {info.skema ? skemaLabel(info.skema) : "—"}
-                        {info.nominal ? ` · Rp ${new Intl.NumberFormat("id-ID").format(info.nominal)}` : ""}
+            {periodeLoading && periodes.length === 0
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-5 w-9 rounded-full" />
+                  </div>
+                ))
+              : periodes.map((p) => {
+                  const info = infoByPeriode.get(p.id);
+                  const aktif = periodeStatus[p.id] === "aktif";
+                  const hasAssignment = !!info && !removedPeriodeIds.has(p.id);
+                  const dirty = dirtyPeriodeIds.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 transition-colors",
+                        dirty && "bg-primary/5"
+                      )}
+                    >
+                      <div className="text-sm">
+                        <div className="font-medium flex items-center gap-2">
+                          {p.nama}
+                          {dirty && (
+                            <span className="text-[10px] font-normal uppercase tracking-wide text-primary">
+                              belum disimpan
+                            </span>
+                          )}
+                        </div>
+                        {info && !removedPeriodeIds.has(p.id) && (
+                          <div className="text-xs text-muted-foreground">
+                            {info.skema ? skemaLabel(info.skema) : "—"}
+                            {info.nominal ? ` · Rp ${new Intl.NumberFormat("id-ID").format(info.nominal)}` : ""}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {hasAssignment && (
-                      <button
-                        type="button"
-                        title="Hapus keikutsertaan periode ini"
-                        onClick={() => setRemovingPeriodeId(p.id)}
-                        className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                    <Switch
-                      checked={aktif}
-                      onCheckedChange={(v: boolean) => togglePeriode(p.id, v)}
-                      disabled={assignMutation.isPending}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            {periodes.length === 0 && (
+                      <div className="flex items-center gap-1.5">
+                        {hasAssignment && (
+                          <button
+                            type="button"
+                            title="Hapus keikutsertaan periode ini"
+                            onClick={() => setRemovingPeriodeId(p.id)}
+                            disabled={saving}
+                            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        {/* Tidak di-disable saat mutation lain berjalan — toggle
+                            beruntun harus tetap bisa; dikirim bersama saat simpan */}
+                        <Switch
+                          checked={aktif}
+                          onCheckedChange={(v: boolean) => togglePeriode(p.id, v)}
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            {!periodeLoading && periodes.length === 0 && (
               <div className="px-3 py-4 text-center text-sm text-muted-foreground">Belum ada periode</div>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Switch = ubah status aktif/tidak_aktif (riwayat tetap ada). Ikon hapus = hilangkan
-            keikutsertaan periode ini sepenuhnya dari riwayat.
+            Switch = ubah status aktif/tidak_aktif (riwayat tetap ada), disimpan bersama tombol
+            &quot;Simpan Perubahan&quot;. Ikon hapus = hilangkan keikutsertaan periode ini
+            sepenuhnya dari riwayat (langsung, dengan konfirmasi).
           </p>
         </div>
 
@@ -218,31 +279,31 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="d-nama">Nama</Label>
-              <Input id="d-nama" value={profil.nama} onChange={setP("nama")} required disabled={updateMutation.isPending} />
+              <Input id="d-nama" value={profil.nama} onChange={setP("nama")} required disabled={saving} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="d-email">Email</Label>
-              <Input id="d-email" type="email" value={profil.email} onChange={setP("email")} disabled={updateMutation.isPending} />
+              <Input id="d-email" type="email" value={profil.email} onChange={setP("email")} disabled={saving} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="d-hp">HP</Label>
-              <Input id="d-hp" value={profil.hp} onChange={setP("hp")} disabled={updateMutation.isPending} />
+              <Input id="d-hp" value={profil.hp} onChange={setP("hp")} disabled={saving} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="d-org">Organisasi</Label>
-              <Input id="d-org" value={profil.organisasi} onChange={setP("organisasi")} disabled={updateMutation.isPending} />
+              <Input id="d-org" value={profil.organisasi} onChange={setP("organisasi")} disabled={saving} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="d-nominal">Nominal default</Label>
-              <Input id="d-nominal" type="number" min={0} value={profil.nominal_default} onChange={setP("nominal_default")} disabled={updateMutation.isPending} />
+              <Input id="d-nominal" type="number" min={0} value={profil.nominal_default} onChange={setP("nominal_default")} disabled={saving} />
             </div>
             <div className="grid gap-2">
               <Label>Skema</Label>
-              <Select value={skema} onValueChange={setSkema} disabled={updateMutation.isPending}>
+              <Select value={skema} onValueChange={setSkema} disabled={saving}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -264,23 +325,27 @@ export function EditDonaturDialog({ donatur, onClose }: { donatur: Donatur; onCl
               value={catatan}
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCatatan(e.target.value)}
               placeholder="Catatan tambahan… (kosong = tidak diubah)"
-              disabled={updateMutation.isPending}
+              disabled={saving}
             />
           </div>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Switch
               checked={isChecked}
               onCheckedChange={setIsChecked}
-              disabled={updateMutation.isPending}
+              disabled={saving}
             />
             Sudah diverifikasi (is_checked)
           </label>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={updateMutation.isPending}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Tutup
             </Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Menyimpan…" : "Simpan Perubahan"}
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? "Menyimpan…"
+                : dirtyPeriodeIds.size
+                  ? `Simpan Perubahan (${dirtyPeriodeIds.size} periode)`
+                  : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </form>
@@ -435,7 +500,7 @@ export function CreateDonaturDialog({
   onSubmit: (body: {
     nama: string;
     email: string;
-    password: string;
+    password?: string;
     hp?: string;
     organisasi?: string;
     nominal_default?: number;
@@ -445,6 +510,7 @@ export function CreateDonaturDialog({
 }) {
   const [form, setForm] = useState({ nama: "", email: "", password: "", hp: "", organisasi: "", nominal_default: "" });
   const [skema, setSkema] = useState("belum_bersedia");
+  const [manualPassword, setManualPassword] = useState(false);
 
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
@@ -454,7 +520,7 @@ export function CreateDonaturDialog({
     onSubmit({
       nama: form.nama,
       email: form.email,
-      password: form.password,
+      password: manualPassword && form.password ? form.password : undefined,
       hp: form.hp || undefined,
       organisasi: form.organisasi || undefined,
       nominal_default: form.nominal_default ? Number(form.nominal_default) : undefined,
@@ -467,7 +533,10 @@ export function CreateDonaturDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Tambah Donatur</DialogTitle>
-          <DialogDescription>Entry manual untuk donatur yang belum ada di sistem.</DialogDescription>
+          <DialogDescription>
+            Entry manual untuk donatur yang belum ada di sistem. Donatur menerima email untuk
+            membuat password (atau login Google dengan email yang sama).
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
@@ -478,19 +547,15 @@ export function CreateDonaturDialog({
             <Label htmlFor="nd-email">Email</Label>
             <Input id="nd-email" type="email" value={form.email} onChange={set("email")} required disabled={saving} />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="nd-password">Password awal (min 8 karakter)</Label>
-            <Input
-              id="nd-password"
-              type="password"
-              minLength={8}
-              value={form.password}
-              onChange={set("password")}
-              required
-              disabled={saving}
-              autoComplete="new-password"
-            />
-          </div>
+          <OptionalPasswordField
+            id="nd-password"
+            manual={manualPassword}
+            onManualChange={setManualPassword}
+            value={form.password}
+            onChange={(v) => setForm((prev) => ({ ...prev, password: v }))}
+            disabled={saving}
+            subjek="donatur"
+          />
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="nd-hp">HP</Label>

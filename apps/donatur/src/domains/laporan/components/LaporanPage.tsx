@@ -19,12 +19,13 @@ import {
 } from "@gbb/ui";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
 import { useLaporanList } from "../hooks/useLaporan";
-import { LAPORAN_TIPE_OPTIONS } from "../services";
+import { LAPORAN_TIPE_OPTIONS, isImageFile } from "../services";
 
 const ALL = "all";
 const TIPE_LABEL: Record<string, string> = {
   booklet: "Booklet",
   keuangan: "Keuangan",
+  publikasi: "Publikasi",
   internal: "Internal",
 };
 
@@ -60,7 +61,7 @@ export function LaporanPage() {
   return (
     <div className="space-y-4">
       <div className="mb-2">
-        <h1 className="text-2xl font-bold tracking-tight">Laporan GBB</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Laporan &amp; Publikasi GBB</h1>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -125,8 +126,12 @@ export function LaporanPage() {
                 <TableRow key={l.id}>
                   <TableCell className="px-3 text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="px-3 font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="flex items-center gap-2">
+                      {isImageFile(l.file_url) ? (
+                        <img src={l.file_url} alt="" className="size-8 shrink-0 rounded border object-cover" />
+                      ) : (
+                        <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+                      )}
                       {l.judul}
                     </span>
                   </TableCell>

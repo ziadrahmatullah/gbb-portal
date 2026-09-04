@@ -46,7 +46,12 @@ npm run dev:donatur        # http://localhost:5175
 npm run build:internal     # or build:beswan / build:donatur / build (all three)
 ```
 
-Each app reads `VITE_API_URL` from its own `.env.local` (gitignored) to point at the backend, e.g. `VITE_API_URL=http://0.0.0.0:6099`. `apps/donatur` additionally needs `VITE_GOOGLE_CLIENT_ID` for the Google login button.
+Each app reads `VITE_API_URL` from its own `.env.local` (gitignored) to point at the backend, e.g. `VITE_API_URL=http://0.0.0.0:6099`. `apps/donatur` additionally needs `VITE_GOOGLE_CLIENT_ID` for the Google login button, and accepts two optional flags:
+
+- `VITE_GATING_ENABLED=true` — turns on menu gating for donors who haven't donated this month (needs `GET /donatur/status` on the backend, see `gbb-backend/promt/FEpromt25.txt` §1). Default off; on API error the portal fails open.
+- `VITE_WA_ADMIN` — WhatsApp number for the floating "Hubungi Admin GBB" button (default `6281991710763`).
+
+`apps/internal` accepts `VITE_ROLE_MENU_ENABLED=true` — reads the role × menu matrix from `GET /internal/account/menu` (Settings › Hak Akses Menu becomes editable; see `gbb-backend/promt/FEpromt27.txt`). Default off: menus follow the built-in defaults in `src/shared/constants/menu.ts`, identical to the previous hardcoded rules.
 
 ## `packages/ui` (`@gbb/ui`) — the shared design system
 

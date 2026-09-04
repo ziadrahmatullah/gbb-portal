@@ -20,6 +20,9 @@ import { StatCard } from "@/shared/components/StatCard";
 import { formatRupiah, BULAN_PENDEK } from "@/shared/lib/format";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { useHighlight, useMyDashboard } from "../hooks/useBeranda";
+import { HIGHLIGHT_KATEGORI_LABEL, highlightTanggal } from "../services";
+import { useDonaturStatus } from "@/shared/hooks/useDonaturStatus";
+import { AjakPatunganPanel } from "@/shared/components/AjakPatunganPanel";
 
 const BANNER_DISMISS_KEY = "donatur_banner_email_dismissed";
 
@@ -154,25 +157,45 @@ function HighlightGrid() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {highlights.map((h) => (
-        <a key={h.id} href={h.link_ig} target="_blank" rel="noreferrer" className="group">
+      {highlights.map((h) => {
+        const card = (
           <Card className="gap-0 overflow-hidden py-0 transition-shadow hover:shadow-md">
             {h.gambar_url ? (
-              <img src={h.gambar_url} alt={h.judul} className="h-32 w-full object-cover" />
+              <img src={h.gambar_url} alt={h.judul} className="h-40 w-full object-cover" />
             ) : (
-              <div className="flex h-32 w-full items-center justify-center bg-muted text-muted-foreground">
+              <div className="flex h-40 w-full items-center justify-center bg-muted text-muted-foreground">
                 <Sparkles className="size-6" />
               </div>
             )}
             <CardContent className="space-y-1 p-3">
+              {(h.kategori || h.tanggal) && (
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  {h.kategori && (
+                    <Badge variant="secondary" className="font-normal">
+                      {HIGHLIGHT_KATEGORI_LABEL[h.kategori] ?? h.kategori}
+                    </Badge>
+                  )}
+                  {h.tanggal && <span className="text-muted-foreground">{highlightTanggal(h.tanggal)}</span>}
+                </div>
+              )}
               <div className="text-sm font-medium line-clamp-2">{h.judul}</div>
-              <span className="inline-flex items-center gap-1 text-xs text-primary group-hover:underline">
-                🔗 Lihat di IG
-              </span>
+              {h.link_ig && (
+                <span className="inline-flex items-center gap-1 text-xs text-primary group-hover:underline">
+                  🔗 Lihat di IG
+                </span>
+              )}
             </CardContent>
           </Card>
-        </a>
-      ))}
+        );
+        // link_ig opsional — poster tanpa post IG dirender tanpa tautan
+        return h.link_ig ? (
+          <a key={h.id} href={h.link_ig} target="_blank" rel="noreferrer" className="group">
+            {card}
+          </a>
+        ) : (
+          <div key={h.id}>{card}</div>
+        );
+      })}
     </div>
   );
 }
@@ -180,6 +203,9 @@ function HighlightGrid() {
 export function BerandaPage() {
   const profile = useAuthStore((s) => s.profile);
   const { data, isLoading } = useMyDashboard();
+  // Ajakan patungan di Beranda memakai komponen yang sama dengan halaman
+  // terkunci — satu sumber copy. Hanya tampil saat gating aktif & belum donasi.
+  const { locked, status } = useDonaturStatus();
   const firstName = profile?.nama?.split(" ")[0] ?? "";
 
   return (
@@ -193,6 +219,8 @@ export function BerandaPage() {
       </div>
 
       <EmailBanner />
+
+      {locked && <AjakPatunganPanel status={status} compact />}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard

@@ -40,6 +40,7 @@ import {
   useUserList,
 } from "../hooks/useSettings";
 import type { User } from "../services";
+import { OptionalPasswordField } from "@/shared/components/OptionalPasswordField";
 
 const ALL = "all";
 
@@ -47,6 +48,7 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
   const createMutation = useCreateUser();
   const [form, setForm] = useState({ nama: "", email: "", password: "", divisi: "" });
   const [role, setRole] = useState<Role>("viewer");
+  const [manualPassword, setManualPassword] = useState(false);
 
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
@@ -54,7 +56,14 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     createMutation.mutate(
-      { ...form, divisi: form.divisi || undefined, role },
+      {
+        nama: form.nama,
+        email: form.email,
+        // Kosong = user membuat password sendiri lewat tautan email welcome (FEpromt26)
+        password: manualPassword && form.password ? form.password : undefined,
+        divisi: form.divisi || undefined,
+        role,
+      },
       { onSuccess: onClose }
     );
   };
@@ -66,7 +75,9 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Tambah User</DialogTitle>
-          <DialogDescription>Buat akun portal internal baru.</DialogDescription>
+          <DialogDescription>
+            Buat akun portal internal baru. User menerima email untuk membuat password sendiri.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
@@ -77,10 +88,15 @@ function CreateUserDialog({ onClose }: { onClose: () => void }) {
             <Label htmlFor="u-email">Email</Label>
             <Input id="u-email" type="email" value={form.email} onChange={set("email")} required disabled={saving} />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="u-password">Password (min 8 karakter)</Label>
-            <Input id="u-password" type="password" minLength={8} value={form.password} onChange={set("password")} required disabled={saving} />
-          </div>
+          <OptionalPasswordField
+            id="u-password"
+            manual={manualPassword}
+            onManualChange={setManualPassword}
+            value={form.password}
+            onChange={(v) => setForm((prev) => ({ ...prev, password: v }))}
+            disabled={saving}
+            subjek="user"
+          />
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Role</Label>
@@ -135,7 +151,7 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
         <DialogHeader>
           <DialogTitle>Edit User — {user.nama}</DialogTitle>
           <DialogDescription>
-            Email &amp; password tidak dapat diubah dari sini (reset password belum tersedia).
+            Email &amp; password tidak dapat diubah dari sini — pakai tombol Reset Password di tabel.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">

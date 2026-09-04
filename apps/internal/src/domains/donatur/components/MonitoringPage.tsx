@@ -15,8 +15,9 @@ import {
   Users,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, Skeleton } from "@gbb/ui";
+import { Card, CardContent, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger, normalizeWa } from "@gbb/ui";
 import { cn } from "@/lib/utils";
+import { TemplatesTab } from "@/domains/settings/components/TemplatesTab";
 import { formatNominal as fmt, singkatNominal } from "@/shared/lib/nominal";
 import { useColumnWindow } from "@/shared/hooks/useColumnWindow";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
@@ -42,6 +43,7 @@ import {
 import {
   DONATUR_KEY,
   useDonaturStats,
+  useLogPesanTerkirim,
   useMonitoringList,
   usePesanTemplates,
 } from "../hooks/useDonatur";
@@ -75,32 +77,36 @@ const nextMonthLabel = (ym: string) => {
 //            tanggal 25 yang relevan masih bulan berjalan
 //   Tgl 7  = follow-up tgl 7 untuk bulan berjalan — sebelum tanggal 7 masih
 //            menyasar bulan lalu
-function kirimTargets(now = new Date()) {
+// Mengembalikan label ("September 2026") + kunci "YYYY-MM" — kunci dipakai untuk
+// mencocokkan pesan_terkirim & nominal bulan itu, dan mengisi {{bulan}} template.
+export interface KirimTarget {
+  label: string;
+  ym: string;
+}
+function kirimTargets(now = new Date()): { tgl7: KirimTarget; tgl25: KirimTarget } {
   const tanggal = now.getDate();
-  const at = (offset: number) => {
+  const at = (offset: number): KirimTarget => {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    return `${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()}`;
+    return {
+      label: `${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()}`,
+      ym: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+    };
   };
   return { tgl7: at(tanggal < 7 ? -1 : 0), tgl25: at(tanggal >= 25 ? 1 : 0) };
 }
 
-// Normalisasi HP ke format internasional 62xxx untuk wa.me
-function normalizeWa(hp: string) {
-  let n = (hp || "").replace(/\D/g, "");
-  if (n.startsWith("0")) n = "62" + n.slice(1);
-  else if (!n.startsWith("62")) n = "62" + n;
-  return n;
-}
+// normalizeWa (HP → 62xxx untuk wa.me) kini dari @gbb/ui — dipakai juga oleh
+// tombol "Hubungi Admin GBB" di portal donatur.
 
-// Isi placeholder {{...}} / {...} dari data baris monitoring
-function fillTemplate(isi: string, row: DonaturMonitoring) {
-  const bulanan = row.bulanan ?? [];
-  const lastBulan = bulanan.length ? bulanan[bulanan.length - 1].bulan : "";
+// Isi placeholder {{...}} / {...} dari data baris monitoring. {{bulan}} = bulan
+// TARGET tombol (bukan kolom terakhir) — reminder harus menyebut bulan yang
+// sedang ditagih, bukan bulan terakhir yang kebetulan ada datanya.
+function fillTemplate(isi: string, row: DonaturMonitoring, targetYm: string) {
   const map: Record<string, string> = {
     nama: row.nama,
     kode: row.kode || "",
-    bulan: lastBulan ? monthLabel(lastBulan) : "",
-    bulan_berikutnya: lastBulan ? nextMonthLabel(lastBulan) : "",
+    bulan: targetYm ? monthLabel(targetYm) : "",
+    bulan_berikutnya: targetYm ? nextMonthLabel(targetYm) : "",
     nominal: fmt(row.total),
     skema: skemaLabel(row.skema),
     periode: row.periode_akhir ?? "",
@@ -108,47 +114,78 @@ function fillTemplate(isi: string, row: DonaturMonitoring) {
   return isi.replace(/\{\{?\s*(\w+)\s*\}?\}/g, (_, key) => map[key] ?? `{{${key}}}`);
 }
 
+const formatSentAt = (iso: string) =>
+  new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
+
+// Tombol kirim WA per (donatur, bulan target, konteks). Setelah diklik: dicatat
+// ke BE (dibagi semua staf AnC) dan tombol jadi abu-abu TAPI tetap bisa diklik
+// ulang (masukan tim). Kalau bulan target sudah ada donasinya, tombol diredupkan
+// + peringatan — bukan dimatikan: `nominal` adalah status rekonsiliasi yang bisa
+// tertinggal beberapa hari, dan AnC mungkin perlu mengirim pesan lain.
 function KirimButton({
   row,
   template,
   tone,
+  target,
+  onSent,
 }: {
   row: DonaturMonitoring;
   template?: PesanTemplate;
   tone: "tgl7" | "tgl25";
+  target: KirimTarget;
+  onSent: (row: DonaturMonitoring, bulan: string, konteks: string) => void;
 }) {
+  const konteks = WA_KONTEKS[tone];
+  const sent = (row.pesan_terkirim ?? []).find((p) => p.bulan === target.ym && p.konteks === konteks);
+  const sudahDonasi = (row.bulanan ?? []).some((b) => b.bulan === target.ym && b.nominal > 0);
   const disabled = !template || !row.hp;
   const openWa = () => {
     if (!template) return;
-    const text = encodeURIComponent(fillTemplate(template.isi, row));
+    const text = encodeURIComponent(fillTemplate(template.isi, row, target.ym));
     window.open(`https://wa.me/${normalizeWa(row.hp)}?text=${text}`, "_blank", "noopener");
+    onSent(row, target.ym, konteks);
   };
+  const title = !row.hp
+    ? "Donatur belum punya nomor HP"
+    : !template
+      ? "Belum ada template pesan — buat dulu di tab Template Pesan"
+      : sudahDonasi
+        ? `Sudah ada donasi ${target.label} — yakin mau kirim "${template.nama}"?`
+        : sent
+          ? `Sudah dikirim ${formatSentAt(sent.sent_at)} — klik untuk kirim ulang`
+          : `Kirim "${template.nama}" untuk ${target.label} via WhatsApp`;
   return (
-    <Button
-      size="sm"
-      onClick={openWa}
-      disabled={disabled}
-      title={
-        !row.hp
-          ? "Donatur belum punya nomor HP"
-          : !template
-            ? "Belum ada template pesan — buat dulu di Settings › Template Pesan"
-            : `Kirim "${template.nama}" via WhatsApp`
-      }
-      className={cn(
-        "h-7 px-2.5 text-xs text-white",
-        tone === "tgl7"
-          ? "bg-orange-500 hover:bg-orange-600"
-          : "bg-emerald-600 hover:bg-emerald-700"
+    <div className="flex flex-col items-start gap-0.5">
+      <Button
+        size="sm"
+        variant={sent ? "outline" : "default"}
+        onClick={openWa}
+        disabled={disabled}
+        title={title}
+        className={cn(
+          "h-7 px-2.5 text-xs",
+          !sent &&
+            (tone === "tgl7"
+              ? "bg-orange-500 text-white hover:bg-orange-600"
+              : "bg-emerald-600 text-white hover:bg-emerald-700"),
+          sent && "text-muted-foreground",
+          sudahDonasi && "opacity-60"
+        )}
+      >
+        <Send className="h-3 w-3 mr-1" />
+        {sent ? "Kirim ulang" : "Kirim"}
+      </Button>
+      {sent && (
+        <span className="text-[10px] text-muted-foreground">✓ {formatSentAt(sent.sent_at)}</span>
       )}
-    >
-      <Send className="h-3 w-3 mr-1" />
-      Kirim
-    </Button>
+      {sudahDonasi && !sent && (
+        <span className="text-[10px] text-emerald-700 dark:text-emerald-400">sudah donasi</span>
+      )}
+    </div>
   );
 }
 
-export function MonitoringPage() {
+function MonitoringTab() {
   const queryClient = useQueryClient();
   const globalPeriode = usePeriodeFilter((s) => s.periodeId) ?? undefined;
 
@@ -165,6 +202,9 @@ export function MonitoringPage() {
   const { data: stats, isLoading: statsLoading } = useDonaturStats();
   const { data: periodeData } = usePeriodeOptions();
   const { data: templateData } = usePesanTemplates();
+  const logPesan = useLogPesanTerkirim();
+  const handleSent = (row: DonaturMonitoring, bulan: string, konteks: string) =>
+    logPesan.mutate({ id: row.id, bulan, konteks });
 
   const { data, isLoading } = useMonitoringList({
     page,
@@ -278,7 +318,8 @@ export function MonitoringPage() {
           <strong className="text-emerald-700 dark:text-emerald-400">Cara pakai link WA:</strong>{" "}
           Klik tombol <strong>Tgl 25</strong> untuk reminder awal bulan, atau <strong>Tgl 7</strong>{" "}
           untuk follow-up. Link akan membuka WhatsApp dengan pesan yang sudah terisi otomatis sesuai
-          nama donatur dan bulan berjalan.
+          nama donatur dan bulan berjalan. Tombol yang sudah diklik berubah abu-abu (tercatat untuk
+          semua staf AnC) tapi tetap bisa diklik ulang.
           {/* Sejak FEpromt24, kolom bulan muncul juga tanpa filter periode — diambil
               dari bulan yang ada donasinya. Jadi kolom kosong hanya berarti belum
               ada cash_in ber-donatur sama sekali, bukan "belum pilih periode". */}
@@ -370,7 +411,7 @@ export function MonitoringPage() {
                 <div className="flex flex-col">
                   <span className="whitespace-nowrap">📱 Tgl 7</span>
                   <span className="text-[10px] font-normal text-muted-foreground">
-                    {targets.tgl7}
+                    {targets.tgl7.label}
                   </span>
                 </div>
               </TableHead>
@@ -378,7 +419,7 @@ export function MonitoringPage() {
                 <div className="flex flex-col">
                   <span className="whitespace-nowrap">📱 Tgl 25</span>
                   <span className="text-[10px] font-normal text-muted-foreground">
-                    {targets.tgl25}
+                    {targets.tgl25.label}
                   </span>
                 </div>
               </TableHead>
@@ -475,10 +516,10 @@ export function MonitoringPage() {
                       )}
                     </TableCell>
                     <TableCell className="bg-orange-500/5">
-                      <KirimButton row={r} template={tpl7} tone="tgl7" />
+                      <KirimButton row={r} template={tpl7} tone="tgl7" target={targets.tgl7} onSent={handleSent} />
                     </TableCell>
                     <TableCell className="bg-emerald-500/5">
-                      <KirimButton row={r} template={tpl25} tone="tgl25" />
+                      <KirimButton row={r} template={tpl25} tone="tgl25" target={targets.tgl25} onSent={handleSent} />
                     </TableCell>
                     <TableCell className="text-sm">
                       {r.periode_akhir ? (
@@ -574,5 +615,50 @@ export function MonitoringPage() {
 
       {noteRow && <CatatanTagDialog row={noteRow} onClose={() => setNoteRow(null)} />}
     </div>
+  );
+}
+
+// ─── Tab shell: Monitoring | Template Pesan ───────────────────────────────
+// Template Pesan WA dipindah dari Settings ke sini atas masukan tim AnC (Sep
+// 2026): pesan disiapkan dan dikirim dari satu halaman. Komponen tab-nya tetap
+// milik domain settings (hooks & endpoint /internal/settings/pesan-template
+// tidak berubah) — hanya tempat tampilnya yang pindah.
+const MONITORING_TABS = [
+  { key: "monitoring", label: "Monitoring" },
+  { key: "template", label: "Template Pesan" },
+] as const;
+
+type MonitoringTabKey = (typeof MONITORING_TABS)[number]["key"];
+
+export function MonitoringPage() {
+  const [tab, setTab] = useState<MonitoringTabKey>("monitoring");
+
+  return (
+    <Tabs value={tab} onValueChange={(v: string) => setTab(v as MonitoringTabKey)} className="space-y-4">
+      <div className="w-full overflow-x-auto pb-2">
+        <TabsList>
+          {MONITORING_TABS.map((t) => (
+            <TabsTrigger key={t.key} value={t.key}>
+              {t.key === "template" && <MessageSquareText className="h-4 w-4 mr-1.5" />}
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+      <TabsContent value="monitoring" className="space-y-4">
+        <MonitoringTab />
+      </TabsContent>
+      <TabsContent value="template" className="space-y-4">
+        <div className="mb-2">
+          <h1 className="text-2xl font-bold tracking-tight">Template Pesan WhatsApp</h1>
+          <p className="text-muted-foreground">
+            Template yang dipakai tombol Kirim di tab Monitoring. Placeholder{" "}
+            <code className="text-xs">{"{{nama}} {{kode}} {{bulan}} {{bulan_berikutnya}} {{nominal}}"}</code>{" "}
+            terisi otomatis per donatur.
+          </p>
+        </div>
+        <TemplatesTab />
+      </TabsContent>
+    </Tabs>
   );
 }

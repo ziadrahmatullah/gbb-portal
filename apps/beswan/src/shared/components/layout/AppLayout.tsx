@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Home,
   LogOut,
+  KeyRound,
   Moon,
   NotebookPen,
   Sun,
@@ -48,6 +49,7 @@ import {
   useSidebar,
 } from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
+import { ChangePasswordDialog } from "@/domains/profile/components/ChangePasswordDialog";
 import { useUIStore } from "@/shared/store/useUIStore";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
 import { NotificationBell } from "@/domains/notifikasi";
@@ -208,6 +210,7 @@ export function AppLayout() {
   const logout = useAuthStore((s) => s.logout);
   const { isDark, toggleDark, initTheme } = useUIStore();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   // Reminder deadline untuk popover lonceng — share cache dgn Beranda & sidebar
   const { data: dashboard } = useMyDashboard();
 
@@ -275,6 +278,11 @@ export function AppLayout() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setShowPasswordDialog(true)}>
+                <KeyRound />
+                Ganti Password
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setShowLogoutDialog(true)}>
                 <LogOut />
                 Logout
@@ -290,6 +298,8 @@ export function AppLayout() {
           </ErrorBoundary>
         </main>
       </SidebarInset>
+
+      {showPasswordDialog && <ChangePasswordDialog onClose={() => setShowPasswordDialog(false)} />}
 
       {/* Logout dialog */}
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

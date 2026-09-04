@@ -442,6 +442,13 @@ function ProfileCard({ detail, onEdit }: { detail: BeswanDetail; onEdit: () => v
           <div className="text-sm text-muted-foreground">
             {detail.email} · {detail.hp}
           </div>
+          {(detail.jurusan || detail.semester) && (
+            <div className="text-sm text-muted-foreground">
+              {detail.jurusan || "Jurusan —"}
+              {detail.semester ? ` · Semester ${detail.semester}` : ""}
+              {detail.tahun_masuk ? ` (masuk ${detail.tahun_masuk})` : ""}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-1.5 pt-1">
             {detail.periodes.map((p) => (
               <Badge key={p.periode_id} variant="outline" className="gap-1 font-normal">

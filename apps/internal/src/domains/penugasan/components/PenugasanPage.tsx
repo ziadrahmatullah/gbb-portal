@@ -14,10 +14,11 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { Badge, Skeleton } from "@gbb/ui";
+import { Badge, SearchableSelect, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
+import { PeriodeFilterSelect } from "@/shared/components/PeriodeFilterSelect";
 import { StatCard } from "@/shared/components/StatCard";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -45,6 +46,8 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { useEventList } from "@/domains/event/hooks/useEvent";
+import { useBeswanList, useBeswanPenugasan } from "@/domains/beswan/hooks/useBeswan";
+import type { BeswanPenugasanItem } from "@/domains/beswan/services";
 import { useDeletePenugasan, usePenugasanList, usePenugasanStats } from "../hooks/usePenugasan";
 import type { Penugasan } from "../services";
 import { CreatePenugasanDialog, EditPenugasanDialog } from "./PenugasanFormDialogs";
@@ -60,6 +63,38 @@ const formatDeadline = (iso: string) =>
     minute: "2-digit",
   });
 
+// Kolom "Kumpul" saat filter beswan aktif: status pengumpulan beswan itu untuk
+// tugas ini. `hasil_status` null = belum kumpul (state virtual, tidak ada baris).
+function HasilBadge({ item }: { item: BeswanPenugasanItem }) {
+  if (!item.hasil_status) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        Belum kumpul
+      </Badge>
+    );
+  }
+  const graded = item.hasil_status === "graded";
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge
+        variant="outline"
+        className={cn(
+          graded
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+            : "border-primary/30 bg-primary/10 text-primary"
+        )}
+      >
+        {graded ? `Dinilai · ${item.nilai ?? "—"}` : "Submitted"}
+      </Badge>
+      {item.terlambat && (
+        <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400">
+          Terlambat
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 export function PenugasanPage() {
   const navigate = useNavigate();
   const role = useAuthStore((s) => s.role);
@@ -69,21 +104,42 @@ export function PenugasanPage() {
   const periodeId = usePeriodeFilter((s) => s.periodeId) ?? undefined;
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState(ALL);
+  // Filter nama beswan (masukan tim program): saat dipilih, daftar berubah jadi
+  // tugas-tugas beswan itu + status pengumpulannya, via endpoint
+  // GET /internal/beswan/:id/penugasan yang sudah ada — tanpa perubahan BE.
+  const [beswanFilter, setBeswanFilter] = useState(ALL);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Penugasan | null>(null);
   const [deleting, setDeleting] = useState<Penugasan | null>(null);
 
+  const beswanMode = beswanFilter !== ALL;
+
   const { data: stats, isLoading: statsLoading } = usePenugasanStats(periodeId);
-  const { data, isLoading } = usePenugasanList({
+  const listQuery = usePenugasanList({
     page,
     limit,
     periode_id: periodeId,
     event_id: eventFilter === ALL ? undefined : eventFilter,
     search: search || undefined,
   });
+  // NaN saat tidak dipilih → hook-nya disabled (enabled: Number.isFinite)
+  const beswanQuery = useBeswanPenugasan(beswanMode ? Number(beswanFilter) : NaN, {
+    page,
+    limit,
+    periode_id: periodeId,
+  });
+  const { data, isLoading } = beswanMode ? beswanQuery : listQuery;
   const deleteMutation = useDeletePenugasan();
+
+  // Opsi beswan untuk filter — beswan aktif di periode terpilih (maks 100)
+  const { data: beswanOptions } = useBeswanList({ limit: 100, periode_id: periodeId, status: "aktif" });
+  const beswanChoices = useMemo(
+    () => (beswanOptions?.items ?? []).map((b) => ({ id: String(b.id), name: `${b.nama_lengkap} · ${b.nim}` })),
+    [beswanOptions]
+  );
+  const selectedBeswan = beswanChoices.find((b) => b.id === beswanFilter);
 
   // Peta nama event untuk kolom "Event" + filter (dibatasi 100 event terbaru)
   const { data: eventOptions } = useEventList({ limit: 100, periode_id: periodeId });
@@ -136,14 +192,24 @@ export function PenugasanPage() {
             }}
             placeholder="Cari tugas…"
             className="pl-9 w-64"
+            disabled={beswanMode}
+            title={beswanMode ? "Pencarian tidak berlaku saat filter beswan aktif" : undefined}
           />
         </div>
+        <PeriodeFilterSelect
+          onChange={() => {
+            setPage(1);
+            // Daftar beswan ikut periode — pilihan lama bisa tidak relevan lagi
+            setBeswanFilter(ALL);
+          }}
+        />
         <Select
           value={eventFilter}
           onValueChange={(v: string) => {
             setEventFilter(v);
             setPage(1);
           }}
+          disabled={beswanMode}
         >
           <SelectTrigger className="w-56">
             <SelectValue />
@@ -157,7 +223,30 @@ export function PenugasanPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="w-64">
+          <SearchableSelect
+            value={beswanMode ? beswanFilter : ""}
+            onChange={(v: string) => {
+              setBeswanFilter(v || ALL);
+              setPage(1);
+            }}
+            options={beswanChoices}
+            placeholder="Semua Beswan"
+            searchPlaceholder="Cari nama/NIM…"
+            emptyMessage="Beswan tidak ditemukan"
+          />
+        </div>
       </div>
+
+      {beswanMode && selectedBeswan && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+          <ClipboardList className="h-4 w-4 shrink-0 text-primary" />
+          <span>
+            Menampilkan tugas <strong>{selectedBeswan.name}</strong> beserta status pengumpulannya.
+            Filter event &amp; pencarian dinonaktifkan di mode ini.
+          </span>
+        </div>
+      )}
 
       {/* MASTER: daftar tugas */}
       <div className="overflow-x-auto rounded-md border bg-card">
@@ -168,7 +257,9 @@ export function PenugasanPage() {
               <TableHead>Judul</TableHead>
               <TableHead className="w-32">Event</TableHead>
               <TableHead className="w-36">Deadline</TableHead>
-              <TableHead className="w-24">Kumpul</TableHead>
+              <TableHead className={beswanMode ? "w-44" : "w-24"}>
+                {beswanMode ? "Status Kumpul" : "Kumpul"}
+              </TableHead>
               <TableHead className="w-28 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -228,7 +319,13 @@ export function PenugasanPage() {
                   <TableCell className="font-mono text-xs">{eventLabel(p)}</TableCell>
                   <TableCell className="text-sm">{formatDeadline(p.deadline)}</TableCell>
                   <TableCell className="text-sm">
-                    {p.terkumpul_count}/{p.total_beswan}
+                    {beswanMode ? (
+                      <HasilBadge item={p as BeswanPenugasanItem} />
+                    ) : (
+                      <>
+                        {p.terkumpul_count}/{p.total_beswan}
+                      </>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

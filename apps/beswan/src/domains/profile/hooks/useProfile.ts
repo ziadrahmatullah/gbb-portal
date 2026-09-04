@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getMyIPK, getMyProfile, updateMyProfile, upsertMyIPK } from "../services";
+import { changeMyPassword, getMyIPK, getMyProfile, updateMyProfile, upsertMyIPK } from "../services";
 import { BERANDA_KEY } from "@/domains/beranda/hooks/useBeranda";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 
@@ -43,5 +43,13 @@ export function useUpsertIPK() {
       qc.invalidateQueries({ queryKey: [BERANDA_KEY, "dashboard"] }); // chart IPK beranda
       toast.success("Data akademik tersimpan");
     },
+  });
+}
+
+export function useChangeMyPassword() {
+  return useMutation({
+    mutationFn: ({ oldPassword, newPassword }: { oldPassword: string; newPassword: string }) =>
+      changeMyPassword(oldPassword, newPassword),
+    onSuccess: () => toast.success("Password berhasil diubah"),
   });
 }

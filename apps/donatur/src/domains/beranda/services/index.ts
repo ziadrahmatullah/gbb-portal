@@ -34,10 +34,24 @@ export async function getMyDashboard() {
 export interface HighlightPost {
   id: number;
   judul: string;
-  link_ig: string;
+  link_ig: string; // "" = poster tanpa post IG (FEpromt25 §5: opsional)
   gambar_url?: string | null;
+  kategori?: string; // recap | kisah_inspiratif | oprec | ""
+  tanggal?: string | null; // "2026-08-01"
   urutan: number;
   aktif: boolean;
+}
+
+export const HIGHLIGHT_KATEGORI_LABEL: Record<string, string> = {
+  recap: "Recap",
+  kisah_inspiratif: "Kisah Inspiratif",
+  oprec: "Oprec Beswan",
+};
+
+export function highlightTanggal(iso?: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
 }
 
 export async function getHighlight() {

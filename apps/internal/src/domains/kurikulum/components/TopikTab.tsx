@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { hasAnyRole } from "@/shared/constants/roles";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
+import { PeriodeFilterSelect } from "@/shared/components/PeriodeFilterSelect";
 import { usePeriodeOptions } from "@/domains/periode/hooks/usePeriode";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -499,16 +500,16 @@ export function TopikTab() {
 
   return (
     <div className="space-y-4">
-      {/* Info periode terpilih (filter global sidebar) + tombol tambah */}
+      {/* Goal periode terpilih (kalau ada) + tombol tambah. Filter batch-nya
+          sendiri ada di toolbar bawah — dulu cuma teks "atur lewat sidebar" dan
+          tim tidak menemukannya. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">
-          {selectedPeriode ? (
+        <div className="text-sm text-muted-foreground min-h-5">
+          {selectedPeriode?.goal && (
             <>
-              Periode: <span className="font-medium text-foreground">{selectedPeriode.nama}</span>
-              {selectedPeriode.goal && <> — Goal: “{selectedPeriode.goal}”</>}
+              Goal <span className="font-medium text-foreground">{selectedPeriode.nama}</span>:{" "}
+              “{selectedPeriode.goal}”
             </>
-          ) : (
-            "Semua Periode (atur lewat Filter Periode di sidebar)"
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -539,6 +540,7 @@ export function TopikTab() {
             className="pl-9 w-64"
           />
         </div>
+        <PeriodeFilterSelect onChange={() => setPage(1)} />
         <Select
           value={status}
           onValueChange={(v: string) => {

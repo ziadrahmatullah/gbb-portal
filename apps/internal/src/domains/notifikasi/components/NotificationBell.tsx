@@ -39,6 +39,7 @@ const NOTIF_TIPE: Record<string, LucideIcon> = {
   hasil: FileCheck,
   laporan: FileText,
   mentor_request: UserRound,
+  mentor_pendaftaran: UserRound,
 };
 
 // Waktu relatif bahasa Indonesia via Intl — tidak ada dayjs/date-fns di repo

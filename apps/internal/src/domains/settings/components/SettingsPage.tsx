@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@gbb/ui";
 import { KategoriManagerContent } from "@/domains/keuangan/components/KategoriManager";
 import { UsersTab } from "./UsersTab";
-import { TemplatesTab } from "./TemplatesTab";
 import { AIConfigTab } from "./AIConfigTab";
+import { RoleMenuTab } from "./RoleMenuTab";
 
+// Template Pesan WA pindah ke Donatur › Monitoring (tab "Template Pesan") atas
+// masukan tim AnC: pesan disiapkan dan dikirim dari satu halaman yang sama.
+// Komponennya tetap di domains/settings/components/TemplatesTab.tsx.
 const TABS = [
   { key: "users", label: "Users & Role" },
-  { key: "templates", label: "Template Pesan WA" },
+  { key: "akses", label: "Hak Akses Menu" },
   { key: "kategori", label: "Master Kategori Cashflow" },
   { key: "ai", label: "Konfigurasi AI" },
 ] as const;
@@ -21,7 +24,7 @@ export function SettingsPage() {
     <div className="space-y-4">
       <div className="mb-2">
         <h1 className="text-2xl font-bold tracking-tight">Settings / Konfigurasi</h1>
-        <p className="text-muted-foreground">Kelola user, template pesan, kategori, dan AI.</p>
+        <p className="text-muted-foreground">Kelola user, hak akses menu per role, kategori cashflow, dan penyedia AI.</p>
       </div>
 
       <Tabs value={tab} onValueChange={(v: string) => setTab(v as TabKey)} className="space-y-4">
@@ -37,8 +40,8 @@ export function SettingsPage() {
         <TabsContent value="users" className="space-y-4">
           <UsersTab />
         </TabsContent>
-        <TabsContent value="templates" className="space-y-4">
-          <TemplatesTab />
+        <TabsContent value="akses" className="space-y-4">
+          <RoleMenuTab />
         </TabsContent>
         <TabsContent value="kategori" className="space-y-4">
           <KategoriManagerContent />
