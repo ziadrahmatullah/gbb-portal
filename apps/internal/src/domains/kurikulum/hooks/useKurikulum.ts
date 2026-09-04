@@ -16,7 +16,12 @@ import {
   updateTopik,
   updateTopikUsulanStatus,
 } from "../services";
-import type { CreateTopikReq, UpdateLibraryReq, UpdateTopikReq } from "../services";
+import type {
+  CreateTopikReq,
+  TopikUsulanStatus,
+  UpdateLibraryReq,
+  UpdateTopikReq,
+} from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const KURIKULUM_KEY = "kurikulum";
@@ -158,8 +163,15 @@ export function useEventOptions() {
 export function useUpdateTopikUsulanStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: "pending" | "reviewed" }) =>
-      updateTopikUsulanStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      catatan,
+    }: {
+      id: number;
+      status: TopikUsulanStatus;
+      catatan?: string;
+    }) => updateTopikUsulanStatus(id, status, catatan),
     onSuccess: () => {
       toast.success("Status usulan diperbarui");
       queryClient.invalidateQueries({ queryKey: [KURIKULUM_KEY, "topik-usulan"] });

@@ -10,6 +10,8 @@ import {
   Skeleton,
 } from "@gbb/ui";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
+import { useMyProfile } from "@/domains/profile/hooks/useProfile";
+import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { usePertanyaan, useRefleksi } from "../hooks/useRefleksi";
 import { RefleksiForm } from "./RefleksiForm";
 import { PrestasiSection } from "./PrestasiSection";
@@ -25,6 +27,11 @@ export function RefleksiPage() {
   const [tahun, setTahun] = useState(now.getFullYear());
 
   const { data: dashboard } = useMyDashboard();
+  // Nama pemilik akun untuk mengisi otomatis pertanyaan "Nama lengkap"
+  // (masukan PCM Sep 2026); fallback ke profil tersimpan di auth store
+  const { data: profile } = useMyProfile();
+  const authProfile = useAuthStore((s) => s.profile);
+  const namaLengkap = profile?.nama_lengkap ?? authProfile?.nama_lengkap ?? "";
   // Periode aktif dari dashboard; fallback periode terakhir yang diikuti
   const periodes = useMemo(() => dashboard?.periodes ?? [], [dashboard]);
   const defaultPeriode = periodes.find((p) => p.status === "aktif") ?? periodes[periodes.length - 1];
@@ -118,6 +125,8 @@ export function RefleksiPage() {
           periodeId={activePeriodeId!}
           bulan={bulan}
           tahun={tahun}
+          namaLengkap={namaLengkap}
+          bulanLabel={BULAN_LABEL[bulan - 1]}
         />
       )}
 

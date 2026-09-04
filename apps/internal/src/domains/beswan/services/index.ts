@@ -19,6 +19,10 @@ export interface BeswanListItem {
   jurusan?: string;
   tahun_masuk?: number;
   semester?: number;
+  // FEpromt29 §1 — email pemulihan/alternatif beswan ("" = belum diisi)
+  email_pemulihan?: string;
+  // FEpromt30 — beswan sudah membuat tautan langganan kalender ICS (belum ditampilkan)
+  kalender_aktif?: boolean;
 }
 
 export interface BeswanStats {
@@ -82,6 +86,7 @@ export interface BeswanDetail {
   jurusan?: string;
   tahun_masuk?: number;
   semester?: number;
+  email_pemulihan?: string;
   periodes: BeswanPeriodeOption[];
   rapor?: BeswanRapor | null;
   chart_ipk: BeswanChartIPK[];
@@ -171,6 +176,9 @@ export interface UpdateBeswanReq {
   jurusan?: string;
   // undefined = tidak diubah; 0 = dikosongkan (semantik BE)
   tahun_masuk?: number;
+  // undefined = tidak diubah; "" = dikosongkan. BE menolak 400 bila format
+  // salah atau sama dengan email utama (FEpromt29 §1)
+  email_pemulihan?: string;
   foto?: File;
   cv?: File;
 }
@@ -191,6 +199,7 @@ export async function updateBeswan(id: number, body: UpdateBeswanReq) {
   if (body.email) form.append("email", body.email);
   if (body.hp) form.append("hp", body.hp);
   if (body.jurusan !== undefined) form.append("jurusan", body.jurusan);
+  if (body.email_pemulihan !== undefined) form.append("email_pemulihan", body.email_pemulihan);
   if (body.tahun_masuk !== undefined) form.append("tahun_masuk", String(body.tahun_masuk));
   if (body.foto) form.append("foto", body.foto);
   if (body.cv) form.append("cv", body.cv);

@@ -149,7 +149,10 @@ export function EditBeswanDialog({
   beswan,
   onClose,
 }: {
-  beswan: Pick<BeswanListItem, "id" | "nama_lengkap" | "email" | "hp" | "jurusan" | "tahun_masuk"> | null;
+  beswan: Pick<
+    BeswanListItem,
+    "id" | "nama_lengkap" | "email" | "hp" | "jurusan" | "tahun_masuk" | "email_pemulihan"
+  > | null;
   onClose: () => void;
 }) {
   const updateMutation = useUpdateBeswan();
@@ -159,6 +162,7 @@ export function EditBeswanDialog({
   const [hp, setHp] = useState("");
   const [jurusan, setJurusan] = useState("");
   const [tahunMasuk, setTahunMasuk] = useState("");
+  const [emailPemulihan, setEmailPemulihan] = useState("");
   const [foto, setFoto] = useState<File | null>(null);
   const [cv, setCv] = useState<File | null>(null);
   // Prefill saat beswan berubah (adjust-during-render, bukan effect)
@@ -171,6 +175,7 @@ export function EditBeswanDialog({
     setHp(beswan.hp);
     setJurusan(beswan.jurusan ?? "");
     setTahunMasuk(beswan.tahun_masuk ? String(beswan.tahun_masuk) : "");
+    setEmailPemulihan(beswan.email_pemulihan ?? "");
     setFoto(null);
     setCv(null);
   }
@@ -190,6 +195,9 @@ export function EditBeswanDialog({
           email: email && email !== beswan.email ? email : undefined,
           // Kirim hanya bila berubah; tahun kosong → 0 = dikosongkan di BE
           jurusan: jurusan !== (beswan.jurusan ?? "") ? jurusan : undefined,
+          // FEpromt29 §1: kirim hanya bila berubah; "" = kosongkan
+          email_pemulihan:
+            emailPemulihan !== (beswan.email_pemulihan ?? "") ? emailPemulihan : undefined,
           tahun_masuk:
             (tahunMasuk ? Number(tahunMasuk) : 0) !== (beswan.tahun_masuk ?? 0)
               ? tahunMasuk
@@ -248,6 +256,20 @@ export function EditBeswanDialog({
           <div className="grid gap-2">
             <Label htmlFor="be-hp">HP</Label>
             <Input id="be-hp" value={hp} onChange={(e: ChangeEvent<HTMLInputElement>) => setHp(e.target.value)} required disabled={updateMutation.isPending} />
+          </div>
+          {/* Email pemulihan (masukan PCM Sep 2026, FEpromt29 §1) — beswan bisa
+              mengisinya sendiri di Profile; di sini untuk koreksi oleh tim. BE
+              menolak 400 bila format salah / sama dengan email utama. */}
+          <div className="grid gap-2">
+            <Label htmlFor="be-email-pemulihan">Email pemulihan (opsional)</Label>
+            <Input
+              id="be-email-pemulihan"
+              type="email"
+              value={emailPemulihan}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailPemulihan(e.target.value)}
+              placeholder="email pribadi beswan"
+              disabled={updateMutation.isPending}
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">

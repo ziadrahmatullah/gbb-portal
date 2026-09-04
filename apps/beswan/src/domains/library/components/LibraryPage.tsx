@@ -37,8 +37,10 @@ import {
 } from "@gbb/ui";
 import { StatCard } from "@/shared/components/StatCard";
 import { useLibraryList, useLibraryStats, useUsulTopik } from "../hooks/useLibrary";
-import { splitTags } from "../services";
+import { canReadOnline, splitTags } from "../services";
 import type { LibraryItem } from "../services";
+import { LibraryReaderDialog } from "./LibraryReaderDialog";
+import { UsulankuSection } from "./UsulankuSection";
 
 const ALL_TAG = "all";
 
@@ -88,7 +90,22 @@ function UsulTopikDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function LibraryCard({ item }: { item: LibraryItem }) {
+// Tombol "Baca" — buka materi di dialog pratinjau tanpa mengunduh (PCM Sep 2026)
+function ReadButton({ item, onRead }: { item: LibraryItem; onRead: () => void }) {
+  if (!canReadOnline(item.file_url)) return null;
+  return (
+    <button
+      type="button"
+      onClick={onRead}
+      className="inline-flex items-center gap-1.5 text-primary hover:underline"
+    >
+      <BookOpen className="size-4" />
+      Baca
+    </button>
+  );
+}
+
+function LibraryCard({ item, onRead }: { item: LibraryItem; onRead: () => void }) {
   const TipeIcon = item.tipe === "event_materi" ? Mic : Upload;
   const tags = splitTags(item.tags);
   return (
@@ -125,7 +142,8 @@ function LibraryCard({ item }: { item: LibraryItem }) {
             <span className="text-muted-foreground">Belum ada ringkasan AI</span>
           )}
         </div>
-        <div className="mt-auto flex items-center gap-4 pt-1">
+        <div className="mt-auto flex items-center gap-4 pt-1 text-sm">
+          <ReadButton item={item} onRead={onRead} />
           <a
             href={item.file_url}
             target="_blank"
@@ -153,7 +171,7 @@ function LibraryCard({ item }: { item: LibraryItem }) {
 }
 
 // Varian tampilan list: satu materi per baris, link download/YouTube di kanan
-function LibraryRow({ item }: { item: LibraryItem }) {
+function LibraryRow({ item, onRead }: { item: LibraryItem; onRead: () => void }) {
   const TipeIcon = item.tipe === "event_materi" ? Mic : Upload;
   const tags = splitTags(item.tags);
   return (
@@ -182,6 +200,7 @@ function LibraryRow({ item }: { item: LibraryItem }) {
         )}
       </div>
       <div className="flex shrink-0 items-center gap-3 text-sm">
+        <ReadButton item={item} onRead={onRead} />
         <a
           href={item.file_url}
           target="_blank"
@@ -211,6 +230,8 @@ export function LibraryPage() {
   const [search, setSearch] = useState("");
   const [tag, setTag] = useState(ALL_TAG);
   const [usulOpen, setUsulOpen] = useState(false);
+  // Materi yang sedang dibaca di dialog pratinjau (null = tertutup)
+  const [reader, setReader] = useState<LibraryItem | null>(null);
   // Tampilan grid (kartu) atau list (baris) — ala Google Drive
   const [view, setView] = useState<"grid" | "list">("grid");
 
@@ -304,18 +325,22 @@ export function LibraryPage() {
       ) : view === "grid" ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((item) => (
-            <LibraryCard key={item.id} item={item} />
+            <LibraryCard key={item.id} item={item} onRead={() => setReader(item)} />
           ))}
         </div>
       ) : (
         <div className="divide-y rounded-md border bg-card">
           {visible.map((item) => (
-            <LibraryRow key={item.id} item={item} />
+            <LibraryRow key={item.id} item={item} onRead={() => setReader(item)} />
           ))}
         </div>
       )}
 
+      {/* Usulan topik milik beswan + status review (slide 9) */}
+      <UsulankuSection />
+
       {usulOpen && <UsulTopikDialog onClose={() => setUsulOpen(false)} />}
+      <LibraryReaderDialog item={reader} onClose={() => setReader(null)} />
     </div>
   );
 }

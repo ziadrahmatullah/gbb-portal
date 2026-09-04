@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getMyPenugasanDetail, getMyPenugasanList, kumpulPenugasan } from "../services";
+import {
+  batalkanPengumpulan,
+  getMyPenugasanDetail,
+  getMyPenugasanList,
+  kumpulPenugasan,
+} from "../services";
 import type { MyPenugasanListParams } from "../services";
 
 export const PENUGASAN_KEY = "penugasan";
@@ -17,6 +22,17 @@ export function useMyPenugasanDetail(id: number) {
     queryKey: [PENUGASAN_KEY, "detail", id],
     queryFn: () => getMyPenugasanDetail(id),
     enabled: Number.isFinite(id),
+  });
+}
+
+export function useBatalkanPengumpulan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => batalkanPengumpulan(id),
+    onSuccess: (message) => {
+      toast.success(message || "Pengumpulan dibatalkan");
+      queryClient.invalidateQueries({ queryKey: [PENUGASAN_KEY] });
+    },
   });
 }
 

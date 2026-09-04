@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useAuthStore } from "@/domains/auth/store/useAuthStore";
+import { hasAnyRole } from "@/shared/constants/roles";
 import { Card, CardContent, CardHeader, CardTitle, Skeleton } from "@gbb/ui";
 import { cn } from "@/lib/utils";
 import { Button } from "@/shared/components/ui/button";
@@ -35,6 +37,19 @@ import type { PesanTemplate } from "@/domains/donatur/services";
 // Format resmi placeholder: double brace (dipakai Kirim WA di Monitoring Donatur)
 const PLACEHOLDERS = ["{{nama}}", "{{kode}}", "{{bulan}}", "{{bulan_berikutnya}}", "{{nominal}}"];
 
+// Emoji cepat untuk pesan WA donatur (permintaan AnC, Sep 2026). Emoji lain
+// tetap bisa diketik langsung (Win + . / Cmd + Ctrl + Space) — semua lapisan
+// (Postgres UTF-8, JSON, encodeURIComponent → wa.me) mendukungnya.
+const QUICK_EMOJI = [
+  "🙏", "😊", "🤲", "❤️", "🌟", "✨", "🎉", "👋",
+  "💪", "🙌", "🥰", "🌱", "📌", "📅", "💳", "✅",
+];
+
+// Siapa yang boleh mengubah template: admin + AnC (BE: FEpromt31). Role lain
+// melihat daftar read-only — sebelumnya tombol tampil untuk semua role dan
+// berujung 403 "error" saat Simpan.
+const TEMPLATE_EDITOR_ROLES = ["admin", "anc"] as const;
+
 function TemplateEditor({
   editing,
   onDone,
@@ -52,6 +67,22 @@ function TemplateEditor({
   const [isDefault, setIsDefault] = useState(editing?.is_default ?? false);
   const [aktif, setAktif] = useState(editing?.aktif ?? true);
   const [urutan, setUrutan] = useState(editing ? String(editing.urutan) : "");
+  const isiRef = useRef<HTMLTextAreaElement>(null);
+
+  // Sisipkan placeholder/emoji di posisi kursor (bukan selalu di akhir), lalu
+  // kembalikan fokus + kursor tepat setelah sisipan
+  const insertAtCursor = (snippet: string) => {
+    const el = isiRef.current;
+    const start = el?.selectionStart ?? isi.length;
+    const end = el?.selectionEnd ?? start;
+    setIsi(isi.slice(0, start) + snippet + isi.slice(end));
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const pos = start + snippet.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -91,20 +122,44 @@ function TemplateEditor({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="t-isi">Isi pesan (emoji didukung)</Label>
-        <Textarea id="t-isi" rows={3} value={isi} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setIsi(e.target.value)} required disabled={saving} />
+        <Textarea
+          id="t-isi"
+          ref={isiRef}
+          rows={3}
+          value={isi}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setIsi(e.target.value)}
+          required
+          disabled={saving}
+        />
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           Placeholder:
           {PLACEHOLDERS.map((p) => (
             <button
               key={p}
               type="button"
-              onClick={() => setIsi((prev) => prev + p)}
+              onClick={() => insertAtCursor(p)}
               className="rounded bg-muted px-1.5 py-0.5 font-mono hover:bg-accent transition-colors"
               disabled={saving}
             >
               {p}
             </button>
           ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          Emoji:
+          {QUICK_EMOJI.map((em) => (
+            <button
+              key={em}
+              type="button"
+              title={`Sisipkan ${em}`}
+              onClick={() => insertAtCursor(em)}
+              className="rounded px-1 py-0.5 text-base leading-none hover:bg-accent transition-colors"
+              disabled={saving}
+            >
+              {em}
+            </button>
+          ))}
+          <span className="ml-1">· emoji lain bisa diketik langsung di kotak pesan</span>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-6">
@@ -136,6 +191,8 @@ function TemplateEditor({
 }
 
 export function TemplatesTab() {
+  const role = useAuthStore((s) => s.role);
+  const canEdit = hasAnyRole(role, TEMPLATE_EDITOR_ROLES);
   const { data, isLoading } = usePesanTemplateList();
   const deleteMutation = useDeletePesanTemplate();
   const [formOpen, setFormOpen] = useState(false);
@@ -150,11 +207,14 @@ export function TemplatesTab() {
         <p className="text-sm text-muted-foreground">
           Template dipakai tombol Kirim WA di Monitoring Donatur. Urutan menentukan posisi di
           dropdown (re-order via field Urutan).
+          {!canEdit && " Hanya admin dan tim AnC yang bisa mengubah template."}
         </p>
-        <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah
-        </Button>
+        {canEdit && (
+          <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah
+          </Button>
+        )}
       </div>
 
       {(formOpen || editing) && (
@@ -174,21 +234,21 @@ export function TemplatesTab() {
               <TableHead className="w-28">Konteks</TableHead>
               <TableHead className="w-20">Default</TableHead>
               <TableHead className="w-20">Aktif</TableHead>
-              <TableHead className="w-24 text-right">Aksi</TableHead>
+              {canEdit && <TableHead className="w-24 text-right">Aksi</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={canEdit ? 6 : 5}>
                     <Skeleton className="h-6 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={canEdit ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
                   Belum ada template
                 </TableCell>
               </TableRow>
@@ -205,6 +265,7 @@ export function TemplatesTab() {
                   <TableCell className="text-sm">{t.konteks || "—"}</TableCell>
                   <TableCell>{t.is_default ? "◉" : "○"}</TableCell>
                   <TableCell>{t.aktif ? "✅" : "❌"}</TableCell>
+                  {canEdit && (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <button
@@ -223,6 +284,7 @@ export function TemplatesTab() {
                       </button>
                     </div>
                   </TableCell>
+                  )}
                 </TableRow>
               ))
             )}

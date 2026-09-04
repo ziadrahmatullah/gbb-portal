@@ -1,6 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getLibraryList, getLibraryStats, usulTopik } from "../services";
+import { getLibraryList, getLibraryStats, getMyTopikUsulan, usulTopik } from "../services";
 import type { ListParams } from "@/shared/lib/apiTypes";
 
 export const LIBRARY_KEY = "library";
@@ -19,9 +19,23 @@ export function useLibraryStats() {
   });
 }
 
+// Daftar usulan milik beswan. retry:false — endpoint bisa belum ada (404)
+// sebelum BE rilis; komponen menyembunyikan bagian ini saat isError.
+export function useMyTopikUsulan() {
+  return useQuery({
+    queryKey: [LIBRARY_KEY, "usulan"],
+    queryFn: getMyTopikUsulan,
+    retry: false,
+  });
+}
+
 export function useUsulTopik() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (topik: string) => usulTopik(topik),
-    onSuccess: () => toast.success("Usulan topik terkirim — terima kasih!"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [LIBRARY_KEY, "usulan"] });
+      toast.success("Usulan topik terkirim — terima kasih!");
+    },
   });
 }

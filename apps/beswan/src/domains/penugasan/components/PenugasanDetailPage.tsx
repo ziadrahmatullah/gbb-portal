@@ -1,10 +1,16 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarClock, ClipboardList, FileDown, Upload } from "lucide-react";
+import { ArrowLeft, CalendarClock, ClipboardList, FileDown, Undo2, Upload } from "lucide-react";
 import { Badge, Button, Card, CardContent, FileDropzone, Label, Skeleton, cn } from "@gbb/ui";
-import { useKumpulPenugasan, useMyPenugasanDetail } from "../hooks/usePenugasan";
-import { HasilBadge, TugasStatusBadge, formatDeadline, isOverdue } from "./PenugasanPage";
+import { useBatalkanPengumpulan, useKumpulPenugasan, useMyPenugasanDetail } from "../hooks/usePenugasan";
+import {
+  DeadlineCalendarLink,
+  HasilBadge,
+  TugasStatusBadge,
+  formatDeadline,
+  isOverdue,
+} from "./PenugasanPage";
 
 const formatTanggal = (iso: string) =>
   new Date(iso).toLocaleString("id-ID", {
@@ -20,7 +26,9 @@ export function PenugasanDetailPage() {
   const penugasanId = Number(params.id);
   const { data: p, isLoading, isError } = useMyPenugasanDetail(penugasanId);
   const kumpulMutation = useKumpulPenugasan();
+  const batalMutation = useBatalkanPengumpulan();
   const [file, setFile] = useState<File | null>(null);
+  const [confirmBatal, setConfirmBatal] = useState(false);
 
   if (isLoading) {
     return (
@@ -49,6 +57,12 @@ export function PenugasanDetailPage() {
   }
 
   const lewatDeadline = new Date(p.deadline).getTime() < Date.now();
+  // Aturan pengumpulan (masukan PCM Sep 2026 slide 8):
+  // - belum dinilai → berkas boleh diganti; sebelum deadline juga boleh
+  //   DIBATALKAN (kembali ke "Belum dikumpulkan")
+  // - sudah dinilai → terkunci; revisi lewat Tim Program
+  const graded = p.hasil_status === "graded";
+  const canBatal = p.hasil_status === "submitted" && !lewatDeadline;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -115,6 +129,7 @@ export function PenugasanDetailPage() {
               Lampiran soal
             </a>
           )}
+          <DeadlineCalendarLink p={p} />
         </CardContent>
       </Card>
 
@@ -159,9 +174,16 @@ export function PenugasanDetailPage() {
                       {p.nilai}/{p.nilai_maks}
                     </span>
                   </div>
-                  {p.feedback && (
+                  {/* Catatan penilai selalu ditampilkan (slide 16) — kosong pun
+                      diberi keterangan supaya beswan tahu fiturnya ada */}
+                  <div className="text-xs text-muted-foreground">Catatan penilai:</div>
+                  {p.feedback ? (
                     <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs italic">
                       “{p.feedback}”
+                    </p>
+                  ) : (
+                    <p className="text-xs italic text-muted-foreground">
+                      Belum ada catatan tertulis dari penilai.
                     </p>
                   )}
                 </div>
@@ -171,10 +193,70 @@ export function PenugasanDetailPage() {
             <p className="text-muted-foreground">Kamu belum mengumpulkan tugas ini.</p>
           )}
 
-          {/* Form upload / kumpulkan ulang */}
+          {/* Sudah dinilai → tidak bisa ganti/batal dari sini */}
+          {graded && (
+            <p className="text-xs text-muted-foreground">
+              Tugas sudah dinilai, berkas terkunci. Hubungi Tim Program GBB bila perlu revisi.
+            </p>
+          )}
+
+          {/* Batalkan pengumpulan — hanya sebelum deadline & belum dinilai */}
+          {canBatal && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2">
+              {confirmBatal ? (
+                <>
+                  <span className="text-xs text-muted-foreground">
+                    Berkas yang sudah dikirim akan dihapus dan status kembali “Belum dikumpulkan”.
+                    Yakin?
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={batalMutation.isPending}
+                    onClick={() =>
+                      batalMutation.mutate(p.id, { onSuccess: () => setConfirmBatal(false) })
+                    }
+                  >
+                    {batalMutation.isPending ? "Membatalkan…" : "Ya, Batalkan"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={batalMutation.isPending}
+                    onClick={() => setConfirmBatal(false)}
+                  >
+                    Tidak
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs text-muted-foreground">
+                    Salah kirim? Kamu bisa membatalkan pengumpulan atau langsung mengganti berkas
+                    di bawah, selama deadline belum lewat.
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setConfirmBatal(true)}
+                  >
+                    <Undo2 className="size-4" />
+                    Batalkan Pengumpulan
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Form upload / ganti berkas — disembunyikan setelah dinilai */}
+          {!graded && (
           <form onSubmit={handleSubmit} className="grid gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="pg-file">File jawaban (.pdf, .doc, .docx, .zip)</Label>
+              <Label htmlFor="pg-file">
+                {p.hasil_status ? "Ganti berkas jawaban" : "File jawaban"} (.pdf, .doc, .docx, .zip)
+              </Label>
               <FileDropzone
                 id="pg-file"
                 accept=".pdf,.doc,.docx,.zip"
@@ -194,11 +276,12 @@ export function PenugasanDetailPage() {
                 {kumpulMutation.isPending
                   ? "Mengunggah…"
                   : p.hasil_status
-                    ? "Kumpulkan Ulang"
+                    ? "Ganti Berkas"
                     : "Kumpulkan"}
               </Button>
             </div>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

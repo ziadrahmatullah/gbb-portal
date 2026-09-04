@@ -64,12 +64,18 @@ export interface UpdateLibraryReq {
   tags?: string;
 }
 
+// Status usulan (FEpromt32): pending = Menunggu Review, approved = Disetujui,
+// rejected = Ditolak; "reviewed" = status lama sebelum ada keputusan.
+export type TopikUsulanStatus = "pending" | "reviewed" | "approved" | "rejected";
+
 export interface TopikUsulan {
   id: number;
   beswan_id: number;
   nama_beswan: string;
   topik_usulan: string;
-  status: string; // pending | reviewed
+  status: string; // TopikUsulanStatus
+  catatan?: string | null; // catatan PCM, tampil juga di portal beswan
+  created_at?: string;
 }
 
 export interface LibraryStats {
@@ -184,8 +190,15 @@ export async function getTopikUsulanList(params: ListParams = {}) {
   return toPaged(res);
 }
 
-export async function updateTopikUsulanStatus(id: number, status: "pending" | "reviewed") {
-  const res = await apiClient.put<TopikUsulan>(`/internal/kurikulum/topik-usulan/${id}`, { status });
+export async function updateTopikUsulanStatus(
+  id: number,
+  status: TopikUsulanStatus,
+  catatan?: string
+) {
+  const res = await apiClient.put<TopikUsulan>(`/internal/kurikulum/topik-usulan/${id}`, {
+    status,
+    ...(catatan !== undefined ? { catatan } : {}),
+  });
   return res.data;
 }
 

@@ -58,6 +58,9 @@ export function getNotifikasiTarget(n: Notifikasi): string | null {
       return "/panel/penugasan";
     case "mentor_request":
       return "/panel/mentor";
+    // FEpromt32: keputusan usulan topik (disetujui/ditolak) → bagian "Usulanku" di Library
+    case "topik_usulan":
+      return "/panel/library";
     default:
       return null;
   }

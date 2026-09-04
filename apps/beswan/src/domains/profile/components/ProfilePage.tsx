@@ -1,14 +1,26 @@
 import { useMemo, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
-import { FileText, GraduationCap, Save, UserRound } from "lucide-react";
+import type { ChangeEvent, FocusEvent, FormEvent } from "react";
+import {
+  CalendarSync,
+  Check,
+  Copy,
+  FileText,
+  GraduationCap,
+  KeyRound,
+  Save,
+  UserRound,
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   Card,
   CardAction,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -36,8 +48,15 @@ import {
 } from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import { useMyDashboard } from "@/domains/beranda/hooks/useBeranda";
-import { useMyIPK, useMyProfile, useUpdateProfile, useUpsertIPK } from "../hooks/useProfile";
+import {
+  useCreateCalendarFeed,
+  useMyIPK,
+  useMyProfile,
+  useUpdateProfile,
+  useUpsertIPK,
+} from "../hooks/useProfile";
 import type { MyIPK } from "../services";
+import { ChangePasswordDialog } from "./ChangePasswordDialog";
 
 function ReadOnlyField({ label, value }: { label: string; value?: string }) {
   return (
@@ -164,6 +183,123 @@ function IPKDialog({
   );
 }
 
+// Halaman "Tambahkan dari URL" di Google Calendar
+const GCAL_ADD_BY_URL = "https://calendar.google.com/calendar/u/0/r/settings/addbyurl";
+
+// Langganan kalender ICS (masukan PCM Sep 2026, FEpromt29 §3): sekali tempel
+// di Google Calendar, event & deadline penugasan masuk otomatis. URL hanya
+// tampil SEKALI setelah dibuat — backend menyimpan hash token saja, dan
+// membuat ulang mematikan tautan lama. `aktif` = kalender_aktif dari profil
+// (FEpromt30): beswan sudah pernah membuat tautan.
+function CalendarSyncCard({ aktif }: { aktif: boolean }) {
+  const create = useCreateCalendarFeed();
+  const [url, setUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handleCreate = () =>
+    create.mutate(undefined, {
+      onSuccess: (u) => {
+        setUrl(u);
+        setCopied(false);
+      },
+    });
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      toast.error("Gagal menyalin — salin manual dari kotak tautan");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <CalendarSync className="size-5 text-primary" />
+          Sinkron ke Google Calendar
+        </CardTitle>
+        <CardDescription>
+          Tempel tautan langganan ini sekali di Google Calendar, maka jadwal event dan deadline
+          penugasanmu masuk otomatis sebagai pengingat.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        {url ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                readOnly
+                value={url}
+                onFocus={(e: FocusEvent<HTMLInputElement>) => e.currentTarget.select()}
+                className="min-w-0 flex-1 font-mono text-xs"
+                aria-label="Tautan langganan kalender"
+              />
+              <Button type="button" variant="outline" onClick={handleCopy}>
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {copied ? "Tersalin" : "Salin"}
+              </Button>
+            </div>
+            <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+              <li>
+                Buka{" "}
+                <a
+                  href={GCAL_ADD_BY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Google Calendar › Tambahkan dari URL
+                </a>
+                .
+              </li>
+              <li>
+                Tempel tautan di atas, lalu klik{" "}
+                <span className="font-medium text-foreground">Tambahkan kalender</span>.
+              </li>
+              <li>Selesai — Google memperbarui kalender ini sendiri tiap ±12–24 jam.</li>
+            </ol>
+            <p className="text-xs text-muted-foreground">
+              Tautan ini hanya ditampilkan sekali. Membuat tautan baru mematikan tautan lama.
+            </p>
+          </>
+        ) : aktif ? (
+          <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+              Langganan aktif
+            </Badge>
+            <span>
+              Tautan langganan sudah pernah dibuat. Membuat tautan baru mematikan yang lama —
+              perbarui langganan di Google Calendar-mu setelahnya.
+            </span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">
+            Tautan bersifat pribadi (berisi token akunmu) dan hanya ditampilkan sekali saat
+            dibuat — simpan di tempat aman.
+          </p>
+        )}
+      </CardContent>
+      <CardFooter>
+        <Button
+          type="button"
+          variant={url || aktif ? "outline" : "default"}
+          onClick={handleCreate}
+          disabled={create.isPending}
+        >
+          <CalendarSync className="size-4" />
+          {create.isPending
+            ? "Membuat…"
+            : url || aktif
+              ? "Buat tautan baru"
+              : "Buat tautan langganan"}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 export function ProfilePage() {
   const { data: profile, isLoading } = useMyProfile();
   const { data: dashboard } = useMyDashboard();
@@ -173,6 +309,8 @@ export function ProfilePage() {
   const [hp, setHp] = useState<string | null>(null); // null = belum diedit, pakai nilai server
   const [jurusan, setJurusan] = useState<string | null>(null);
   const [tahunMasuk, setTahunMasuk] = useState<string | null>(null);
+  const [emailPemulihan, setEmailPemulihan] = useState<string | null>(null);
+  const [pwdOpen, setPwdOpen] = useState(false);
   const [foto, setFoto] = useState<File | undefined>();
   const [cv, setCv] = useState<File | undefined>();
   const [ipkDialog, setIpkDialog] = useState<{
@@ -192,8 +330,17 @@ export function ProfilePage() {
   const hpValue = hp ?? profile?.hp ?? "";
   const jurusanValue = jurusan ?? profile?.jurusan ?? "";
   const tahunValue = tahunMasuk ?? (profile?.tahun_masuk ? String(profile.tahun_masuk) : "");
+  // Field email pemulihan tampil hanya bila backend sudah mengirim key-nya
+  // (FEpromt29) — sebelum itu input akan tersimpan ke mana-mana, jadi disembunyikan
+  const emailPemulihanSupported = !!profile && "email_pemulihan" in profile;
+  const emailPemulihanValue = emailPemulihan ?? profile?.email_pemulihan ?? "";
   const dirty =
-    hp !== null || jurusan !== null || tahunMasuk !== null || foto !== undefined || cv !== undefined;
+    hp !== null ||
+    jurusan !== null ||
+    tahunMasuk !== null ||
+    emailPemulihan !== null ||
+    foto !== undefined ||
+    cv !== undefined;
 
   const handleSave = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -203,6 +350,7 @@ export function ProfilePage() {
         // Kirim hanya yang disentuh; tahun kosong → 0 = dikosongkan di BE
         jurusan: jurusan ?? undefined,
         tahun_masuk: tahunMasuk !== null ? (tahunMasuk ? Number(tahunMasuk) : 0) : undefined,
+        email_pemulihan: emailPemulihan ?? undefined,
         foto,
         cv,
       },
@@ -211,6 +359,7 @@ export function ProfilePage() {
           setHp(null);
           setJurusan(null);
           setTahunMasuk(null);
+          setEmailPemulihan(null);
           setFoto(undefined);
           setCv(undefined);
         },
@@ -267,6 +416,26 @@ export function ProfilePage() {
             <p className="text-xs text-muted-foreground">
               Nama, NIM, dan email hanya bisa diubah oleh Tim Program GBB.
             </p>
+
+            {/* Email pemulihan/alternatif (masukan PCM Sep 2026) — untuk
+                memulihkan akun & salinan notifikasi bila email utama bermasalah */}
+            {emailPemulihanSupported && (
+              <div className="grid gap-2">
+                <Label htmlFor="pf-email-pemulihan">Email Pemulihan / Alternatif</Label>
+                <Input
+                  id="pf-email-pemulihan"
+                  type="email"
+                  value={emailPemulihanValue}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmailPemulihan(e.target.value)}
+                  placeholder="email pribadi, mis. kamu@gmail.com"
+                  className="sm:max-w-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Dipakai untuk memulihkan akun dan menerima salinan notifikasi bila email
+                  utama (kampus) bermasalah.
+                </p>
+              </div>
+            )}
 
             {/* Profil akademik — dipakai Tim Program untuk membaca analitik per
                 jurusan & tingkat. Isi tahun masuk; semester dihitung otomatis. */}
@@ -333,10 +502,16 @@ export function ProfilePage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-wrap gap-2">
             <Button type="submit" disabled={update.isPending || !dirty || !hpValue.trim()}>
               <Save className="size-4" />
               {update.isPending ? "Menyimpan…" : "Simpan Perubahan"}
+            </Button>
+            {/* Ganti password juga dari halaman Profile (masukan PCM Sep 2026),
+                selain dari dropdown user di topbar */}
+            <Button type="button" variant="outline" onClick={() => setPwdOpen(true)}>
+              <KeyRound className="size-4" />
+              Ganti Password
             </Button>
           </CardFooter>
         </Card>
@@ -428,6 +603,11 @@ export function ProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Sinkron kalender (masukan PCM Sep 2026) ── */}
+      <CalendarSyncCard aktif={!!profile?.kalender_aktif} />
+
+      {pwdOpen && <ChangePasswordDialog onClose={() => setPwdOpen(false)} />}
 
       {ipkDialog && (
         <IPKDialog

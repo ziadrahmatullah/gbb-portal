@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileCheck,
   FileText,
+  Lightbulb,
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -40,6 +41,7 @@ const NOTIF_TIPE: Record<string, LucideIcon> = {
   hasil: FileCheck,
   laporan: FileText,
   mentor_request: UserRound,
+  topik_usulan: Lightbulb, // FEpromt32: keputusan usulan topik
 };
 
 // Waktu relatif bahasa Indonesia via Intl — tidak ada dayjs/date-fns di repo

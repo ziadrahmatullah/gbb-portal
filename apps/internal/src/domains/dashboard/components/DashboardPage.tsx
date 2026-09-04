@@ -38,6 +38,7 @@ import {
   useDashboardTrendDonatur,
 } from "../hooks/useDashboard";
 import { StatCard } from "@/shared/components/StatCard";
+import { AttentionRequiredCard, BeswanListDialog } from "./AttentionRequiredCard";
 import {
   CHART_NEUTRAL,
   CHART_SERIES,
@@ -167,15 +168,40 @@ function EventTab({ periodeId }: { periodeId?: string }) {
 function AnalitikTab({ periodeId }: { periodeId?: string }) {
   const { data, isLoading } = useDashboardAnalitik(periodeId);
   const progress = data?.progress_beswan ?? [];
+  // Kartu Avg Kehadiran interaktif (masukan PCM Sep 2026 slide 17): hover =
+  // jumlah beswan di bawah rata-rata, klik = daftar namanya
+  const avgKehadiran = data?.avg_kehadiran ?? 0;
+  const belowAvg = progress
+    .filter((p) => p.hadir_persen < avgKehadiran)
+    .sort((a, b) => a.hadir_persen - b.hadir_persen);
+  const [showBelowAvg, setShowBelowAvg] = useState(false);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Beswan Aktif" value={formatCount(data?.beswan_aktif)} loading={isLoading} />
-        <StatCard icon={BarChart3} label="Avg Kehadiran" value={formatPercent(data?.avg_kehadiran)} loading={isLoading} />
+        <StatCard
+          icon={BarChart3}
+          label="Avg Kehadiran"
+          value={formatPercent(data?.avg_kehadiran)}
+          loading={isLoading}
+          sub={isLoading ? undefined : `${belowAvg.length} beswan di bawah rata-rata`}
+          title={`${belowAvg.length} beswan di bawah rata-rata — klik untuk melihat daftarnya`}
+          onClick={() => setShowBelowAvg(true)}
+        />
         <StatCard icon={GraduationCap} label="Avg IPK" value={formatIPK(data?.avg_ipk)} loading={isLoading} />
         <StatCard icon={ClipboardList} label="Refleksi On-time" value={formatPercent(data?.refleksi_ontime)} loading={isLoading} />
       </div>
+      <BeswanListDialog
+        open={showBelowAvg}
+        onClose={() => setShowBelowAvg(false)}
+        title="Beswan di bawah rata-rata kehadiran"
+        description={`Rata-rata kehadiran ${formatPercent(avgKehadiran)} — ${belowAvg.length} beswan di bawahnya. Klik nama untuk membuka detail.`}
+        rows={belowAvg}
+        renderMeta={(p) => `${Math.round(p.hadir_persen)}%`}
+      />
+      {/* Widget Perlu Perhatian (slide 18) — indikator dari progress_beswan */}
+      <AttentionRequiredCard progress={progress} loading={isLoading} />
       <div className="grid lg:grid-cols-2 gap-4">
         <ChartLinePersen
           title="Tren Kehadiran /bulan"

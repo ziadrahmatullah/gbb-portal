@@ -56,3 +56,11 @@ export async function kumpulPenugasan(id: number, file: File) {
   const res = await apiClient.post(`/beswan/penugasan/${id}/kumpul`, form);
   return res.message;
 }
+
+// Batalkan pengumpulan (masukan PCM Sep 2026 slide 8) — hanya bila status
+// hasil "submitted" dan deadline belum lewat; hasil dihapus sehingga beswan
+// kembali ke "Belum dikumpulkan". Endpoint diminta ke BE lewat FEpromt32.
+export async function batalkanPengumpulan(id: number) {
+  const res = await apiClient.delete(`/beswan/penugasan/${id}/kumpul`);
+  return res.message;
+}

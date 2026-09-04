@@ -2,7 +2,20 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { CheckCircle2, FileText, Paperclip, Save, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { Button, Card, CardContent, FileDropzone, Input, Label, Textarea } from "@gbb/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  FileDropzone,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from "@gbb/ui";
 import { assetUrl } from "@/domains/beranda/services";
 import { parseJSONString } from "../services";
 import type { Kondisi, OpsiPilihan, Pertanyaan, RefleksiRes } from "../services";
@@ -14,7 +27,16 @@ interface Props {
   periodeId: number;
   bulan: number;
   tahun: number;
+  // Nama pemilik akun → jawaban otomatis pertanyaan kode "nama_lengkap"
+  namaLengkap: string;
+  // Label bulan terpilih di header → default pertanyaan kode "periode_bulan"
+  bulanLabel?: string;
 }
+
+// Kode pertanyaan seed backend (migration/seed.go) yang diperlakukan khusus —
+// kode adalah identifier stabil, aman dirujuk dari FE.
+const NAMA_KODE = "nama_lengkap";
+const BULAN_KODE = "periode_bulan";
 
 function parseFileUrls(nilai?: string): string[] {
   const parsed = parseJSONString<string[]>(nilai);
@@ -130,7 +152,15 @@ function FileUploadField({
   );
 }
 
-export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: Props) {
+export function RefleksiForm({
+  pertanyaan,
+  existing,
+  periodeId,
+  bulan,
+  tahun,
+  namaLengkap,
+  bulanLabel,
+}: Props) {
   const saveDraft = useSaveDraft();
   const submit = useSubmitRefleksi();
   const upload = useUploadDokumentasi();
@@ -139,6 +169,13 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     const init: Record<number, string> = {};
     for (const j of existing?.jawaban ?? []) init[j.pertanyaan_id] = j.nilai;
+    // "Periode laporan bulan" default mengikuti bulan yang dipilih di header
+    // (masih bisa diganti beswan); hanya bila belum pernah dijawab
+    const bulanQ = pertanyaan.find((q) => q.kode === BULAN_KODE);
+    if (bulanQ && !init[bulanQ.id] && bulanLabel) {
+      const pilihan = parseJSONString<OpsiPilihan>(bulanQ.opsi)?.pilihan ?? [];
+      if (pilihan.includes(bulanLabel)) init[bulanQ.id] = bulanLabel;
+    }
     return init;
   });
   const [pendingFiles, setPendingFiles] = useState<Record<number, File[]>>({});
@@ -151,11 +188,22 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
     return m;
   }, [pertanyaan]);
 
+  // Jawaban OTOMATIS yang selalu menimpa state: nama lengkap dari akun (PCM:
+  // beswan tidak perlu menulis ulang namanya). Dihitung saat render, bukan
+  // disimpan di state, supaya tetap benar walau profil termuat setelah mount.
+  const autoAnswers = useMemo(() => {
+    const m: Record<number, string> = {};
+    const namaId = kodeToId[NAMA_KODE];
+    if (namaId != null && namaLengkap.trim()) m[namaId] = namaLengkap.trim();
+    return m;
+  }, [kodeToId, namaLengkap]);
+  const effective = useMemo(() => ({ ...answers, ...autoAnswers }), [answers, autoAnswers]);
+
   const isVisible = (q: Pertanyaan): boolean => {
     const kondisi = parseJSONString<Kondisi>(q.kondisi);
     if (!kondisi) return true;
     const depId = kodeToId[kondisi.depends_on_kode];
-    return depId != null && answers[depId] === kondisi.equals;
+    return depId != null && effective[depId] === kondisi.equals;
   };
 
   const setAnswer = (qid: number, nilai: string) =>
@@ -183,15 +231,18 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
     return merged;
   };
 
-  const buildPayload = (merged: Record<number, string>) => ({
-    periode_id: periodeId,
-    bulan,
-    tahun,
-    // Hanya jawaban terisi & pertanyaan yang tampil (kondisi terpenuhi)
-    jawaban: pertanyaan
-      .filter((q) => isVisible(q) && isFilled(q, merged))
-      .map((q) => ({ pertanyaan_id: q.id, nilai: merged[q.id] })),
-  });
+  const buildPayload = (merged: Record<number, string>) => {
+    const all = { ...merged, ...autoAnswers };
+    return {
+      periode_id: periodeId,
+      bulan,
+      tahun,
+      // Hanya jawaban terisi & pertanyaan yang tampil (kondisi terpenuhi)
+      jawaban: pertanyaan
+        .filter((q) => isVisible(q) && isFilled(q, all))
+        .map((q) => ({ pertanyaan_id: q.id, nilai: all[q.id] })),
+    };
+  };
 
   const handleDraft = async () => {
     setSubmitError("");
@@ -241,7 +292,8 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
     <div className="space-y-4">
       {pertanyaan.filter(isVisible).map((q, idx) => {
         const opsi = parseJSONString<OpsiPilihan>(q.opsi) ?? {};
-        const value = answers[q.id] ?? "";
+        const value = effective[q.id] ?? "";
+        const isAuto = q.id in autoAnswers;
         return (
           <Card key={q.id} className="gap-2 py-4">
             <CardContent className="space-y-2 px-4">
@@ -253,14 +305,22 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
               </span>
             </Label>
 
-            {q.field_type === "short_text" && (
-              <Input
-                id={`q-${q.id}`}
-                value={value}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setAnswer(q.id, e.target.value)}
-                disabled={busy}
-              />
-            )}
+            {q.field_type === "short_text" &&
+              (isAuto ? (
+                <>
+                  <Input id={`q-${q.id}`} value={value} readOnly disabled className="bg-muted/50" />
+                  <p className="text-xs text-muted-foreground">
+                    Terisi otomatis dari akunmu — hubungi Tim Program GBB bila nama tidak sesuai.
+                  </p>
+                </>
+              ) : (
+                <Input
+                  id={`q-${q.id}`}
+                  value={value}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setAnswer(q.id, e.target.value)}
+                  disabled={busy}
+                />
+              ))}
 
             {q.field_type === "long_text" && (
               <Textarea
@@ -272,7 +332,28 @@ export function RefleksiForm({ pertanyaan, existing, periodeId, bulan, tahun }: 
               />
             )}
 
-            {(q.field_type === "dropdown" || q.field_type === "single_choice") && (
+            {/* dropdown = Select sungguhan (masukan PCM Sep 2026: deretan radio
+                12 bulan terlalu ramai); single_choice tetap pilihan radio */}
+            {q.field_type === "dropdown" && (
+              <Select
+                value={value}
+                onValueChange={(v: string) => setAnswer(q.id, v)}
+                disabled={busy}
+              >
+                <SelectTrigger id={`q-${q.id}`} className="w-full sm:w-64">
+                  <SelectValue placeholder="Pilih…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(opsi.pilihan ?? []).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {q.field_type === "single_choice" && (
               <div className="flex flex-wrap gap-2">
                 {(opsi.pilihan ?? []).map((p) => (
                   <label

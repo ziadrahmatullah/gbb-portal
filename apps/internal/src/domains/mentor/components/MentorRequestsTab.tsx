@@ -1,7 +1,16 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
-import { Badge, SearchableSelect, Skeleton, cn } from "@gbb/ui";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, RefreshCcw } from "lucide-react";
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  SearchableSelect,
+  Skeleton,
+  cn,
+} from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { hasAnyRole } from "@/shared/constants/roles";
 import { Button } from "@/shared/components/ui/button";
@@ -58,21 +67,11 @@ function RequestStatusBadge({ status }: { status: string }) {
 const REQUEST_STATUS_ORDER = ["pending", "matched", "done"] as const;
 export type RequestStatus = (typeof REQUEST_STATUS_ORDER)[number];
 
-const THUMB_CLASS: Record<RequestStatus, string> = {
-  pending: "bg-yellow-500/15 border border-yellow-500/40",
-  matched: "bg-blue-500/15 border border-blue-500/40",
-  done: "bg-primary",
-};
-const ACTIVE_LABEL_CLASS: Record<RequestStatus, string> = {
-  pending: "text-yellow-700 dark:text-yellow-400",
-  matched: "text-blue-700 dark:text-blue-400",
-  done: "text-primary-foreground",
-};
-
-// Slider 3 segmen pending/matched/done. Klik "matched" TIDAK langsung PUT —
-// pemanggil membuka dialog matching (mentor wajib dipilih); "done" hanya bisa
-// bila request sudah punya mentor.
-function RequestStatusSlider({
+// Kontrol status: badge status AKTIF saja + menu pilihan. Menggantikan slider
+// 3 segmen yang labelnya tumpang-tindih di kolom sempit (masukan PCM Sep 2026).
+// Pilih "matched" TIDAK langsung PUT — pemanggil membuka dialog matching
+// (mentor wajib dipilih); "done" hanya bisa bila request sudah punya mentor.
+function RequestStatusMenu({
   request,
   disabled,
   onSelect,
@@ -81,55 +80,46 @@ function RequestStatusSlider({
   disabled?: boolean;
   onSelect: (status: RequestStatus) => void;
 }) {
-  const idx = Math.max(0, REQUEST_STATUS_ORDER.indexOf(request.status as RequestStatus));
   const canGo = (s: RequestStatus) => {
     if (s === request.status) return false;
     if (s === "done") return !!request.mentor_id;
     return true;
   };
   return (
-    <div
-      role="radiogroup"
-      className="relative grid w-fit grid-cols-3 items-center rounded-full border bg-muted p-0.5 text-xs font-medium select-none"
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-full transition-all duration-200",
-          THUMB_CLASS[REQUEST_STATUS_ORDER[idx]]
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <button
+          type="button"
+          title="Ubah status"
+          className="inline-flex items-center gap-1 rounded-full disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RequestStatusBadge status={request.status} />
+          <ChevronDown className="size-3.5 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-40">
+        {REQUEST_STATUS_ORDER.map((s) => {
+          const isCurrent = s === request.status;
+          const allowed = canGo(s);
+          return (
+            <DropdownMenuItem
+              key={s}
+              disabled={!isCurrent && !allowed}
+              onSelect={() => allowed && onSelect(s)}
+              className="justify-between capitalize"
+            >
+              {s}
+              {isCurrent && <Check className="size-3.5" />}
+            </DropdownMenuItem>
+          );
+        })}
+        {!request.mentor_id && (
+          <p className="px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
+            Matching mentor dulu sebelum menandai selesai
+          </p>
         )}
-        style={{ transform: `translateX(${idx * 100}%)` }}
-      />
-      {REQUEST_STATUS_ORDER.map((s) => {
-        const isCurrent = s === request.status;
-        const allowed = canGo(s);
-        return (
-          <button
-            key={s}
-            type="button"
-            role="radio"
-            aria-checked={isCurrent}
-            disabled={disabled || (!isCurrent && !allowed)}
-            title={
-              s === "done" && !request.mentor_id
-                ? "Matching mentor dulu sebelum menandai selesai"
-                : undefined
-            }
-            onClick={() => allowed && onSelect(s)}
-            className={cn(
-              "relative z-10 rounded-full px-2 py-0.5 capitalize transition-colors",
-              isCurrent
-                ? ACTIVE_LABEL_CLASS[s]
-                : allowed
-                  ? "text-muted-foreground hover:text-foreground cursor-pointer"
-                  : "text-muted-foreground/40 cursor-not-allowed"
-            )}
-          >
-            {s}
-          </button>
-        );
-      })}
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -238,7 +228,7 @@ export function MentorRequestsTab() {
   });
   const updateMutation = useUpdateMentorRequest();
 
-  // Klik segmen slider: "matched" lewat dialog (mentor wajib), sisanya PUT langsung
+  // Pilih status dari menu: "matched" lewat dialog (mentor wajib), sisanya PUT langsung
   const handleStatusSelect = (r: MentorRequestRes, s: RequestStatus) => {
     if (s === "matched") {
       setMatching(r);
@@ -283,7 +273,7 @@ export function MentorRequestsTab() {
               <TableHead>Curhat / Clue</TableHead>
               <TableHead className="w-44">Mentor</TableHead>
               <TableHead className="w-28">Masuk</TableHead>
-              <TableHead className="w-56">Status</TableHead>
+              <TableHead className="w-36">Status</TableHead>
               <TableHead className="w-36 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -319,7 +309,7 @@ export function MentorRequestsTab() {
                   <TableCell className="text-sm">{formatTanggal(r.created_at)}</TableCell>
                   <TableCell>
                     {canAct ? (
-                      <RequestStatusSlider
+                      <RequestStatusMenu
                         request={r}
                         disabled={updateMutation.isPending}
                         onSelect={(s) => handleStatusSelect(r, s)}

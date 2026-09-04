@@ -15,6 +15,14 @@ export interface MyProfile {
   jurusan?: string;
   tahun_masuk?: number;
   semester?: number;
+  // FEpromt29 — email pemulihan/alternatif (opsional, masukan PCM Sep 2026).
+  // Key SELALU ada di response begitu backend rilis ("" bila belum diisi);
+  // ProfilePage memakai kehadiran key ini untuk menampilkan field-nya, jadi
+  // FE aman dideploy lebih dulu.
+  email_pemulihan?: string;
+  // FEpromt30 — true bila beswan sudah pernah membuat tautan langganan ICS
+  // (calendar_token_hash terisi); dipakai kartu Sinkron Kalender di Profile
+  kalender_aktif?: boolean;
 }
 
 export async function getMyProfile() {
@@ -28,12 +36,14 @@ export async function updateMyProfile(input: {
   hp: string;
   jurusan?: string;
   tahun_masuk?: number; // 0 = kosongkan
+  email_pemulihan?: string; // "" = kosongkan
   foto?: File;
   cv?: File;
 }) {
   const fd = new FormData();
   fd.append("hp", input.hp);
   if (input.jurusan !== undefined) fd.append("jurusan", input.jurusan);
+  if (input.email_pemulihan !== undefined) fd.append("email_pemulihan", input.email_pemulihan);
   if (input.tahun_masuk !== undefined) fd.append("tahun_masuk", String(input.tahun_masuk));
   if (input.foto) fd.append("foto", input.foto);
   if (input.cv) fd.append("cv", input.cv);
@@ -82,4 +92,13 @@ export async function upsertMyIPK(input: {
   if (input.transkrip) fd.append("transkrip", input.transkrip);
   const res = await apiClient.put<MyIPK>("/beswan/ipk", fd);
   return res.data;
+}
+
+// POST /beswan/kalender/token (FEpromt29 §3) — membuat/memutar token feed ICS
+// untuk langganan Google Calendar. URL hanya dikembalikan SEKALI (backend
+// menyimpan hash token saja); memanggil ulang mematikan tautan lama. Google
+// mengambil GET …/beswan/kalender.ics?token=… tanpa JWT.
+export async function createCalendarFeed() {
+  const res = await apiClient.post<{ url: string }>("/beswan/kalender/token");
+  return res.data?.url ?? "";
 }

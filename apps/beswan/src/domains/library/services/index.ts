@@ -44,3 +44,48 @@ export async function usulTopik(topikUsulan: string) {
 
 export const splitTags = (tags?: string | null) =>
   (tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+
+// ─── Pratinjau online (masukan PCM Sep 2026) ─────────────────────────────
+// Jenis penampil berdasarkan ekstensi file_url: pdf/gambar dirender browser
+// (iframe/img), dokumen Office lewat Google Docs Viewer, selain itu hanya
+// bisa diunduh.
+export type ReaderKind = "pdf" | "image" | "office" | "other";
+
+export function readerKind(url: string): ReaderKind {
+  const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "pdf";
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "image";
+  if (["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext)) return "office";
+  return "other";
+}
+
+export const canReadOnline = (url: string) => readerKind(url) !== "other";
+
+// ─── Usulan topik milik beswan (masukan PCM Sep 2026 slide 9) ────────────
+// GET /beswan/kurikulum/topik-usulan diminta ke BE lewat FEpromt32. Status:
+// pending (Menunggu Review) | approved (Disetujui) | rejected (Ditolak);
+// "reviewed" = status lama sebelum ada keputusan setuju/tolak.
+export interface MyTopikUsulan {
+  id: number;
+  topik_usulan: string;
+  status: string;
+  catatan?: string | null; // catatan PCM untuk beswan, opsional
+  created_at?: string;
+}
+
+export const USULAN_STATUS_LABEL: Record<string, string> = {
+  pending: "Menunggu Review",
+  reviewed: "Sudah Ditinjau",
+  approved: "Disetujui",
+  rejected: "Ditolak",
+};
+
+export async function getMyTopikUsulan() {
+  const res = await apiClient.get<MyTopikUsulan[]>(
+    "/beswan/kurikulum/topik-usulan",
+    { page: 1, limit: 50 },
+    // 404 sebelum BE rilis → bagian "Usulanku" disembunyikan, tanpa toast
+    { silent: true }
+  );
+  return res.data ?? [];
+}

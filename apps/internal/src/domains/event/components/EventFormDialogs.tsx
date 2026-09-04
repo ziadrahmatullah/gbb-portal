@@ -161,6 +161,7 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
   const [form, setForm] = useState({
     nama_event: "",
     tipe: "talkshow",
+    tipe_lain: "",
     format: "online",
     tanggal: "",
     jam_mulai: "",
@@ -198,6 +199,9 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
         topik_id: topikId === NO_TOPIK ? undefined : Number(topikId),
         nama_event: form.nama_event,
         tipe: form.tipe,
+        // Label kustom hanya bermakna untuk tipe "other" (FEpromt29)
+        tipe_lain:
+          form.tipe === "other" && form.tipe_lain.trim() ? form.tipe_lain.trim() : undefined,
         format: form.format,
         lokasi: form.lokasi || undefined,
         tanggal: `${form.tanggal}T00:00:00Z`,
@@ -236,20 +240,31 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
             </div>
             <div className="grid gap-2">
               <Label>Topik kurikulum (opsional)</Label>
+              {/* Tetap bisa dibuka walau periode belum dipilih — sebelumnya
+                  disabled diam-diam dan dilaporkan PCM sebagai "tidak bisa
+                  diklik". Tanpa periode: daftar kosong + pesan alasannya. */}
               <SearchableSelect
                 value={topikId}
                 onChange={(v: string) => setTopikId(v || NO_TOPIK)}
-                options={[
-                  { id: NO_TOPIK, name: "— (non-kurikulum)" },
-                  ...(topikOptions?.items ?? []).map((t) => ({
-                    id: String(t.id),
-                    name: `${t.urutan}. ${t.judul}`,
-                  })),
-                ]}
-                placeholder="— (non-kurikulum)"
+                options={
+                  periodeId
+                    ? [
+                        { id: NO_TOPIK, name: "— (non-kurikulum)" },
+                        ...(topikOptions?.items ?? []).map((t) => ({
+                          id: String(t.id),
+                          name: `${t.urutan}. ${t.judul}`,
+                        })),
+                      ]
+                    : []
+                }
+                placeholder={periodeId ? "— (non-kurikulum)" : "Pilih periode dulu"}
                 searchPlaceholder="Cari topik…"
-                emptyMessage="Topik tidak ditemukan"
-                disabled={saving || !periodeId}
+                emptyMessage={
+                  periodeId
+                    ? "Topik tidak ditemukan"
+                    : "Pilih periode di sebelah kiri dulu — daftar topik mengikuti periode utama"
+                }
+                disabled={saving}
                 hideClear
               />
             </div>
@@ -291,6 +306,24 @@ export function CreateEventWizard({ open, onClose }: { open: boolean; onClose: (
               </Select>
             </div>
           </div>
+          {/* Tipe "Other": nama tipe bebas (opsional) — masukan PCM Sep 2026 */}
+          {form.tipe === "other" && (
+            <div className="grid gap-2">
+              <Label htmlFor="e-tipe-lain">Nama tipe kustom (opsional)</Label>
+              <Input
+                id="e-tipe-lain"
+                value={form.tipe_lain}
+                onChange={set("tipe_lain")}
+                placeholder="mis. Sharing Session, Bootcamp"
+                maxLength={50}
+                disabled={saving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Menggantikan label “Other” di daftar event &amp; portal beswan. Kosongkan bila
+                tidak perlu.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label htmlFor="e-tanggal">Tanggal</Label>
@@ -404,6 +437,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
   const [form, setForm] = useState({
     nama_event: "",
     tipe: "",
+    tipe_lain: "",
     format: "",
     lokasi: "",
     tanggal: "",
@@ -445,6 +479,7 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
     setForm({
       nama_event: event.nama_event,
       tipe: event.tipe,
+      tipe_lain: event.tipe_lain ?? "",
       format: event.format,
       lokasi: event.lokasi ?? "",
       tanggal: event.tanggal.slice(0, 10),
@@ -508,6 +543,9 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
           ...(pesertaChanged ? { periode_ids: periodeIds.map(Number) } : {}),
           nama_event: form.nama_event,
           tipe: form.tipe,
+          // Dikirim selalu saat "other" (termasuk "" = kosongkan; BE pakai *string,
+          // FEpromt29). Tipe lain → backend mengosongkan tipe_lain sendiri.
+          ...(form.tipe === "other" ? { tipe_lain: form.tipe_lain.trim() } : {}),
           format: form.format,
           lokasi: form.lokasi || undefined,
           tanggal: `${form.tanggal}T00:00:00Z`,
@@ -617,6 +655,23 @@ export function EditEventDialog({ event, onClose }: { event: EventItem | null; o
               </Select>
             </div>
           </div>
+          {form.tipe === "other" && (
+            <div className="grid gap-2">
+              <Label htmlFor="ee-tipe-lain">Nama tipe kustom (opsional)</Label>
+              <Input
+                id="ee-tipe-lain"
+                value={form.tipe_lain}
+                onChange={set("tipe_lain")}
+                placeholder="mis. Sharing Session, Bootcamp"
+                maxLength={50}
+                disabled={saving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Menggantikan label “Other” di daftar event &amp; portal beswan. Kosongkan bila
+                tidak perlu.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div className="col-span-2 grid gap-2 lg:col-span-1">
               <Label htmlFor="ee-tanggal">Tanggal</Label>

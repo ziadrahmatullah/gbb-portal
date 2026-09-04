@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, ClipboardList, FileDown } from "lucide-react";
+import type { MouseEvent } from "react";
+import { CalendarPlus, ChevronLeft, ChevronRight, ClipboardList, FileDown } from "lucide-react";
 import {
   Badge,
   Button,
@@ -12,6 +13,7 @@ import {
   Skeleton,
   cn,
 } from "@gbb/ui";
+import { googleCalendarDeadlineUrl } from "@/shared/lib/googleCalendar";
 import { useMyPenugasanList } from "../hooks/usePenugasan";
 import type { MyPenugasan } from "../services";
 
@@ -78,6 +80,46 @@ export function HasilBadge({ p }: { p: MyPenugasan }) {
     >
       Belum dikumpulkan
     </Badge>
+  );
+}
+
+// Pengingat masih relevan: tugas aktif, belum dikumpulkan, deadline belum lewat
+// (helper modul seperti isOverdue — bukan di badan komponen)
+const needsReminder = (p: MyPenugasan) =>
+  p.status === "aktif" && !p.hasil_status && new Date(p.deadline).getTime() > Date.now();
+
+// Pengingat deadline ke Google Calendar (masukan PCM Sep 2026) — hanya untuk
+// tugas yang masih relevan diingatkan (lihat needsReminder).
+export function DeadlineCalendarLink({ p, compact }: { p: MyPenugasan; compact?: boolean }) {
+  if (!needsReminder(p)) return null;
+  const href = googleCalendarDeadlineUrl({
+    title: `Deadline: ${p.judul} (GBB)`,
+    deadline: p.deadline,
+    details: `${p.kode_penugasan}\n${window.location.origin}/panel/penugasan/${p.id}`,
+  });
+  if (compact) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        title="Ingatkan di Google Calendar"
+        aria-label="Ingatkan di Google Calendar"
+        // stopPropagation: baris pembungkusnya klik-able ke detail
+        onClick={(e: MouseEvent) => e.stopPropagation()}
+        className="text-muted-foreground transition-colors hover:text-primary"
+      >
+        <CalendarPlus className="size-3.5" />
+      </a>
+    );
+  }
+  return (
+    <Button variant="outline" size="sm" asChild>
+      <a href={href} target="_blank" rel="noreferrer">
+        <CalendarPlus className="size-4" />
+        Ingatkan di Google Calendar
+      </a>
+    </Button>
   );
 }
 
@@ -159,6 +201,7 @@ export function PenugasanPage() {
                       <FileDown className="size-3.5" />
                     </a>
                   )}
+                  <DeadlineCalendarLink p={p} compact />
                 </div>
                 <div className="text-xs text-muted-foreground">
                   <span className={cn(isOverdue(p) && "font-medium text-destructive")}>

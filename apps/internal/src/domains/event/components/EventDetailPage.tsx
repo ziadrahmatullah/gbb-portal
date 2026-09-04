@@ -40,6 +40,7 @@ import {
   useUpdateEvent,
   useUpdateEventStatus,
 } from "../hooks/useEvent";
+import { eventTipeLabel } from "../services";
 import type { EventItem } from "../services";
 import { EditEventDialog } from "./EventFormDialogs";
 import { EventStatusBadge, EventStatusDropdown } from "./EventListPage";
@@ -395,7 +396,7 @@ export function EventDetailPage() {
           📅 {formatEventDate(event.tanggal)}
           {event.jam_mulai && ` · ${event.jam_mulai}–${event.jam_selesai || "…"}`}
           {" · "}
-          <span className="capitalize">{event.format}</span>
+          <span className="capitalize">{eventTipeLabel(event)} · {event.format}</span>
           {event.lokasi && ` · ${event.lokasi}`}
         </span>
       </div>

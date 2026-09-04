@@ -8,6 +8,16 @@ import type { ApiEnvelope } from "./apiTypes";
 // supaya jalur import lama tidak putus
 export { ApiError };
 
+// Flag per-request: error TIDAK di-toast — pemanggil menanganinya sendiri.
+// Dipakai fitur yang endpoint-nya mungkin belum ada di backend yang sedang
+// berjalan (deteksi kemampuan lewat 404), supaya halaman tidak memunculkan
+// toast error setiap dibuka.
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    silent?: boolean;
+  }
+}
+
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6099";
 
 // Error ber-status untuk caller yang perlu membedakan kode HTTP
@@ -47,6 +57,7 @@ axiosInstance.interceptors.response.use(
     // Error dari /auth/* (mis. password salah = 401) ditampilkan inline oleh
     // LoginPage — jangan toast, jangan logout, jangan redirect.
     const isAuthRequest = Boolean(error.config?.url?.startsWith("/auth/"));
+    const silent = Boolean(error.config?.silent);
 
     if (!isAuthRequest && status === 401) {
       // Token invalid/kedaluwarsa → sesi berakhir
@@ -60,11 +71,11 @@ axiosInstance.interceptors.response.use(
 
     if (!isAuthRequest && status === 403) {
       // Portal mismatch / kepemilikan ditolak — jangan paksa logout
-      toast.error("Tidak memiliki akses");
+      if (!silent) toast.error("Tidak memiliki akses");
       return Promise.reject(new ApiError(msg, status, data?.data));
     }
 
-    if (!isAuthRequest) {
+    if (!isAuthRequest && !silent) {
       toast.error(msg);
     }
     return Promise.reject(new ApiError(msg, status, data?.data));
@@ -94,8 +105,8 @@ type Params = Record<string, unknown>;
 // Interceptor sudah meng-unwrap response.data, jadi return type method = envelope
 function makeClient(instance: AxiosInstance) {
   return {
-    get: <T = unknown>(path: string, params?: Params) =>
-      instance.get<T, ApiEnvelope<T>>(path, { params }),
+    get: <T = unknown>(path: string, params?: Params, opts?: { silent?: boolean }) =>
+      instance.get<T, ApiEnvelope<T>>(path, { params, silent: opts?.silent }),
     getBlob: (path: string, params?: Params) =>
       instance.get<Blob, Blob>(path, { params, responseType: "blob" }),
     post: <T = unknown>(path: string, body?: unknown) =>

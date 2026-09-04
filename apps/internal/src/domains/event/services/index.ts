@@ -16,6 +16,9 @@ export interface EventItem {
   topik_id?: number | null;
   nama_event: string;
   tipe: string; // talkshow | growth | other
+  // Label kustom event bertipe "other" (masukan PCM Sep 2026, FEpromt29);
+  // kosong/absen = tampilkan "other". Tampilkan lewat eventTipeLabel().
+  tipe_lain?: string | null;
   format: string; // online | offline | hybrid
   lokasi: string;
   tanggal: string;
@@ -52,6 +55,7 @@ export interface CreateEventReq {
   topik_id?: number; // kosongkan = event non-kurikulum
   nama_event: string;
   tipe: string;
+  tipe_lain?: string; // hanya bermakna bila tipe === "other"
   format: string;
   lokasi?: string;
   tanggal: string;
@@ -79,6 +83,9 @@ export interface UpdateEventReq {
   periode_ids?: number[];
   nama_event?: string;
   tipe?: string;
+  // Kehadiran key = set (termasuk "" = kosongkan); tipe selain "other"
+  // otomatis mengosongkan tipe_lain di backend (FEpromt29)
+  tipe_lain?: string;
   format?: string;
   lokasi?: string;
   tanggal?: string;
@@ -91,6 +98,10 @@ export interface UpdateEventReq {
   status?: EventStatus;
   mentors?: AssignMentorReq[];
 }
+
+// Label tipe untuk tampilan: event "other" memakai label kustomnya bila ada
+export const eventTipeLabel = (ev: Pick<EventItem, "tipe" | "tipe_lain">) =>
+  ev.tipe === "other" && ev.tipe_lain?.trim() ? ev.tipe_lain.trim() : ev.tipe;
 
 export interface UpdateEventStatusReq {
   status: EventStatus;

@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
+  CalendarPlus,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
@@ -27,7 +28,9 @@ import {
   Skeleton,
   cn,
 } from "@gbb/ui";
+import { googleCalendarEventUrl } from "@/shared/lib/googleCalendar";
 import { useBeswanEventList, useJoinEvent, useLeaveEvent } from "../hooks/useEvent";
+import { eventTipeLabel } from "../services";
 import type { EventItem } from "../services";
 
 const ALL = "all";
@@ -121,6 +124,45 @@ export function JoinControl({ event }: { event: EventItem }) {
   );
 }
 
+// Tautan "Tambah ke Google Calendar" (masukan PCM Sep 2026) — tanpa OAuth,
+// membuka template acara Google berisi tanggal, jam, lokasi, dan tautan detail
+// event di portal. Disembunyikan untuk event yang sudah selesai/dibatalkan.
+export function AddToCalendarLink({ event, compact }: { event: EventItem; compact?: boolean }) {
+  if (event.status === "done" || event.status === "cancelled") return null;
+  const href = googleCalendarEventUrl({
+    title: `${event.nama_event} (GBB)`,
+    tanggal: event.tanggal,
+    jamMulai: event.jam_mulai,
+    jamSelesai: event.jam_selesai,
+    location: event.lokasi || undefined,
+    details: `${event.kode_event} · ${eventTipeLabel(event)} · ${event.format}\n${window.location.origin}/panel/event/${event.id}`,
+  });
+  if (compact) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        title="Tambah ke Google Calendar"
+        aria-label="Tambah ke Google Calendar"
+        // stopPropagation: berada di dalam kartu/baris yang klik-able
+        onClick={(e: MouseEvent) => e.stopPropagation()}
+        className="text-muted-foreground transition-colors hover:text-primary"
+      >
+        <CalendarPlus className="size-4" />
+      </a>
+    );
+  }
+  return (
+    <Button variant="outline" size="sm" asChild>
+      <a href={href} target="_blank" rel="noreferrer">
+        <CalendarPlus className="size-4" />
+        Tambah ke Google Calendar
+      </a>
+    </Button>
+  );
+}
+
 function EventCard({ event, onClick }: { event: EventItem; onClick: () => void }) {
   return (
     <Card
@@ -141,6 +183,9 @@ function EventCard({ event, onClick }: { event: EventItem; onClick: () => void }
           <CalendarDays className="size-4 shrink-0" />
           {formatTanggal(event.tanggal)}
           {event.jam_mulai && ` · ${event.jam_mulai}–${event.jam_selesai || "…"}`}
+          <span className="ms-auto inline-flex">
+            <AddToCalendarLink event={event} compact />
+          </span>
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="size-4 shrink-0" />
@@ -149,7 +194,7 @@ function EventCard({ event, onClick }: { event: EventItem; onClick: () => void }
         </div>
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
           <Badge variant="outline" className="font-normal capitalize text-muted-foreground">
-            {event.tipe}
+            {eventTipeLabel(event)}
           </Badge>
           <JoinControl event={event} />
         </div>
@@ -179,9 +224,10 @@ function EventRow({ event, onClick }: { event: EventItem; onClick: () => void })
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <AddToCalendarLink event={event} compact />
         <JoinControl event={event} />
         <Badge variant="outline" className="font-normal capitalize text-muted-foreground">
-          {event.tipe}
+          {eventTipeLabel(event)}
         </Badge>
         <EventStatusBadge status={event.status} />
       </div>

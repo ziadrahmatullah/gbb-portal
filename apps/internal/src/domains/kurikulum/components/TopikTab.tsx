@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent, MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -11,8 +13,15 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { Badge, FileDropzone, Skeleton } from "@gbb/ui";
-import { cn } from "@/lib/utils";
+import {
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  FileDropzone,
+  Skeleton,
+} from "@gbb/ui";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { hasAnyRole } from "@/shared/constants/roles";
 import { usePeriodeFilter } from "@/shared/store/usePeriodeFilter";
@@ -83,22 +92,10 @@ export function TopikStatusBadge({ status }: { status: string }) {
 const STATUS_ORDER = ["planned", "ongoing", "done"] as const;
 type TopikStatus = (typeof STATUS_ORDER)[number];
 
-// Warna thumb & label aktif per status — mengikuti warna badge status lama
-// (planned netral, ongoing kuning, done primary)
-const THUMB_CLASS: Record<TopikStatus, string> = {
-  planned: "bg-background border shadow-sm",
-  ongoing: "bg-yellow-500/15 border border-yellow-500/40",
-  done: "bg-primary",
-};
-const ACTIVE_LABEL_CLASS: Record<TopikStatus, string> = {
-  planned: "text-foreground",
-  ongoing: "text-yellow-700 dark:text-yellow-400",
-  done: "text-primary-foreground",
-};
-
-// Slider 3 segmen: semua label di dalam kontrol, thumb geser ke status yang
-// berlaku; klik segmen langsung menyimpan status itu.
-function TopikStatusSlider({
+// Kontrol status: badge status AKTIF + menu pilihan. Menggantikan slider 3
+// segmen yang labelnya tumpang-tindih di kolom sempit (masukan PCM Sep 2026,
+// sama seperti Request Mentor). Pilih status lain → langsung PUT.
+function TopikStatusMenu({
   status,
   disabled,
   onChange,
@@ -107,40 +104,34 @@ function TopikStatusSlider({
   disabled?: boolean;
   onChange: (status: TopikStatus) => void;
 }) {
-  const idx = Math.max(0, STATUS_ORDER.indexOf(status as TopikStatus));
   return (
-    <div
-      role="radiogroup"
-      className="relative grid w-fit grid-cols-3 items-center rounded-full border bg-muted p-0.5 text-xs font-medium select-none"
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-full transition-all duration-200",
-          THUMB_CLASS[STATUS_ORDER[idx]]
-        )}
-        style={{ transform: `translateX(${idx * 100}%)` }}
-      />
-      {STATUS_ORDER.map((s) => (
-        <button
-          key={s}
-          type="button"
-          role="radio"
-          aria-checked={s === status}
-          disabled={disabled}
-          onClick={(e: MouseEvent) => {
-            // Row-nya klik-able ke dialog detail — jangan ikut terbuka
-            e.stopPropagation();
-            if (s !== status) onChange(s);
-          }}
-          className={cn(
-            "relative z-10 rounded-full px-2.5 py-0.5 cursor-pointer transition-colors disabled:pointer-events-none disabled:opacity-50",
-            s === status ? ACTIVE_LABEL_CLASS[s] : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {STATUS_LABEL[s]}
-        </button>
-      ))}
+    // Row-nya klik-able ke halaman detail — klik pada trigger maupun item menu
+    // (portal Radix tetap bubbling di pohon React) jangan ikut membuka detail
+    <div className="inline-flex" onClick={(e: MouseEvent) => e.stopPropagation()}>
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild disabled={disabled}>
+          <button
+            type="button"
+            title="Ubah status topik"
+            className="inline-flex items-center gap-1 rounded-full disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <TopikStatusBadge status={status} />
+            <ChevronDown className="size-3.5 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-36">
+          {STATUS_ORDER.map((s) => (
+            <DropdownMenuItem
+              key={s}
+              onSelect={() => s !== status && onChange(s)}
+              className="justify-between"
+            >
+              {STATUS_LABEL[s]}
+              {s === status && <Check className="size-3.5" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -570,7 +561,7 @@ export function TopikTab() {
               <TableHead>Topik</TableHead>
               <TableHead>Detail</TableHead>
               <TableHead className="w-20">TOR</TableHead>
-              <TableHead className="w-56">Status</TableHead>
+              <TableHead className="w-36">Status</TableHead>
               <TableHead className="w-24 text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -621,7 +612,7 @@ export function TopikTab() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <TopikStatusSlider
+                    <TopikStatusMenu
                       status={t.status}
                       disabled={statusMutation.isPending}
                       onChange={(status) => statusMutation.mutate({ id: t.id, body: { status } })}

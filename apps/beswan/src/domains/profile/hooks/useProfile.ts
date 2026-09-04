@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { changeMyPassword, getMyIPK, getMyProfile, updateMyProfile, upsertMyIPK } from "../services";
+import {
+  changeMyPassword,
+  createCalendarFeed,
+  getMyIPK,
+  getMyProfile,
+  updateMyProfile,
+  upsertMyIPK,
+} from "../services";
 import { BERANDA_KEY } from "@/domains/beranda/hooks/useBeranda";
 import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 
@@ -42,6 +49,18 @@ export function useUpsertIPK() {
       qc.invalidateQueries({ queryKey: [PROFILE_KEY, "ipk"] });
       qc.invalidateQueries({ queryKey: [BERANDA_KEY, "dashboard"] }); // chart IPK beranda
       toast.success("Data akademik tersimpan");
+    },
+  });
+}
+
+export function useCreateCalendarFeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createCalendarFeed,
+    onSuccess: () => {
+      // kalender_aktif di profil berubah jadi true
+      qc.invalidateQueries({ queryKey: [PROFILE_KEY, "me"] });
+      toast.success("Tautan langganan kalender dibuat");
     },
   });
 }

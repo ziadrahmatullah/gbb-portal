@@ -53,6 +53,7 @@ import { useAuthStore } from "@/domains/auth/store/useAuthStore";
 import { hasAnyRole } from "@/shared/constants/roles";
 import { useEventList, useEventStats, useUpdateEventStatus } from "../hooks/useEvent";
 import { formatEventDate } from "../utils";
+import { eventTipeLabel } from "../services";
 import type { EventItem, EventStatus } from "../services";
 import { CreateEventWizard } from "./EventFormDialogs";
 
@@ -234,7 +235,7 @@ function EventGridCard({
         <div className="text-sm text-muted-foreground">
           {formatEventDate(ev.tanggal)} ·{" "}
           <span className="capitalize">
-            {ev.tipe} · {ev.format}
+            {eventTipeLabel(ev)} · {ev.format}
           </span>
           {ev.kapasitas > 0 && ` · Join ${ev.jumlah_join}/${ev.kapasitas}`}
         </div>
@@ -314,7 +315,7 @@ export function EventListPage() {
       {/* Header */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Event Talkshow</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Event</h1>
           <p className="text-muted-foreground">Kelola jadwal, absensi, dan materi event.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -544,7 +545,7 @@ export function EventListPage() {
                   <TableCell>
                     <div className="font-medium">{ev.nama_event}</div>
                     <div className="text-xs text-muted-foreground capitalize">
-                      {ev.tipe} · {ev.format}
+                      {eventTipeLabel(ev)} · {ev.format}
                       {/* Event berkapasitas = beswan harus join (kuota siapa cepat) */}
                       {ev.kapasitas > 0 && (
                         <span className="normal-case">

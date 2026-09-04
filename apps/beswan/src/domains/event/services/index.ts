@@ -18,6 +18,8 @@ export interface EventItem {
   topik_id?: number | null;
   nama_event: string;
   tipe: string; // talkshow | growth | other
+  // Label kustom event bertipe "other" (FEpromt29); tampilkan via eventTipeLabel()
+  tipe_lain?: string | null;
   format: string; // online | offline | hybrid
   lokasi: string;
   tanggal: string;
@@ -41,6 +43,10 @@ export interface EventItem {
   materi_tersedia: boolean;
   status: string; // published | done | cancelled (draft tidak pernah sampai ke sini)
 }
+
+// Label tipe untuk tampilan: event "other" memakai label kustomnya bila ada
+export const eventTipeLabel = (ev: Pick<EventItem, "tipe" | "tipe_lain">) =>
+  ev.tipe === "other" && ev.tipe_lain?.trim() ? ev.tipe_lain.trim() : ev.tipe;
 
 // Param GET /beswan/event: page, limit, periode_id, status, tipe, search.
 // Default backend (tanpa sort_by): urut waktu dibuat, terbaru di atas —
